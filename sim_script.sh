@@ -17,7 +17,7 @@ dataDir=/veritas/upload/OAWG/stage2/vegas2.5
 tableDir=$USERSPACE/tables
 queueDir=$VEGASWORK/queue
 
-cuts4="-cuts=$HOME/cuts/mediumCuts.txt"
+cuts4=""
 cuts5=""
 
 flags4="-G_SimulationMode=1"
@@ -48,7 +48,7 @@ qsubHeader="
 #PBS -V 
 "
 
-while getopts qsc:d:z:n:a:w: flag; do
+while getopts qsc:C:d:z:n:a:w: flag; do
     case $flag in
 	q) 
 	    runMode="qsub";
@@ -58,6 +58,9 @@ while getopts qsc:d:z:n:a:w: flag; do
 	    ;;
 	c) 
 	    cuts4="-cuts=${OPTARG}"
+	    ;;
+	C)
+	    cuts5="-cuts=${OPTARG}"
 	    ;;
 	d) 
 	    subDir=$OPTARG
@@ -113,13 +116,8 @@ for array in $arrays; do
 #		    cuts4="$HOME/cuts/BDT_hfit4cuts.txt"
 		fi
 
-		#sims organized into directories for training 
-		sigDir=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${wobble}wobb
-		if [ ! -d $sigDir ]; then
-		    mkdir $sigDir;
-		fi
 		rootName_4="$processDir/$subDir/${simFileBase}.stage4${extension}.root"
-		rootName_5="$processDir/$subDir/$sigDir/${simFileBase}.stage5${extension}.root"
+		rootName_5="$processDir/$subDir/${simFileBase}.stage5${extension}.root"
 
 		##### STAGE 4 #####
 
@@ -136,7 +134,7 @@ for array in $arrays; do
 			    
 			    qsub <<EOF                                                                                                       
 $qsubHeader   
-#PBS -N ${simName}.stage4${extension}
+#PBS -N ${subDir}_${simFileBase}.stage4${extension}
 #PBS -o $runLog
 #echo "VEGAS job " $PBS_JOBID " started  at: " ` date ` >> $logDir/PBS.txt
 $subscript45 "$stage4cmd" $rootName_4 $simFile $cuts4file
@@ -148,11 +146,15 @@ EOF
 		fi # run stage 4
 		
 		##### STAGE 5 #####
-		
 		if [ $runStage5 == "true" ]; then
-		    runLog="$logDir/$subDir/${simFileBase}.stage5${extension}.txt"
-		    if [[ ! -f $rootName_5 ]]; then #&& [[ -f $rootName_4 ]]; then
-			
+			sigDir=$processDir/$subDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${wobble}wobb
+			if [ ! -d $sigDir ]; then
+			    mkdir $sigDir;
+			fi
+		    if [[ ! -f $sigDir/${simFileBase}.stage5${extension}.root ]]; then #&& [[ -f $rootName_4 ]]; then
+			runLog="$logDir/$subDir/${simFileBase}.stage5${extension}.txt"
+			#sims organized into directories for training 
+
 			stage5cmd="vaStage5 $flags5 $cuts5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 			echo "$stage5cmd"
 			
@@ -162,10 +164,11 @@ EOF
 			    
 			    qsub <<EOF                                                                                                       
 $qsubHeader   
-#PBS -N ${simName}.stage5${extension}
+#PBS -N ${subDir}_${simFileBase}.stage5${extension}
 #PBS -o $runLog 
 echo "VEGAS job " $PBS_JOBID " started at: " ` date ` >> $logDir/PBS.txt
 $subscript45 "$stage5cmd" $rootName_5 $rootName_4 
+mv $rootName_5 $sigDir
 EOF
 			elif [ "$runMode" == "shell" ]; then
 			    $subscript45 "$stage5cmd" $rootName_5 $rootName_4	

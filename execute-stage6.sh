@@ -5,6 +5,7 @@
 # use environment option first if you want to override other variables
 
 #environment=$HOME/environments/bashM87.sh
+#outputDir=config 
 
 #run specific stuff
 BDTcutsFile=$HOME/cuts/BDT_5-16_cuts.txt
@@ -24,6 +25,7 @@ useTestPosition=false
 trashDir=$HOME/.trash
 
 run=true
+logRedirect="" # &>> $logFile
 
 ### process options
 while getopts s:d:n:Bc:l:e:r5 FLAG; do
