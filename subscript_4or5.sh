@@ -31,9 +31,9 @@ done # loop over command line arguments
 
 workDir=$VEGASWORK
 processBaseDir=processed # these should all match parent script
-processDir=$workDir/$processBaseDir/
-rejectDir=$workDir/rejected/
-queueDir=$workDir/queue/
+processDir=$workDir/$processBaseDir
+rejectDir=$workDir/rejected
+queueDir=$workDir/queue
 
 base=${processRoot##*/}
 runName=${base%.root}
@@ -51,15 +51,15 @@ prevSubDir=${directory#*$processBaseDir}
 prevSubDir=${prevSubDir//\//}
 queueFile=${queueDir}/${subDir}_${runName}
 
-trap "rm $queueFile $processRoot; exit 130" 1 2 3 4 5 6
-
-sleep $((RANDOM%10))
-
 if [ -d $logDir ]; then
     logFile=$logDir/${runName}.txt
 else
     echo -e "\e[0;31m Log directory $logDir does not exist!  \e[0m"
 fi
+
+trap "rm $queueFile $processRoot; mv $logFile $rejectDir/; echo \"TRAP!\"; exit 130" 1 2 3 4 5 6
+
+sleep $((RANDOM%10))
 
 date
 hostname  # first entry
@@ -93,7 +93,7 @@ if [ -f $previousRoot ]; then
 else
     echo -e "\e[0;31m$previousRoot does not exist, cannot process $processRoot\e[0m"
     rm $queueFile
-    mv $logFile $rejectDir
+    mv $logFile $rejectDir/
     exit 1 # no success
 fi # previous root file exists 
 
@@ -106,7 +106,7 @@ echo "$cmd"
 
 if [ $completion -ne 0 ]; then
     echo -e "\e[0;31m$processRoot not processed successfully!\e[0m"
-    mv $logFile $rejectDir
+    mv $logFile $rejectDir/
     rm $processRoot
     exit 1
 fi # command unsuccessfully completed

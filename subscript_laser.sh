@@ -53,6 +53,7 @@ if [ -f $logFile ]; then
 fi
 
 trap "rm $scratchFile $laserRoot $queueDir/$runName >> $logFile; mv $logFile $rejectDir; exit 130" 1 2 3 4 5 6
+# clean up if end signal received 
 
 hostname > $logFile # first entry
 root-config --version >> $logFile
@@ -66,12 +67,17 @@ bbCmd="bbcp $dataFile $scratchDir/"
 echo "$bbCmd" >> $logFile
 $bbCmd &>> $logFile
 
+Tstart=`date +%s`
 $cmd $scratchFile $laserRoot &>> $logFile
 completion=$?
+Tend=`date +%s`
 
 rm $queueDir/$runName
+echo "Analysis completed in: (hours:minutes:seconds)"
+date -d@$((Tend-Tstart)) -u +%H:%M:%S >> $logFile
+echo "$scratchFile $laserRoot" >> $logFile
 echo "" >> $logFile
-echo "$cmd $scratchFile $laserRoot" >> $logFile
+echo "$cmd " >> $logFile # $scratchFile $laserRoot 
 
 rm $scratchFile
 

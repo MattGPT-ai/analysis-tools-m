@@ -2,8 +2,6 @@
 
 ### BDT_script.sh processes the files in a logGen format runlist file through the selected stages with the selected options, tailored for Boosted Decision Trees ###
 
-# exceptions that need to be handled include: combined laser files, laser files that are on a different date from runs being processed .. 
-
 ##### SET DEFAULTS #####
 
 priority=0
@@ -25,10 +23,14 @@ weightsDir=5-34_defaults
 trashDir=$HOME/.trash
 
 spectrum=medium
-simulation=Corsika
+simulation=CORSIKA # grisudet
+method=std
 environment=""
+ltVegas=vegasv250rc5
+offset=Alloff
+zenith=LZA
 
-DistanceUpper='0/1.43'
+DistanceUpper=1.43 #DistanceUpper='0/1.43'
 NTubesMin='0/5'
 stage4cuts=auto
 declare -A stg4_size_map
@@ -46,7 +48,7 @@ stg5_cuts_map[loose]="-MeanScaledWidthUpper=1.1 -MeanScaledLengthUpper=1.4"
 stg5_cuts_map[SoftMedium]="-MeanScaledWidthUpper=1.1 -MeanScaledLengthUpper=1.3 -MaxHeightLower=7"
 stg5_cuts_map[hard]="-MeanScaledWidthUpper=1.15 -MeanScaledLengthUpper=1.4"
 
-configFlags4=""
+configFlags4="-OverrideLTCheck=1"
 configFlags5="-Method=VACombinedEventSelection"
 suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile="true"
@@ -63,7 +65,6 @@ applyTimeCuts="true"
 ##bin/sh -f
 #PBS -S /bin/bash
 #PBS -p 0
-
 qsubHeader="
 #PBS -S /bin/bash 
 #PBS -l nodes=1,mem=2gb
@@ -72,6 +73,9 @@ qsubHeader="
 #PBS -V 
 "
 
+n=(0) # number of submits 
+nMax=(1000) 
+
 stage1subDir=stg1
 stage2subDir=stg2
 stage4subDir=stg4
@@ -79,7 +83,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124d:5D:ahbB::s:qre:c:C:p:kd -l disp,BDT:: -n 'process_script.sh' -- $*` 
+args=`getopt -o l124d:5D:ahbB::s:qre:c:C:p:kdn: -l disp,BDT:: -n 'process_script.sh' -- $*` 
 eval set -- $args 
 
 for i; do                  # loop through options
@@ -97,7 +101,7 @@ for i; do                  # loop through options
 	-5) runStage5="true"
        	    shift ;;
 	-D) stage5subDir="$2"
-	    shift ;; 
+	    shift 2 ;; 
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
 	-q) runMode="qsub"
@@ -117,12 +121,15 @@ for i; do                  # loop through options
 	    weightsDir="$2"
 	    shift 2 ;;
 #	    useStage5outputFile="true"
-	-d|--disp) 
+	--disp) 
+	    stg4method=disp
 	    configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom
-	    useDisp=true
-	    DistanceUpper='0/1.38'
-	    shift ; shift ;;
-	-e) environment=$2
+	    DistanceUpper=1.38
+	    ltVegas=vegas254
+	    offset=075wobb
+	    zenith="Z-55-70"
+	    shift ;;
+	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
 	    source $environment
 	    envFlag="-e $environment"
 	    stage4subFlags="$stage4subFlags -e $environment"
@@ -134,10 +141,12 @@ for i; do                  # loop through options
 	    shift ;; 
 	-h) configFlags4="$configFlags4 -HillasBranchName=HFit"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
-	    suffix="${suffix}_hfit"
+	    method=hfit
+	    #suffix="${suffix}_hfit"
 	    shift ;; #stage4cuts="BDT_hfit4cuts.txt"
 	-b) useStage5outputFile="false"
 	    shift ;;
+	-n) nMax=$2 ; shift 2 ;;
 	--) shift; break ;;
     esac # end case $i in options
 done # loop over command line arguments 
@@ -169,9 +178,12 @@ if [ $2 ]; then
 fi
 
 if [ "$spectrum" == "soft" ] || [ "$spectrum" == "loose" ]; then
-    sizeSpec=softLoose
+    sizeSpec=SoftLoose
+else
+    sizeSpec=$spectrum 
 fi # size setting for soft and loose is the same 
 
+# change to live checking 
 for array in V5 V6; do 
     if [[ "$useBDT" == "true" ]] && [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
 	echo "$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!"
@@ -205,22 +217,11 @@ for dir in $processDir $logDir; do
     done # loop over subdirs
 done # loop over main dirs, process and log
 
-#check for lt files, maybe only do if running stage 4
-#for season in Winter Summer; do
-#    for array in V4 V5 V6; do
-#        if [ ! -f $tableDir/${ltMap[${array}_${season}]} ]; then
-#             echo -e "\e[0;31m$tableDir/${ltMap[${array}${season}]} does not exist! this may be a problem if you run stage 4 :(\e[0m"
-#        fi
-#    done
-#done
-
-
 if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]; then
     
     while read -r line
     do
 	set -- $line
-	
 	
 	runDate=$1
 	runNum=$2
@@ -304,8 +305,7 @@ EOF
 			    echo -e "\e[0;31mLaser data file ${dataDir}/${n}.cvbf does not exist! check directory\e[0m"
 			fi # data file found
 		    fi # laser file does not yet exist
-		fi # run bool is true
-		
+		fi # run bool is true		
 	    fi # laser isn't --
 	done # for loop over telescopes
 	
@@ -343,12 +343,12 @@ rm $laserQueue/${combinedLaserName}
 echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
 if [ \$exitCode -ne 0 ]; then
 rm $laserProcessed/${combinedLaserName}.root
-mv $laserLog/${combinedLaserName}.txt $rejectDir
+mv $laserLog/${combinedLaserName}.txt $rejectDir/
 EOF
 #PBS -o $laserLog/qsubLog.txt
 		    elif [ "$runMode" == "shell" ]; then
 			if [ -f $laserLog/${combinedLaserName}.txt ]; then
-			    mv $laserLog/${combinedLaserName}.txt $trashDir
+			    mv $laserLog/${combinedLaserName}.txt $trashDir/
 			fi
 
 			cd $VEGAS/macros/
@@ -427,7 +427,7 @@ fi # stage 1 or stage 2, or laser
 
 ##### STAGE 4 #####
 if [ "$runStage4" == "true" ]; then
-    while read -r line; do
+    while read -r line && test $n -lt $nMax; do
 	set -- $line
 	
 	runDate=$1
@@ -455,9 +455,22 @@ if [ "$runStage4" == "true" ]; then
             sizeArray=V4V5
         fi
 
-        tableFlags="-table=$tableDir/lt_${array}_ATM${season}${simulation}_vegasv250rc5_7sam_Alloff_std_d1.43_LZA.root" # 1p43
-	if [ $useDisp ]; then 
-	    tableFlags="$tableFlags -DR_DispTable=$tableDir/dt_${array}_ATM${season}${simulation}_vegasv250rc5_7sam_Alloff_std_d1.43_LZA.root" # PathToTMVA_Disp.xml
+	ltBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
+        ltBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
+#	ltFile=$tableDir/lt_${ltBase}_${zenith}.root
+	ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
+	tableFlags="-table=$ltFile" # zen55-70
+	if [ ! -f $ltFile ]; then
+	    echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
+	    continue
+	fi
+	if [ "$stg4method" == disp ]; then 
+	    dtFile=$tableDir/dt_${ltBase}_${zenith}.root
+	    if [ ! -f $dtFile ]; then
+		echo -e "\e[0;31m $dtFile Does Not Exist!! Skipping $runNum!\e[0m"
+		continue
+	    fi
+	    tableFlags="$tableFlags -DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
 	fi 
 
         SizeLower=${stg4_size_map[${sizeArray}_${sizeSpec}]}
@@ -465,7 +478,7 @@ if [ "$runStage4" == "true" ]; then
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
         if [ ! -f $rootName_4 -a ! -f $queueFile ]; then
             if [ "$stage4cuts" == "auto" ]; then
-                stg4_cuts="-DistanceUpper=${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
+                stg4_cuts="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
             elif [ "$stage4cuts" == "none" ]; then
 		stg4_cuts=""
 	    else
@@ -496,6 +509,10 @@ echo "$spectrum"
 EOF
 #PBS -o $runLog		
 #echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
+#		if [ $? -e 0 ]; then
+		    n=$((n+1))
+#		fi # increment job number
+
 	    elif [ "$runMode" == "shell" ]; then
 		if [ -f $runLog ]; then
 		    mv $runLog $trashDir/
@@ -505,10 +522,7 @@ EOF
 		$subscript45 "$cmd" $rootName_4 $rootName_2 $cutsDir/$stage4cuts $stage4subFlags | tee $runLog
 		
 	    fi # end runmode check
-
-	    #	    cat $cutsDir/${stage4cuts} >> $runLog # deal with getting this into the log file
 	fi # rootName_4 does not exist
-
     done < $readList  
 fi # runStage4
 
@@ -605,7 +619,7 @@ if [ "$runStage6" == "true" ]; then
 fi
 
 if [ "$runMode" == "qsub" ]; then
-    echo -e "script complete \t on ` date ` \n" >> ${logDir}/qsubLog.txt
+    echo -e "script submitted $n jobs \t on ` date ` \n" | tee ${logDir}/qsubLog.txt
 fi
 
 exit 0 # success 
