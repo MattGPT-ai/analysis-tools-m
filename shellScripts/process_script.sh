@@ -83,7 +83,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124d:5D:ahbB::s:qre:c:C:p:kdn: -l disp,BDT:: -n 'process_script.sh' -- $*` 
+args=`getopt -o l124d:5D:ahbB::s:qr:e:c:C:p:kdn: -l disp,BDT:: -n 'process_script.sh' -- $*` 
 eval set -- $args 
 
 for i; do                  # loop through options
@@ -104,9 +104,9 @@ for i; do                  # loop through options
 	    shift 2 ;; 
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
-	-q) runMode="qsub"
-	    shift ;;
-	-r) runMode="shell"
+	-r) runMode="$2"
+	    shift 2 ;;
+	-q) runMode=qsub
 	    shift ;;
 	-s) spectrum=$2
 	    shift ; shift ;;
@@ -281,11 +281,11 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 			    ### run normal laser			    
 			    laserCmd="`which vaStage1` "
 			    echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
-			    if [ "$runMode" == "qsub" ]; then
+			    if [ "$runMode" != "print" ]; then
 				
 				touch $laserQueue/${n}_laser
 				
-				qsub <<EOF
+				$runMode <<EOF
 $qsubHeader
 #PBS -N ${n}_laser
 #PBS -o $laserLog/qsubLog.txt
@@ -295,10 +295,6 @@ $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
 #echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
 
-			    elif [ "$runMode" == "shell" ]; then
-				
-				$laserSubscript "$stage1cmd" $laserData $laserProcessed/${n}_laser.root $envFlag
-				
 			    fi # end qsub for regular laser 
 			    
 			else ### end run normal laser
@@ -319,11 +315,11 @@ EOF
 		    
 		    echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
 		    
-		    if [ "$runMode" == "qsub" ]; then     
+		    if [ "$runMode" != print ]; then     
 			
 			touch $laserQueue/${combinedLaserName}
 			
-			qsub <<EOF
+			$runMode <<EOF
 $qsubHeader
 #PBS -N ${combinedLaserName}
 #PBS -o $laserLog/${combinedLaserName}.txt
@@ -346,14 +342,7 @@ rm $laserProcessed/${combinedLaserName}.root
 mv $laserLog/${combinedLaserName}.txt $rejectDir/
 EOF
 #PBS -o $laserLog/qsubLog.txt
-		    elif [ "$runMode" == "shell" ]; then
-			if [ -f $laserLog/${combinedLaserName}.txt ]; then
-			    mv $laserLog/${combinedLaserName}.txt $trashDir/
-			fi
 
-			cd $VEGAS/macros/
-			bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $laserProcessed/${combinedLaserName}.root  
-			root -b -l -q 'combineLaser.C("$laserProcessed/${combinedLaserName}.root","$laserProcessed/${laser1}_laser.root","$laserProcessed/${laser2}_laser.root","$laserProcessed/${laser3}_laser.root","$laserProcessed/${laser4}_laser.root")' 2>&1 | tee $laserLog/${combinedLaserName}.txt 
 		    fi # end qsub for combined laser 
 		fi # if combined laser root file does not exist
 	    fi # if queue file doesn't exist
@@ -399,12 +388,12 @@ EOF
 	    
 	    
 	    if [ "$runBool" == "true" ]; then
-		if [ "$runMode" == "qsub" ]; then
+		if [ "$runMode" != print ]; then
 		    
 		    touch $queueDir/${stage1subDir}_${runNum}.stage1
 		    touch $queueDir/${stage2subDir}_${runNum}.stage2
 		    
-		    qsub <<EOF
+		    $runMode <<EOF
 $qsubHeader
 #PBS -N ${runNum}.stage12
 #PBS -o $logDir/qsubLog.txt
@@ -415,8 +404,6 @@ EOF
 #echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
 #PBS -o $logDir/${runNum}.stage12.txt
 
-		elif [ "$runMode" == "shell" ]; then
-		    $subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot $envFlag
 		fi # end qsub for stage 1 data file
 	    fi # end runBool = true
 	    
@@ -455,17 +442,17 @@ if [ "$runStage4" == "true" ]; then
             sizeArray=V4V5
         fi
 
-	ltBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
-        ltBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
-#	ltFile=$tableDir/lt_${ltBase}_${zenith}.root
-	ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
+	tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
+        tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
+	ltFile=$tableDir/lt_${tableBase}.root
+	#ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
 	tableFlags="-table=$ltFile" # zen55-70
 	if [ ! -f $ltFile ]; then
 	    echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
 	    continue
 	fi
 	if [ "$stg4method" == disp ]; then 
-	    dtFile=$tableDir/dt_${ltBase}_${zenith}.root
+	    dtFile=$tableDir/dt_${tableBase}_${zenith}.root
 	    if [ ! -f $dtFile ]; then
 		echo -e "\e[0;31m $dtFile Does Not Exist!! Skipping $runNum!\e[0m"
 		continue
@@ -495,10 +482,10 @@ if [ "$runStage4" == "true" ]; then
 	    echo "$cmd"
 
 
-	    if [ "$runMode" == "qsub" ]; then
+	    if [ "$runMode" != print ]; then
 		touch $queueFile
 
-		qsub <<EOF
+		$runMode <<EOF
 $qsubHeader
 #PBS -N ${stage4subDir}${runNum}${suffix}.stage4
 #PBS -o $runLog
@@ -510,17 +497,9 @@ EOF
 #PBS -o $runLog		
 #echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
 #		if [ $? -e 0 ]; then
-		    n=$((n+1))
+		n=$((n+1))
 #		fi # increment job number
 
-	    elif [ "$runMode" == "shell" ]; then
-		if [ -f $runLog ]; then
-		    mv $runLog $trashDir/
-		fi
-		
-		# make one variable for qsub as well
-		$subscript45 "$cmd" $rootName_4 $rootName_2 $cutsDir/$stage4cuts $stage4subFlags | tee $runLog
-		
 	    fi # end runmode check
 	fi # rootName_4 does not exist
     done < $readList  
@@ -582,11 +561,11 @@ if [ "$runStage5" == "true" ]; then
 		
 		echo "$cmd"
 
-		if [ "$runMode" == "qsub" ]; then
+		if [ "$runMode" != print ]; then
 		    
 		    touch $queueName
 		    
-		    qsub <<EOF
+		    $runMode <<EOF
 $qsubHeader
 #PBS -N ${stage5subDir}${runNum}${suffix}.stage5
 #PBS -o $runLog
@@ -597,12 +576,6 @@ echo "$spectrum"
 EOF
 #PBS -o $runLog
 #echo "VEGAS job \$PBS_JOBID started on: \` hostname -s\` at: \` date \` " >> $logDir/qsubLog.txt 
-		elif [ "$runMode" == "shell" ]; then
-		    if [ -f $runLog ]; then
-			mv $runLog $trashDir/
-		    fi
-		    
-		    $subscript45 "$cmd" $rootName_5 $rootName_4 $cutsDir/$stage5cuts $stage5subFlags | tee $runLog
 		    
 		fi # end runmode check
 	    fi # stage 5 not in queue 
