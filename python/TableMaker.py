@@ -14,7 +14,10 @@ def createLookupTable(array,atmosphere,cutsFile=produceLTCutsFile,zenithList=ful
             for offsetChunk in offsetChunks:
                 offsetChunk = [str(int(x*100)).zfill(3) for offset in offsetChunk]
                 for noiseChunk in noiseChunks:
+                    print("dummyprint")
 
-
-                    with open(
+#                    with open(
 #    simFilename = getSimFileName(array,atmosphere,zenith,offset,noise,method)
+
+
+def createEA(array,atmosphere,zenithList,azimuthList,offsetList,recMethod='std'): # cuts/spectrum 

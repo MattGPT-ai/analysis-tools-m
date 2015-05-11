@@ -27,7 +27,7 @@ simulation=CORSIKA # grisudet
 method=std
 environment=""
 ltVegas=vegasv250rc5
-offset=Alloff
+offset=Alloff # should find a way to manage this 
 zenith=LZA
 
 DistanceUpper=1.43 #DistanceUpper='0/1.43'
@@ -116,17 +116,17 @@ for i; do                  # loop through options
 	-C) stage5cuts=$2
 	    # same as for stage 4
 	    shift ; shift ;;
-	-B|BDT) configFlags5="$configFlags5 -UseBDT=1"
+	-B|BDT) #	    useStage5outputFile="true"
+	    configFlags5="$configFlags5 -UseBDT=1"
 	    useBDT="true"
 	    weightsDir="$2"
 	    shift 2 ;;
-#	    useStage5outputFile="true"
 	--disp) 
 	    stg4method=disp
 	    configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom
 	    DistanceUpper=1.38
 	    ltVegas=vegas254
-	    offset=075wobb
+	    #offset=075wobb
 	    zenith="Z-55-70"
 	    shift ;;
 	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
@@ -442,21 +442,12 @@ if [ "$runStage4" == "true" ]; then
             sizeArray=V4V5
         fi
 
-	tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
-        tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper/./p}
+	tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper//./p}
 	ltFile=$tableDir/lt_${tableBase}.root
 	#ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
 	tableFlags="-table=$ltFile" # zen55-70
-	if [ ! -f $ltFile ]; then
-	    echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
-	    continue
-	fi
 	if [ "$stg4method" == disp ]; then 
 	    dtFile=$tableDir/dt_${tableBase}_${zenith}.root
-	    if [ ! -f $dtFile ]; then
-		echo -e "\e[0;31m $dtFile Does Not Exist!! Skipping $runNum!\e[0m"
-		continue
-	    fi
 	    tableFlags="$tableFlags -DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
 	fi 
 
@@ -481,6 +472,14 @@ if [ "$runStage4" == "true" ]; then
             cmd="`which vaStage4.2` $tableFlags $stg4_cuts $configFlags4 $telCombosToDeny $rootName_4"
 	    echo "$cmd"
 
+	    if [ ! -f $ltFile ]; then
+		echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
+		continue
+	    fi
+	    if [ "$stg4method" == disp ] && [ ! -f $dtFile ]; then
+		echo -e "\e[0;31m $dtFile Does Not Exist!! Skipping $runNum!\e[0m"
+		continue
+	    fi
 
 	    if [ "$runMode" != print ]; then
 		touch $queueFile
@@ -494,7 +493,6 @@ $qsubHeader
 $subscript45 "$cmd" $rootName_4 $rootName_2 $cutsDir/$stage4cuts $stage4subFlags
 echo "$spectrum"
 EOF
-#PBS -o $runLog		
 #echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
 #		if [ $? -e 0 ]; then
 		n=$((n+1))
@@ -574,7 +572,6 @@ $qsubHeader
 $subscript45 "$cmd" $rootName_5 $rootName_4 $cutsDir/$stage5cuts $stage5subFlags
 echo "$spectrum"
 EOF
-#PBS -o $runLog
 #echo "VEGAS job \$PBS_JOBID started on: \` hostname -s\` at: \` date \` " >> $logDir/qsubLog.txt 
 		    
 		fi # end runmode check
