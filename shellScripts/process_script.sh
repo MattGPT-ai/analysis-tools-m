@@ -63,7 +63,6 @@ subscript45=$HOME/bin/subscript_4or5.sh
 applyTimeCuts="true"
 
 ##bin/sh -f
-#PBS -S /bin/bash
 #PBS -p 0
 qsubHeader="
 #PBS -S /bin/bash 
@@ -148,6 +147,7 @@ for i; do                  # loop through options
 	    shift ;;
 	-n) nMax=$2 ; shift 2 ;;
 	--) shift; break ;;
+	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
 done # loop over command line arguments 
 
@@ -385,8 +385,7 @@ EOF
 		    echo -e "\e[0;31mData file ${dataFile} does not exist! check directory\e[0m"
 		fi # original data file exists in expected location, file not in queu
 	    fi # stage 2 root file does not exist and isn't in queue
-	    
-	    
+	    	    
 	    if [ "$runBool" == "true" ]; then
 		if [ "$runMode" != print ]; then
 		    
@@ -401,7 +400,6 @@ $qsubHeader
 
 $subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot $envFlag
 EOF
-#echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
 #PBS -o $logDir/${runNum}.stage12.txt
 
 		fi # end qsub for stage 1 data file
@@ -493,7 +491,7 @@ $qsubHeader
 $subscript45 "$cmd" $rootName_4 $rootName_2 $cutsDir/$stage4cuts $stage4subFlags
 echo "$spectrum"
 EOF
-#echo "VEGAS job \$PBS_JOBID started on:  "` hostname -s` " at: " ` date ` >> $logDir/qsubLog.txt
+
 #		if [ $? -e 0 ]; then
 		n=$((n+1))
 #		fi # increment job number
@@ -572,7 +570,6 @@ $qsubHeader
 $subscript45 "$cmd" $rootName_5 $rootName_4 $cutsDir/$stage5cuts $stage5subFlags
 echo "$spectrum"
 EOF
-#echo "VEGAS job \$PBS_JOBID started on: \` hostname -s\` at: \` date \` " >> $logDir/qsubLog.txt 
 		    
 		fi # end runmode check
 	    fi # stage 5 not in queue 

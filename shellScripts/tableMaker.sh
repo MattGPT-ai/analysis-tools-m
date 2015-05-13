@@ -148,7 +148,8 @@ for zGroup in $zeniths; do
 		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
 		flags="$flags -DTM_Noise=${noiseArray[$noiseIndex]} -DTM_Zenith=$zGroup"
 		flags="$flags -DTM_AbsoluteOffset=$oGroup"
-		# -G_SimulationMode=1 -DTM_TelID=0,1,2,3 		# don't use
+		flags="$flags -DTM_TelID=0,1,2,3"
+		# -G_SimulationMode=1 		# don't use
 		cmd=produceDispTables
 	    fi # disp table
 
@@ -174,11 +175,11 @@ for zGroup in $zeniths; do
 
 	    if [ "$runMode" != print ]; then
 		test $nJobs -lt $nJobsMax || exit 0 
-		test "$runMode" == qsub && touch $workDir/queue/$tableFileBase
+		test "$runMode" == qsub && ( touch $workDir/queue/$tableFileBase ; test -f $logFile && mv $logFile $workDir/backup/logTable )
 		    
 		$runMode <<EOF
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=2gb
+#PBS -l nodes=1,mem=4gb,walltime=24:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
@@ -186,7 +187,7 @@ for zGroup in $zeniths; do
 
 hostname
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870)
-trap "mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 130" 1 2 3 4 5 6 
+trap "echo \"First trap, Exiting 15\" >> $logFile; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM
 
 while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
 while read -r line; do 
@@ -194,11 +195,13 @@ set -- \$line
 file=\${1##*/}
 beforeZ=\${file%deg*}
 zenith=\${beforeZ#*_7samples_}
-trap "rm $scratchDir/\$file; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 130" 1 2 3 4 5 6 
-test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/
+trap "echo \"file trap, exiting SIGTERM \" >> $logFile; rm $scratchDir/\$file; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM 
+test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/ || ( mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 6 )
+#test \$PIPESTATUS[1] -e 0 || ( mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 6 )
+{zenith}_deg/\$file $scratchDir/
 done < $simFileList # loop over every sim file in list
 
-trap "rm $smallTableFile; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 130" 1 2 3 4 5 6 
+trap "echo \"cmd trap, SIGTERM\" >> $logFile; rm $smallTableFile; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM 
 
 timeStart=\`date +%s\`
 $cmd
@@ -210,20 +213,23 @@ date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
 rm $workDir/queue/$tableFileBase
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
-mv $logFile $workDir/rejected/
+echo "exit code: \$exitCode"
+cp $logFile $workDir/rejected/
+#mv $logFile $workDir/rejected/
 exit \$exitCode
 mv $smallTableFile $workDir/backup/tables/
 fi
 
+echo "Exiting successfully!"
 exit 0
-"
+
 EOF
+
 #test -f \$1 || bbcp -e -E md5= \$path $scratchDir/
 #echo "\$file"
 ##path=`find $simFileSourceDir -name \$file`
 #echo "\$beforeZ"
 #echo "\$path"
-
 
 		exitCode=$?
 		nJobs=$((nJobs+1))
