@@ -10,9 +10,10 @@ atm=22
 simulation=GrISUDet #CORSIKA
 model=Oct2012
 
-zeniths="50,55 60,65" # 00,20 30,35 40,45
-offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 azimuths="0,45,90,135,180,225,270,315"
+zeniths="50,55 60,65" # 00,20 30,35 40,45
+offsets="0.00,0.50,0.75"
+#offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870) # must be reflected in qsub file
 noiseNum=${#noiseLevels[@]}
@@ -25,7 +26,8 @@ ltFlags="$ltFlags -LTM_WindowSizeForNoise=7 -TelID=0,1,2,3"
 ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractionalErrorCut=0.25"
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
 
-spectrum=medium
+source $VSCRIPTS/shellScripts/setCuts.sh
+spectrum=medium # only applies to effective areas 
 
 workDir=$GC
 simFileSourceDir=/veritas/upload/OAWG/stage2/vegas2.5
@@ -35,7 +37,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l offsets:,atm:,fileList:,array:,table:,distance:,testname:,zeniths:,spectrum: -- $*`
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname: -- $*`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -46,18 +48,18 @@ for i; do
 	    nJobsMax=($2) ; shift 2 ;; 
 	--table) # table type: lt, dt, ea
 	    table="$2" ; shift 2 ;;
-	--offsets) 
-	    offsets="$2" ; shift 2 ;;
-	--atm) 
-	    atm="$2" ; shift 2 ;;
-	--fileList) 
-	    fileList="$2" ; shift 2 ;;
 	--array) 
 	    array="$2" ; shift 2 ;;
-	--distance)
-	    DistanceUpper="$2" ; shift 2 ;;
+	--atm) 
+	    atm="$2" ; shift 2 ;;
 	--zeniths)
 	    zeniths="$2" ; shift 2 ;; 
+	--offsets) 
+	    offsets="$2" ; shift 2 ;;
+	--noises)
+	    noises="$2" ; shift 2 ;; 
+	--distance)
+	    DistanceUpper="$2" ; shift 2 ;;
 	--spectrum)
 	    spectrum="$2" ; shift 2 ;; 
 	--testname) 
@@ -103,7 +105,11 @@ while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); d
 
 simFileSubDir=Oct2012_${array}_ATM${atm}
 
-tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
+if [ "$table" == ea ]; then
+    tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}_${spectrum}.txt    
+else
+    tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
+fi
 tempTableList=`mktemp` || ( echo "tempTableList creation failed" ; exit 1 )
 
 for zGroup in $zeniths; do 
@@ -111,16 +117,23 @@ for zGroup in $zeniths; do
 	noiseIndex=(0) #noiseIndex
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
-	    
-	    simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
+	    if [ "$table" != ea ]; then 
+		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
+	    else 
+		simFileList=$workDir/config/eaFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
+	    fi 
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
 	    for z in ${zGroup//,/ }; do 
 		for o in ${oGroup//,/ }; do 
-		    nGroup=${noiseLevels[$noiseIndex]}        
+		    nGroup=${noiseLevels[$noiseIndex]} 
 		    for n in ${nGroup//,/ }; do 
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${o//./}wobb_${n}noise
-			simFileScratch=$scratchDir/${simFileBase}.root
-			echo $simFileScratch >> $tempSimFileList
+			if [ "$table" != ea ]; then
+			    simFileScratch=$scratchDir/${simFileBase}.root
+			else
+			    simFileScratch=$workDir/processed/sims_v254_${spectrum}/${simFileBase}.stage4.root
+			fi
+			echo "$simFileScratch" >> $tempSimFileList
 		    done # individual noises
 		done # individual offsets
 	    done # individual zeniths
@@ -134,22 +147,30 @@ for zGroup in $zeniths; do
 		fi
 	    fi # update simFileList if it's new 
 
-	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_${DistanceUpper//./p}_${noiseIndex}noise #modify zeniths, offsets
+	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_${noiseIndex}noise #modify zeniths, offsets
+	    if [ "$table" == ea ]; then 
+		setCuts
+		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
+		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
+		tableFileBase="${tableFileBase}_ThetaSq${ThetaSquareUpper//./p}"
+	    fi # 
+
 	    smallTableFile=$workDir/processed/tables/${tableFileBase}.root
-	    echo $smallTableFile >> $tempTableList
+	    echo "$smallTableFile" >> $tempTableList
 
 	    logFile=$workDir/log/tables/${tableFileBase}.txt
+	    queueFile=$workDir/queue/$tableFileBase
 
-	    if [ -f $smallTableFile ] || [[ "`qstat -f`" =~ "$tableFileBase" ]]; then
+	    if [ -f $smallTableFile ] || [ -f $queueFile ]; then #[[ "`qstat -f`" =~ "$tableFileBase" ]]
 		noiseIndex=$((noiseIndex+1)) ; continue
 	    fi
 
 	    if [[ "$table" =~ "dt" ]]; then # disp table
 		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
 		flags="$flags -DTM_Noise=${noiseArray[$noiseIndex]} -DTM_Zenith=$zGroup"
-		flags="$flags -DTM_AbsoluteOffset=$oGroup"
 		flags="$flags -DTM_TelID=0,1,2,3"
-		# -G_SimulationMode=1 		# don't use
+		#flags="$flags -DTM_AbsoluteOffset=$oGroup"
+		#-G_SimulationMode=1 		# don't use
 		cmd=produceDispTables
 	    fi # disp table
 
@@ -161,23 +182,28 @@ for zGroup in $zeniths; do
 		cmd=produce_lookuptables
 	    fi # lookup 
 
-	    if [[ "$table" =~ "EA" ]]; then
+	    if [[ "$table" =~ "ea" ]]; then
 		flags="-EA_RealSpectralIndex=-2.4" # -2.1
 		flags="$flags -Azimuth=${azimuths}"
-		flags="$flags -Zenith=$zeniths -Noise=${noises}" # same as lookup table
-		flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
+		flags="$flags -Zenith=${zGroup} -Noise=${noiseArray[$noiseIndex]}" # same as lookup table
+#		flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
+		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
+		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
+		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
 
-		cmd="makeEA $flags "   
+		cmd="makeEA $flags $cuts"  
 	    fi # effective area table
 
-	    cmd="$cmd $flags $simFileList $smallTableFile"
-	    echo "$cmd" 
+	    if [ ! -f $queueFile ]; then
+		
+		cmd="$cmd $flags $simFileList $smallTableFile"
+		echo "$cmd" 
 
-	    if [ "$runMode" != print ]; then
-		test $nJobs -lt $nJobsMax || exit 0 
-		test "$runMode" == qsub && ( touch $workDir/queue/$tableFileBase ; test -f $logFile && mv $logFile $workDir/backup/logTable )
+		if [ "$runMode" != print ]; then
+		    test $nJobs -lt $nJobsMax || exit 0 
+		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable )
 		    
-		$runMode <<EOF
+		    $runMode <<EOF
 #PBS -S /bin/bash
 #PBS -l nodes=1,mem=4gb,walltime=24:00:00
 #PBS -j oe
@@ -187,21 +213,26 @@ for zGroup in $zeniths; do
 
 hostname
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870)
-trap "echo \"First trap, Exiting 15\" >> $logFile; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM
+trap "echo \"First trap, Exiting 15\" >> $logFile; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM
 
 while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
+
+if [ "$table" != ea ]; then
 while read -r line; do 
+
 set -- \$line
 file=\${1##*/}
 beforeZ=\${file%deg*}
 zenith=\${beforeZ#*_7samples_}
-trap "echo \"file trap, exiting SIGTERM \" >> $logFile; rm $scratchDir/\$file; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM 
-test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/ || ( mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 6 )
-#test \$PIPESTATUS[1] -e 0 || ( mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 6 )
+trap "echo \"file trap, exiting SIGTERM \" >> $logFile; rm $scratchDir/\$file; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM 
+test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/ || ( mv $logFile $workDir/rejected/; rm $queueFile; exit 6 )
+#test \$PIPESTATUS[1] -e 0 || ( mv $logFile $workDir/rejected/; rm $queueFile; exit 6 )
 {zenith}_deg/\$file $scratchDir/
-done < $simFileList # loop over every sim file in list
 
-trap "echo \"cmd trap, SIGTERM\" >> $logFile; rm $smallTableFile; mv $logFile $workDir/rejected/; rm $workDir/queue/$tableFileBase; exit 15" SIGTERM 
+done < $simFileList # loop over every sim file in list
+fi # don't need to copy for effective area production, stage 4 files already on userspace 
+
+trap "echo \"cmd trap, SIGTERM\" >> $logFile; rm $smallTableFile; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM 
 
 timeStart=\`date +%s\`
 $cmd
@@ -210,7 +241,7 @@ timeEnd=\`date +%s\`
 echo "Table made in:"
 date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
 
-rm $workDir/queue/$tableFileBase
+rm $queueFile
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
 echo "exit code: \$exitCode"
@@ -231,29 +262,35 @@ EOF
 #echo "\$beforeZ"
 #echo "\$path"
 
-		exitCode=$?
-		nJobs=$((nJobs+1))
-	    fi # runMode options
-
-	    if (( exitCode != 0 )); then
-		echo "FAILED!"
-		if [ -f $logFile ]; then
-		    mv $logFile $workDir/rejected/
-		fi
-		exit 1
-	    fi # was job submitted successfully 
+		    exitCode=$?
+		    nJobs=$((nJobs+1))
+		fi # runMode options
+		
+		if (( exitCode != 0 )); then
+		    echo "FAILED!"
+		    if [ -f $logFile ]; then
+			mv $logFile $workDir/rejected/
+		    fi
+		    exit 1
+		fi # was job submitted successfully 
+	    fi # not already in queue
 	    noiseIndex=$((noiseIndex+1))
 	done # noise levels
     done # offsets 
 done # zeniths 
 
+offsets=${offsets// /,}
+zeniths=${zeniths// /,}
+combinedFileBase=${table}_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_${offsets//,/-}off_${zeniths//,/-}zen_std_d${DistanceUpper//./p}
+
 case $table in 
     dt)
-	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths// /,} -DTM_Zenith=${zeniths// /,} -DTM_Noise=${noises} $workDir/processed/tables/dt_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_Alloff_LZA_std_${DistanceUpper//./p}_AllNoise.root" ;;
+	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths// /,} -DTM_Zenith=${zeniths// /,} -DTM_Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;;
     lt) 
-	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths// /,} -Zenith=${zeniths// /,} -AbsoluteOffset=${offsets// /,} -Noise=${noises} $workDir/processed/tables/lt_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_Alloff_LZA_std_${DistanceUpper//./p}_AllNoise.root" ;;
+	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths// /,} -Zenith=${zeniths// /,} -AbsoluteOffset=${offsets// /,} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;;
     ea) 
-	buildCmd="buildEATree " ;; 
+	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
+	buildCmd="buildEATree $flags $cuts $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}.root" ;; 
 esac # build commands based on table type 
 
 if [ "$runMode" != print ]; then

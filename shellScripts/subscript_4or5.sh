@@ -92,7 +92,7 @@ if [ -f $previousRoot ]; then
     fi # copy unless separate output file is specified as in stage 5 sometimes
 else
     echo -e "\e[0;31m$previousRoot does not exist, cannot process $processRoot\e[0m"
-    rm $queueFile
+    test -f $queueFile && rm $queueFile
     mv $logFile $rejectDir/
     exit 1 # no success
 fi # previous root file exists 
@@ -100,7 +100,7 @@ fi # previous root file exists
 $cmd 
 completion=$?
 
-rm $queueFile
+test -f $queueFile && rm $queueFile
 echo "" 
 echo "$cmd" 
 

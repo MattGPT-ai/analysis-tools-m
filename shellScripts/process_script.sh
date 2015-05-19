@@ -56,9 +56,9 @@ useBDT="false"
 
 runMode="print" # 
 
-laserSubscript=$HOME/bin/subscript_laser.sh
-subscript12=$HOME/bin/subscript_stage1and2.sh
-subscript45=$HOME/bin/subscript_4or5.sh
+laserSubscript=$VSCRIPTS/shellScripts/subscript_laser.sh
+subscript12=$VSCRIPTS/shellScripts/subscript_stage1and2.sh
+subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
 
 applyTimeCuts="true"
 
@@ -131,8 +131,8 @@ for i; do                  # loop through options
 	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
 	    source $environment
 	    envFlag="-e $environment"
-	    stage4subFlags="$stage4subFlags -e $environment"
-	    stage5subFlags="$stage5subFlags -e $environment"
+	    stage4subFlags="$stage4subFlags $envFlag"
+	    stage5subFlags="$stage5subFlags $envFlag"
 	    shift; shift ;;
 	-p) priority=$2
 	    shift ; shift ;;

@@ -84,7 +84,7 @@ if [ "$stage1cmd" != "NULL" ]; then
     $stage1cmd $scratchDir/${runNum}.cvbf $rootName_1 &>> $logFile1
     completion=$?
     
-    rm $queue1
+    test -f $queue1 && rm $queue1
     echo "" >> $logFile1
     echo "$stage1cmd $dataFile $rootName_1" >> $logFile1
     
@@ -125,7 +125,7 @@ if [ "$stage2cmd" != "NULL" ]; then
     echo "" >> $logFile2
     echo "$stage2cmd $dataFile $rootName_2 $laserRoot" >> $logFile2
     
-    rm $queue2
+    test -f $queue2 && rm $queue2
     rm $scratchDir/${runNum}.cvbf 
 
     if [ $completion -ne 0 ]; then

@@ -72,7 +72,7 @@ $cmd $scratchFile $laserRoot &>> $logFile
 completion=$?
 Tend=`date +%s`
 
-rm $queueDir/$runName
+test -f $queueDir/$runName && rm $queueDir/$runName
 echo "Analysis completed in: (hours:minutes:seconds)"
 date -d@$((Tend-Tstart)) -u +%H:%M:%S >> $logFile
 echo "$scratchFile $laserRoot" >> $logFile
