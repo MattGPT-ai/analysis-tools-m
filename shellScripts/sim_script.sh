@@ -14,7 +14,8 @@ dataDir=/veritas/upload/OAWG/stage2/vegas2.5
 model=Oct2012
 simulation=GrISUDet
 
-tableDir=/veritas/userspace2/mbuchove/SgrA/processed/tables
+#tableDir=/veritas/userspace2/mbuchove/SgrA/processed/tables
+tableDir=$TABLEDIR
 workDir=/veritas/userspace2/mbuchove/BDT
 
 subDir=sims_medium
@@ -36,13 +37,6 @@ runMode=print
 subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
 
 ltMode=auto
-declare -A ltMap
-ltMap[oa21]="lt_Oct2012_oa_ATM21_7samples_vegasv250rc5_allOffsets_LZA.root"
-ltMap[oa22]="lt_Oct2012_oa_ATM22_7samples_vegasv250rc5_allOffsets_LZA.root"
-ltMap[na21]="lt_Oct2012_na_ATM21_7samples_vegasv250rc5_allOffsets_LZA_v1.root"
-ltMap[na22]="lt_Oct2012_na_ATM22_7samples_vegasv250rc5_allOffsets_LZA.root"
-ltMap[ua21]="lt_Oct2012_ua_ATM21_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
-ltMap[ua22]="lt_Oct2012_ua_ATM22_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
 
 qsubHeader="
 #!/bin/bash -f
@@ -52,77 +46,70 @@ qsubHeader="
 "
 #PBS -p 0
 
-while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-    case $flag in
-	4)
-	    runStage4=true ;; 
-	5)
-	    runStage5=true ;; 
-	q) 
-	    runMode="qsub" ;;
-	r) 
-	    runMode="${OPTARG}" ;;
-	c) 
-	    case ${OPTARG} in 
+#while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l disp,BDT -- $*` # -n 'sim_script.sh
+eval set -- $args
+for i; do 
+    case "$i" in
+	-4) runStage4=true ; shift ;; 
+	-5) runStage5=true ; shift ;; 
+	-q) runMode="qsub" ; shift ;;
+	-r) runMode="${2}" ; shift 2 ;;
+	-c) 
+	    case ${2} in 
 		auto)
-		    cutMode4=auto ;; 
+		    cutMode4=auto ; shift 2 ;; 
 		none)
 		    cutMode4=none
-		    cuFlags4="" ;; 
+		    cuFlags4="" ; shift 2 ;; 
 		*)
 		    cutMode4=file
-		    cutFlags4="-cuts=${OPTARG}" ;;
-	    esac ;; 
-	C)
-	    case ${OPTARG} in 
-		auto)
-		    cutMode5=auto ;; 
-		none)
-		    cutMode5=none # not necessary 
-		    cutFlags5="" ;; 
-		*)
-		    cutMode5=file 
-		    cutFlags5="-cuts=${OPTARG}" ;; 
-	    esac ;; 
-	d) 
-	    subDir=$OPTARG ;; # directory name should not contain spaces 
-	z) 
-	    zeniths="$OPTARG" ;;
-	n)
-	    noises="$OPTARG" ;;
-	a)
-	    arrays="$OPTARG" ;;
-	A)
-	    atmospheres="$OPTARG" ;;
-	o)
-	    offsets="$OPTARG" ;;
-	s)
-	    spectrum="$OPTARG" ;; 
-	h)
-	    hillasMode=HFit
+		    cutFlags4="-cuts=${2}" ; shift 2 ;;
+	    esac 
+	    shift ;; 
+	-C)
+	    case ${2} in 
+		auto) cutMode5=auto ; shift 2 ;; 
+		none) cutMode5=none # not necessary 
+		    cutFlags5="" ; shift 2 ;; 
+		*)  cutMode5=file 
+		    cutFlags5="-cuts=${2}" ; shift 2 ;; 
+	    esac 
+	    shift ;; 
+	-d) subDir=$2 ; shift 2 ;; # directory name should not contain spaces 
+	-z) zeniths="$2" ; shift 2 ;;
+	-n) noises="$2" ; shift 2 ;;
+	-a) arrays="$2" ; shift 2 ;;
+	-A) atmospheres="$2" ; shift 2 ;;
+	-o) offsets="$2" ; shift 2 ;;
+	-s) spectrum="$2" ; shift 2 ;; 
+	-h) hillasMode=HFit
 	    configFlags4="$configFlags4 -HillasBranchName=HFit"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
-	    ;;
-	l)
-	    ltMode=single
-	    ltName=$OPTARG ;; 
-	w)
-	    workDir=$OPTARG ;; 
-	e)
-	    environment=$OPTARG  
-	    envFlag="-e $environment" ;; 
-	B)
-	    useBDT=true
+	    shift ;;
+	-l) ltMode=single
+	    ltName=$2 ; shift 2 ;; 
+	-w) workDir=$2 ; shift 2 ;; 
+	-e) environment=$2  
+	    envFlag="-e $environment" ; shift 2 ;;
+	--disp) 
+	    stg4method=disp 
+            configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom 
+	    DistanceUpper=1.38 
+            ltVegas=vegas254 
+            zenith="Z-55-70" 
+            shift ;;
+	-B|--BDT) useBDT=true
 	    cutMode5=none # not necessary 
-	    cutFlags5="" ;; 
-	D)
-	    DistanceUpper=${OPTARG} ;; 
+	    cutFlags5="" ; shift ;; 
+	-D) DistanceUpper=${2} ; shift 2 ;; 
+	--) shift ;;
 	?) 
-	    echo -e "Option -${BOLD}$OPTARG not recognized!"
-	    ;;
+	    echo -e "Option -${BOLD}$2 not recognized!"
+	    exit ;;
     esac # option cases
 done # loop over options 
-shift $((OPTIND-1))
+#shift $((OPTIND-1))
 
 source $environment 
 
@@ -147,6 +134,8 @@ for array in $arrays; do
 	for z in $zeniths; do 
 	    for offset in $offsets; do 
 		for n in $noises; do
+
+		    setCuts
 		    
 		    if [ "$hillasMode" != HFit ]; then
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb_${n}noise
@@ -157,11 +146,19 @@ for array in $arrays; do
 		    fi # set name of simfile 
 
 		    if [ "$ltMode" == auto ]; then
-			ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}.root
-			ltFile=${tableDir}/${ltName}
-			#ltName=$tableDir/${ltMap[${array}${atm}]} # update to just use naming conventions and add hfit
+			#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
+			ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
+			ltFile=$tableDir/${ltName}.root
 		    fi
-
+		    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
+		    tableFlags="-table=${ltFile}"
+		    if [ "$stg4method" == disp ]; then
+			#dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
+			dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
+			test -f $tableDir/${dtName}.root || echo -e "\e[0;31mDisp table $tableDir/${dtName}.root does not exist! \e[0m"
+			tableFlags="$tableFlags -DR_DispTable=$tableDir/${dtFile}.root" 
+		    fi
+		    
 		    rootName_4="$processDir/$subDir/${simFileBase}.stage4.root"
 		    rootName_5="$processDir/$subDir/${simFileBase}.stage5.root"
 
@@ -174,15 +171,13 @@ for array in $arrays; do
 			    if [ -f $simFile ]; then
 
 				if [ "$cutMode4" == auto ]; then
-				    setCuts 
 				    cutFlags4="-DistanceUpper=0/${DistanceUpper} -SizeLower=$SizeLower -NTubesMin=$NTubesMin"
 				fi # set cuts automatically based on array and spectrum 
 				
-				stage4cmd="`which vaStage4.2` $configFlags4 -table=${ltFile} $cutFlags4 $rootName_4"
+				stage4cmd="`which vaStage4.2` $configFlags4 $tableFlags $cutFlags4 $rootName_4"
 				test "$array" == "oa" && stage4cmd="$stage4cmd -TelCombosToDeny=T1T4" # config only for old array
 				echo "$stage4cmd"
 				
-
 				if [ "$runMode" != print ]; then
 
 				    test "$runMode" == "qsub" && touch $queueDir/${subDir}_${simFileBase}.stage4${extension}
@@ -193,7 +188,7 @@ $qsubHeader
 #PBS -o $runLog
 
 # cat cuts file 
-$subscript45 "$stage4cmd" $rootName_4 $simFile $cuts4file $envFlag # should be able to remove
+$subscript45 "$stage4cmd" $rootName_4 $simFile $envFlag # should be able to remove cuts
 
 exit 0 
 EOF

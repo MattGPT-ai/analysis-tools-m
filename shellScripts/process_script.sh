@@ -16,45 +16,30 @@ runStage6="false"
 baseDataDir=/veritas/data
 scratchDir=/scratch/mbuchove
 tableDir="$USERSPACE/tables"
-cutsDir=$HOME/cuts
 laserDir=$LASERDIR
 weightsDirBase=$BDT/weights
 weightsDir=5-34_defaults
 trashDir=$HOME/.trash
 
 spectrum=medium
-simulation=CORSIKA # grisudet
+simulation=GrISUDet # CORSIKA 
 method=std
 environment=""
-ltVegas=vegasv250rc5
+ltVegas=vegas254 #vegasv250rc5
 offset=Alloff # should find a way to manage this 
 zenith=LZA
 
-DistanceUpper=1.43 #DistanceUpper='0/1.43'
-NTubesMin='0/5'
+source $VSCRIPTS/shellScripts/setCuts.sh 
 stage4cuts=auto
-declare -A stg4_size_map
-stg4_size_map[V4V5_SoftLoose]="0/200"
-stg4_size_map[V6_SoftLoose]="0/400"
-stg4_size_map[V4V5_medium]="0/400"
-stg4_size_map[V6_medium]="0/700"
-stg4_size_map[V4V5_hard]="0/1000"
-stg4_size_map[V6_hard]="0/1200"
-
 stage5cuts=auto
-declare -A stg5_cuts_map
-stg5_cuts_map[all]="-MeanScaledWidthLower=.05 -MeanScaledLengthLower=.05"
-stg5_cuts_map[loose]="-MeanScaledWidthUpper=1.1 -MeanScaledLengthUpper=1.4"
-stg5_cuts_map[SoftMedium]="-MeanScaledWidthUpper=1.1 -MeanScaledLengthUpper=1.3 -MaxHeightLower=7"
-stg5_cuts_map[hard]="-MeanScaledWidthUpper=1.15 -MeanScaledLengthUpper=1.4"
 
 configFlags4="-OverrideLTCheck=1"
 configFlags5="-Method=VACombinedEventSelection"
 suffix="" # only applied to stages 4 and 5 by default
-useStage5outputFile="true"
-useBDT="false"
+useStage5outputFile=true
+useBDT=false
 
-runMode="print" # 
+runMode=print # 
 
 laserSubscript=$VSCRIPTS/shellScripts/subscript_laser.sh
 subscript12=$VSCRIPTS/shellScripts/subscript_stage1and2.sh
@@ -84,8 +69,8 @@ stage5subDir=stg5
 # use getopt to parse arguments 
 args=`getopt -o l124d:5D:ahbB::s:qr:e:c:C:p:kdn: -l disp,BDT:: -n 'process_script.sh' -- $*` 
 eval set -- $args 
-
-for i; do                  # loop through options
+# loop through options
+for i; do  
     case "$i" in 
 	-l) runLaser="true"
 	    shift ;;
@@ -115,10 +100,10 @@ for i; do                  # loop through options
 	-C) stage5cuts=$2
 	    # same as for stage 4
 	    shift ; shift ;;
-	-B|BDT) #	    useStage5outputFile="true"
+	-B|--BDT) # useStage5outputFile="true"
 	    configFlags5="$configFlags5 -UseBDT=1"
 	    useBDT="true"
-	    weightsDir="$2"
+	    weightsDir="$2" # check that optional argument works 
 	    shift 2 ;;
 	--disp) 
 	    stg4method=disp
@@ -217,6 +202,34 @@ for dir in $processDir $logDir; do
     done # loop over subdirs
 done # loop over main dirs, process and log
 
+setEpoch() { # try to move into common file with setCuts
+
+    date=$1
+
+    # try to read from database 
+    runMonth=$(( (date % 10000 - date % 100) / 100 ))
+    if (( runMonth > 4 && runMonth < 11 )); then
+	season=22
+    else
+	season=21
+    fi
+    
+    # determine array for stage 4   
+    if (( date < 20090900 )); then
+        array=V4
+	#array=MDL8OA_V4_OldArray
+    elif (( date > 20120900 )); then
+        array=V6
+        #array=MDL10UA_V6_PMTUpgrade
+    else
+        array=V5
+	#array=MDL15NA_V5_T1Move
+    fi
+    
+} # end setEpoch 
+
+setCuts
+
 if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]; then
     
     while read -r line
@@ -235,14 +248,14 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 	laserQueue=$laserDir/queue
 	laserLog=$laserDir/log
 
-	laserRoot="null"
-	laserNum="null"
+	laserRoot="NULL"
+	laserNum="NULL"
 	
 	numTels=(0)
 	runBool="false"
 
-	stage1cmd="null"
-	stage2cmd="null"
+	stage1cmd="NULL"
+	stage2cmd="NULL"
 	
 	for n in $laser1 $laser2 $laser3 $laser4; do
 	    # loop through the lasers
@@ -250,7 +263,7 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 		
 		numTels=$((numTels + 1))
 		
-		if [ "$laserNum" == "null" ]; then
+		if [ "$laserNum" == "NULL" ]; then
 		    
 		    laserNum=$n
 		    runBool="true"
@@ -305,7 +318,7 @@ EOF
 	    fi # laser isn't --
 	done # for loop over telescopes
 	
-	if [[ "$laserRoot" == "null" ]]; then
+	if [[ "$laserRoot" == "NULL" ]]; then
 	    
 	    laserRoot="$laserProcessed/${laserNum}_laser.root"
 	    
@@ -356,7 +369,7 @@ EOF
 	rootName_1="$processDir/${stage1subDir}/${runNum}.stage1.root"	    
 	rootName_2="$processDir/${stage2subDir}/${runNum}.stage2.root"
 	runBool="false" # reset 
-	stage1cmd="NULL" # must match null assignment in subscript
+	stage1cmd="NULL" # must match NULL assignment in subscript
 	stage2cmd="NULL"
 	dataFile=${dataDir}/${runNum}.cvbf		    
 
@@ -421,26 +434,10 @@ if [ "$runStage4" == "true" ]; then
 	rootName_4="$processDir/${stage4subDir}/${runNum}${suffix}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}${suffix}.stage4.txt"
 	
-	runMonth=$(( (runDate % 10000 - runDate % 100) / 100 ))
-	if (( runMonth > 4 && runMonth < 11 )); then
-	    season=22
-	else
-	    season=21
-	fi
-
-        # determine array for stage 4   
-        if (( runDate < 20090900 )); then
-            array=MDL8OA_V4_OldArray
-            sizeArray=V4V5
-        elif (( runDate > 20120900 )); then
-            array=MDL10UA_V6_PMTUpgrade
-            sizeArray=V6
-        else
-            array=MDL15NA_V5_T1Move
-            sizeArray=V4V5
-        fi
-
-	tableBase=${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper//./p}
+	setEpoch $runDate
+	setCuts
+	
+	tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper//./p}
 	ltFile=$tableDir/lt_${tableBase}.root
 	#ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
 	tableFlags="-table=$ltFile" # zen55-70
@@ -449,16 +446,14 @@ if [ "$runStage4" == "true" ]; then
 	    tableFlags="$tableFlags -DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
 	fi 
 
-        SizeLower=${stg4_size_map[${sizeArray}_${sizeSpec}]}
-
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
         if [ ! -f $rootName_4 -a ! -f $queueFile ]; then
             if [ "$stage4cuts" == "auto" ]; then
-                stg4_cuts="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
+                cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
             elif [ "$stage4cuts" == "none" ]; then
-		stg4_cuts=""
+		cutFlags4=""
 	    else
-                stg4_cuts="-cuts=${stage4cuts}"
+                cutFlags4="-cuts=${stage4cuts}"
             fi
 
             if [ "$array" == "V4" ]; then
@@ -467,7 +462,7 @@ if [ "$runStage4" == "true" ]; then
 		telCombosToDeny=""
 	    fi
 
-            cmd="`which vaStage4.2` $tableFlags $stg4_cuts $configFlags4 $telCombosToDeny $rootName_4"
+            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $telCombosToDeny $rootName_4"
 	    echo "$cmd"
 
 	    if [ ! -f $ltFile ]; then
@@ -488,7 +483,7 @@ $qsubHeader
 #PBS -o $runLog
 #PBS -p $priority
 
-$subscript45 "$cmd" $rootName_4 $rootName_2 $cutsDir/$stage4cuts $stage4subFlags
+$subscript45 "$cmd" $rootName_4 $rootName_2 $stage4subFlags
 echo "$spectrum"
 EOF
 
@@ -513,35 +508,25 @@ if [ "$runStage5" == "true" ]; then
 	rootName_5="${processDir}/${stage5subDir}/${runNum}${suffix}.stage5.root"
 	runLog="${logDir}/${stage5subDir}/${runNum}${suffix}.stage5.txt"
 
-	# determine array for both stage 4 and 5
-	if (( runDate < 20090900 )); then
-	    array=V4
-	elif (( runDate > 20120900 )); then
-	    array=V6
-	else
-	    array=V5
-	fi
+	setEpoch $runDate
+	setCuts
 
 	if [ ! -f $rootName_5 ]; then
 	    queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
 	    if [ ! -f $queueName ]; then
 	
+		if [ "$stage5cuts" == "auto" ]; then
+		    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
+		elif [ "$stage5cuts" == "none" ]; then
+		    cutFlags5=""
+		else
+		    cutFlags5="-cuts=$stage5cuts"
+		fi
 		
 		if [ "$useStage5outputFile" == "true" ]; then
-		    cmd="`which vaStage5` $configFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 		else
-		    cmd="`which vaStage5` $configFlags5 -inputFile=$rootName_5"
-		fi
-
-		if [ "$stage5cuts" == "auto" ]; then
-		    cmd="$cmd ${stg5_cuts_map[all]}"
-		    if [ "$spectrum" == "soft" ] || [ "$spectrum" == "medium" ]; then
-			cmd="$cmd ${stg5_cuts_map[SoftMedium]}"
-		    else
-			cmd="$cmd ${stg5_cuts_map[${spectrum}]}"
-		    fi
-		elif [ "$stage5cuts" != "none" ]; then
-		    cmd="$cmd -cuts=$stage5cuts"
+		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
 		fi
 
 		if [ "$useBDT" == "true" ]; then
@@ -567,7 +552,7 @@ $qsubHeader
 #PBS -o $runLog
 #PBS -p $priority
 
-$subscript45 "$cmd" $rootName_5 $rootName_4 $cutsDir/$stage5cuts $stage5subFlags
+$subscript45 "$cmd" $rootName_5 $rootName_4 $stage5subFlags #removed $cutsDir/$stage5cuts
 echo "$spectrum"
 EOF
 		    
@@ -579,10 +564,8 @@ fi # runStage5
 
 ##### STAGE 6 #####
 if [ "$runStage6" == "true" ]; then
-    cmd="vaStage6 -config=${HOME}/config/BDT_stage6.config ${HOME}/run/BDT_runlist.txt"
+    cmd="`which execute-stage6.sh` -e $environment -s spectrum -d $subDir -n $name -r $runMode"
     echo "$cmd"
-    echo `which vaStage6`
-    #submitJob "$cmd" BDT_stage6
 fi
 
 if [ "$runMode" == "qsub" ]; then

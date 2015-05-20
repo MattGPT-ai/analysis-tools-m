@@ -5,7 +5,8 @@ NTubesMin=0/5
 MeanScaledLengthLower=0.05
 MeanScaledWidthLower=0.05
 #TelCombosToDeny=
-test -z "$DistanceUpper" && DistanceUpper=1.43  
+#test -z "$DistanceUpper" && DistanceUpper=1.43  
+test -n "$DistanceUpper" || DistanceUpper=1.43 
 # needs to have form -DistanceUpper=0/$DistanceUpper 
 
 #check array is valid
