@@ -16,6 +16,7 @@ offsets="0.00,0.50,0.75"
 #offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870) # must be reflected in qsub file
+#noiseLevels=(100,150,200,250,300,350,400,490,605,730,870) # all noise in one 
 noiseNum=${#noiseLevels[@]}
 
 dtFlags="-Log10SizePerBin=0.25 -Log10SizeUpperLimit=6 -RatioPerBin=1 -DTM_WindowSizeForNoise=7"
@@ -53,8 +54,10 @@ for i; do
 	--atm) 
 	    atm="$2" ; shift 2 ;;
 	--zeniths)
-	    zeniths="$2" ; shift 2 ;; 
-	--offsets) 
+	    zeniths="$2"  
+	    echo "$3"
+	    shift 2 ;;
+    	--offsets) 
 	    offsets="$2" ; shift 2 ;;
 	--noises)
 	    noises="$2" ; shift 2 ;; 
@@ -92,6 +95,7 @@ case "$array" in
 	#model=MDL15NA epoch=V5_T1Move ;;
     ua) #V6 
 	noiseArray=(4.24,5.21,6.00 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
+	#noiseArray=(4.24,5.21,6.00,6.68,7.27,7.82,8.33,9.20,10.19,11.17,12.17) ;; 
 	#model=MDL10UA epoch=V6_PMTUpgrade ;;
     *) 
 	echo "Array $array not recognized! Choose either oa, na, or ua!!"
@@ -113,10 +117,13 @@ fi
 tempTableList=`mktemp` || ( echo "tempTableList creation failed" ; exit 1 )
 
 for zGroup in $zeniths; do 
-    for oGroup in $offsets; do 
+    for oGroup in "$offsets"; do 
 	noiseIndex=(0) #noiseIndex
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
+
+	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_${noiseIndex}noise #modify zeniths, offsets
+
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
 	    else 
@@ -129,7 +136,7 @@ for zGroup in $zeniths; do
 		    for n in ${nGroup//,/ }; do 
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${o//./}wobb_${n}noise
 			if [ "$table" != ea ]; then
-			    simFileScratch=$scratchDir/${simFileBase}.root
+			    simFileScratch=$scratchDir/$tableFileBase/${simFileBase}.root
 			else
 			    simFileScratch=$workDir/processed/sims_v254_${spectrum}/${simFileBase}.stage4.root
 			fi
@@ -147,7 +154,6 @@ for zGroup in $zeniths; do
 		fi
 	    fi # update simFileList if it's new 
 
-	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_${noiseIndex}noise #modify zeniths, offsets
 	    if [ "$table" == ea ]; then 
 		setCuts
 		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
@@ -211,9 +217,16 @@ for zGroup in $zeniths; do
 #PBS -N $tableFileBase
 #PBS -o $logFile
 
+cleanUp() {
+mv $logFile $workDir/rejected/
+rm $queueFile
+rm -rf $scratchDir/$tableFileBase
+}
+
+mkdir $scratchDir/$tableFileBase
 hostname
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870)
-trap "echo \"First trap, Exiting 15\" >> $logFile; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM
+trap "echo \"First trap, Exiting 15\" >> $logFile; cleanUp; exit 15" SIGTERM
 
 while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
 
@@ -224,10 +237,12 @@ set -- \$line
 file=\${1##*/}
 beforeZ=\${file%deg*}
 zenith=\${beforeZ#*_7samples_}
-trap "echo \"file trap, exiting SIGTERM \" >> $logFile; rm $scratchDir/\$file; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM 
+trap "echo \"file trap, exiting SIGTERM \" >> $logFile; cleanUp; exit 15" SIGTERM 
 test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/ || ( mv $logFile $workDir/rejected/; rm $queueFile; exit 6 )
-#test \$PIPESTATUS[1] -e 0 || ( mv $logFile $workDir/rejected/; rm $queueFile; exit 6 )
-{zenith}_deg/\$file $scratchDir/
+
+test -f \$file || ( mv $logFile $workDir/rejected/; rm $queueFile; exit 6 )
+#test \$PIPESTATUS[1] -e 0 || ( cleanUp; exit 6 )
+#{zenith}_deg/\$file $scratchDir/
 
 done < $simFileList # loop over every sim file in list
 fi # don't need to copy for effective area production, stage 4 files already on userspace 
@@ -242,6 +257,8 @@ echo "Table made in:"
 date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
 
 rm $queueFile
+rm -rf $scratchDir/$tableFileBase
+
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
 echo "exit code: \$exitCode"
@@ -250,6 +267,8 @@ cp $logFile $workDir/rejected/
 exit \$exitCode
 mv $smallTableFile $workDir/backup/tables/
 fi
+
+
 
 echo "Exiting successfully!"
 exit 0
@@ -280,14 +299,16 @@ EOF
 done # zeniths 
 
 offsets=${offsets// /,}
+offsets=${offsets//./}
 zeniths=${zeniths// /,}
+azimuths=${azimuths// /,}
 combinedFileBase=${table}_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_${offsets//,/-}off_${zeniths//,/-}zen_std_d${DistanceUpper//./p}
 
 case $table in 
     dt)
-	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths// /,} -DTM_Zenith=${zeniths// /,} -DTM_Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;;
+	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths} -DTM_Zenith=${zeniths} -DTM_Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;;
     lt) 
-	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths// /,} -Zenith=${zeniths// /,} -AbsoluteOffset=${offsets// /,} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;;
+	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;; 
     ea) 
 	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
 	buildCmd="buildEATree $flags $cuts $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}.root" ;; 
