@@ -5,7 +5,8 @@ runStage5=false
 
 offsets="000 050 075" # offsets isn't looped over, but the following all are
 #zeniths="00 20 30 40" # BDT
-zeniths="50 55 60 65"
+#zeniths="50 55 60 65"
+zeniths="60 65"
 atmospheres="21 22"
 arrays="na ua"
 noises="100 150 200 250 300 350 400 490 605 730 870"
@@ -40,14 +41,14 @@ ltMode=auto
 
 qsubHeader="
 #!/bin/bash -f
-#PBS -l nodes=1,mem=2gb,walltime=03:00:00
+#PBS -l nodes=1,mem=2gb,walltime=24:00:00
 #PBS -j oe
 #PBS -V 
 "
 #PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l disp,BDT -- $*` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l disp,BDT,disp5,disp6 -- $*` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
     case "$i" in
@@ -95,11 +96,24 @@ for i; do
 	--disp) 
 	    stg4method=disp 
             configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom 
-	    DistanceUpper=1.38 
+	    #DistanceUpper=1.38 
             ltVegas=vegas254 
             zenith="Z-55-70" 
             shift ;;
-	-B|--BDT) useBDT=true
+	--disp5)
+	    stg4method=disp
+            configFlags4="$configFlags4 -DR_Algorithm=Method5" #t stands for tmva, Method6 for average disp and geom                                                        #DistanceUpper=1.38 
+	    ltVegas=vegas254
+            zenith="Z-55-70"
+            shift ;;
+	--disp6)
+            stg4method=disp
+            configFlags4="$configFlags4 -DR_Algorithm=Method6" #t stands for tmva, Method6 for average disp and geom  
+            #DistanceUpper=1.38          
+	    ltVegas=vegas254
+            zenith="Z-55-70"
+            shift ;;
+  	-B|--BDT) useBDT=true
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
@@ -144,20 +158,6 @@ for array in $arrays; do
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv251_7samples_${z}deg_${offset//./}wobb_${n}noise
 			simFile=$dataDir/Oct2012_${array}_ATM${atm}/${simFileBase}.root
 		    fi # set name of simfile 
-
-		    if [ "$ltMode" == auto ]; then
-			#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
-			ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
-			ltFile=$tableDir/${ltName}.root
-		    fi
-		    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
-		    tableFlags="-table=${ltFile}"
-		    if [ "$stg4method" == disp ]; then
-			#dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
-			dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
-			test -f $tableDir/${dtName}.root || echo -e "\e[0;31mDisp table $tableDir/${dtName}.root does not exist! \e[0m"
-			tableFlags="$tableFlags -DR_DispTable=$tableDir/${dtFile}.root" 
-		    fi
 		    
 		    rootName_4="$processDir/$subDir/${simFileBase}.stage4.root"
 		    rootName_5="$processDir/$subDir/${simFileBase}.stage5.root"
@@ -166,9 +166,40 @@ for array in $arrays; do
 
 		    if [ "$runStage4" == "true" ]; then
 			runLog="$logDir/$subDir/${simFileBase}.stage4.txt"
-#			if [ true ]; then
+			#			if [ true ]; then
 			if [ ! -f $rootName_4 ]; then
 			    if [ -f $simFile ]; then
+
+				if [ "$ltMode" == auto ]; then
+				    #ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
+				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_Z50-55-60-65_std_d${DistanceUpper//./p}
+				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA_noise150fix
+				    
+				    ltFile=$tableDir/${ltName}.root
+				fi
+				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
+				tableFlags="-table=${ltFile}"
+				if [ "$stg4method" == disp ]; then
+				    #dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_allNoise
+
+				    case $n in
+					100|150|200) nGroup=0 ;;
+					250|300) nGroup=1 ;;
+					350|400) nGroup=2 ;; 
+					490|605) nGroup=3 ;; 
+					730|870) nGroup=4 ;;
+				    esac
+
+				    dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_${nGroup}noise
+				    #dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA
+				    
+				    #dtFile=$tableDir/${dtName}.root
+				    dtFile=$GC/processed/tables/${dtName}.root
+
+				    test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
+				    tableFlags="$tableFlags -DR_DispTable=$dtFile" 
+				fi
+
 
 				if [ "$cutMode4" == auto ]; then
 				    cutFlags4="-DistanceUpper=0/${DistanceUpper} -SizeLower=$SizeLower -NTubesMin=$NTubesMin"
@@ -181,7 +212,7 @@ for array in $arrays; do
 				if [ "$runMode" != print ]; then
 
 				    test "$runMode" == "qsub" && touch $queueDir/${subDir}_${simFileBase}.stage4${extension}
-				
+				    
 				    $runMode <<EOF  
 $qsubHeader  
 #PBS -N ${subDir}_${simFileBase}.stage4
@@ -192,7 +223,7 @@ $subscript45 "$stage4cmd" $rootName_4 $simFile $envFlag # should be able to remo
 
 exit 0 
 EOF
-				#echo "VEGAS job " $PBS_JOBID " started  at: " ` date ` >> $logDir/PBS.txt
+				    #echo "VEGAS job " $PBS_JOBID " started  at: " ` date ` >> $logDir/PBS.txt
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mSource simulation file $simFile does not exist! check directory\e[0m"
@@ -239,7 +270,7 @@ test -z "$useBDT" || mv $rootName_5 $stage5Dir
 
 exit 0
 EOF
-				# echo "VEGAS job " $PBS_JOBID " started at: " ` date ` >> $logDir/PBS.txt
+				    # echo "VEGAS job " $PBS_JOBID " started at: " ` date ` >> $logDir/PBS.txt
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mStage 4 file $rootName_4 does not exist and is not in queue!\e[0m"

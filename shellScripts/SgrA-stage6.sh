@@ -28,7 +28,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts s:d:n:Bc:l:e:rqb4 FLAG; do
+while getopts s:d:n:Bc:l:e:rqb4f: FLAG; do
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -57,6 +57,12 @@ while getopts s:d:n:Bc:l:e:rqb4 FLAG; do
 	4) 
 	    readFlag="-S6A_ReadFromStage4=1"
 	    extension=".stage4.root"
+	    ;;
+	o)
+	    options="$options -S6A_ObsMode=On/Off"
+	    ;;
+	f)
+	    runFile=$OPTARG
 	    ;;
 	r) 
 	    runMode=run
@@ -139,12 +145,11 @@ for file in $logFile $outputFile; do
     fi
 done
 
-### set command to be run or printed ###
-runFile=$HOME/work/${sourceName}_${name}_runlist.txt
-cmd="${VEGAS}/bin/vaStage6 -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} ${cutsFlag} $options $readFlag -S6A_RingSize=${RingSize} -RBM_SearchWindowSqCut=$SearchWindowSqCut $runFile " #
-echo "$cmd"
 
-if [ "$runMode" != print ]; then
+if [ ! $runFile ] && [ "$runMode" != print ]; then
+
+    ### set command to be run or printed ###
+    runFile=$HOME/work/${sourceName}_${name}_runlist.txt
 
     if [ "$backupPrompt" == "true" ]; then
 	echo "backup these files and continue? type 'Y' to continue"
@@ -169,7 +174,10 @@ if [ "$runMode" != print ]; then
 	echo "$runFile exists, using this!"
     fi # runfile doesn't exist so must be created
     
-fi # if runMode is not print only 
+fi # if runFile isn't already specified and runMode is not print only 
+
+cmd="${VEGAS}/bin/vaStage6 -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} ${cutsFlag} $options $readFlag -S6A_RingSize=${RingSize} -RBM_SearchWindowSqCut=$SearchWindowSqCut $runFile " #
+echo "$cmd"
 
 if [ "$runMode" == qsub ]; then
     qsub<<EOF
@@ -180,8 +188,8 @@ if [ "$runMode" == qsub ]; then
 #PBS -N stage6_${name}_${sourceName}
 
 source $environment
-date &>> $logFile
-hostname &>> $logFile
+date
+hostname
 echo "$ROOTSYS"
 
 $cmd
