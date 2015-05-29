@@ -16,14 +16,13 @@ offsets="0.00,0.50,0.75"
 #offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870) # must be reflected in qsub file
-#noiseLevels=(100,150,200,250,300,350,400,490,605,730,870) # all noise in one 
-noiseNum=${#noiseLevels[@]}
+oneNoise=false
 
 dtFlags="-Log10SizePerBin=0.25 -Log10SizeUpperLimit=6 -RatioPerBin=1 -DTM_WindowSizeForNoise=7"
 dtWidth="-DTM_Width=0.04,0.06,0.08,0.1,0.12,0.14,0.16,0.2,0.25,0.3,0.35"
 dtLength="-DTM_Length=0.05,0.09,0.13,0.17,0.21,0.25,0.29,0.33,0.37,0.41,0.45,0.5,0.6,0.7,0.8"
 # WindowSizeForNoise is 7 by default
-ltFlags="$ltFlags -LTM_WindowSizeForNoise=7 -TelID=0,1,2,3"
+ltFlags="$ltFlags -LTM_WindowSizeForNoise=7"
 ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractionalErrorCut=0.25"
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
 
@@ -39,7 +38,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir: -- $*`
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir:,telID,oneNoise -- $*`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -68,7 +67,11 @@ for i; do
 	--testname) 
 	    testnameflag="_${2}" ; shift 2 ;; 
 	--stage4dir)
-	    stage4dir="$2" ; shift 2 ;; 
+	    stage4dir="$2" ; shift 2 ;;
+	--telID)
+	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
+	--oneNoise)
+	    oneNoise=true ; shift ;; 
 	--) 
 	    shift ; break ;;
 #	*)
@@ -96,19 +99,26 @@ case "$array" in
 	noiseArray=(4.29,5.28,6.08 6.76,7.37 7.92,8.44 9.32,10.33 11.32,12.33) ;;
 	#model=MDL15NA epoch=V5_T1Move ;;
     ua) #V6 
-	noiseArray=(4.24,5.21,6.00 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
-	#noiseArray=(4.24,5.21,6.00,6.68,7.27,7.82,8.33,9.20,10.19,11.17,12.17) ;; 
+	noiseArray=(4.24,5.21,6 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
+	#noiseArray=(4.24,5.21,6.00 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
 	#model=MDL10UA epoch=V6_PMTUpgrade ;;
     *) 
 	echo "Array $array not recognized! Choose either oa, na, or ua!!"
 	exit 1
         ;;
 esac
-epoch=$array
 
 noises="${noiseArray[0]}"
 while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
+if [ "$oneNoise" = true ]; then
+noiseString="${noiseArray[@]}"
+noiseArray=(${noiseString// /,})
+noiseString="${noiseLevels[@]}"
+noiseLevels=(${noiseString// /,})
+fi # do not split tables by noise level groups 
+noiseNum=${#noiseLevels[@]}
 
+epoch=$array
 simFileSubDir=Oct2012_${array}_ATM${atm}
 
 if [ "$table" == ea ]; then
@@ -130,7 +140,7 @@ for zGroup in $zeniths; do
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
 	    else 
-		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
+		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_${stage4dir}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
 	    fi 
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
 	    for z in ${zGroup//,/ }; do 
@@ -178,9 +188,9 @@ for zGroup in $zeniths; do
 	    if [[ "$table" =~ "dt" ]]; then # disp table
 		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
 		flags="$flags -DTM_Noise=${noiseArray[$noiseIndex]} -DTM_Zenith=$zGroup"
-		flags="$flags -DTM_TelID=0,1,2,3"
 		#flags="$flags -DTM_AbsoluteOffset=$oGroup"
-		#-G_SimulationMode=1 		# don't use
+		#flags="$flags -G_SimulationMode=1"
+		# don't use
 		cmd="produceDispTables $flags $simFileList $smallTableFile"
 	    fi # disp table
 
@@ -314,7 +324,7 @@ case $table in
 	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;; 
     ea) 
 	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
-	buildCmd="buildEATree $flags $cuts $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}.root" ;; 
+	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}.root" ;; # $cuts 
 esac # build commands based on table type 
 
 if [ "$runMode" != print ]; then

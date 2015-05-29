@@ -22,11 +22,12 @@ weightsDir=5-34_defaults
 trashDir=$HOME/.trash
 
 spectrum=medium
-simulation=GrISUDet # CORSIKA 
+simulation=GrISUDet # CORSIKA
+model=Oct2012  
 method=std
 environment="" #$HOME/environments/SgrA_source.sh
-ltVegas=vegas254 #vegasv250rc5
-offset=Alloff # should find a way to manage this 
+ltVegas=vegasv250rc5
+offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
 source $VSCRIPTS/shellScripts/setCuts.sh 
@@ -39,6 +40,7 @@ suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile=true
 useBDT=false
 
+reprocess=false
 runMode=print # 
 
 laserSubscript=$VSCRIPTS/shellScripts/subscript_laser.sh
@@ -67,7 +69,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124d:5D:ahbB::s:qr:e:c:C:p:kdn: -l disp,BDT:: -n 'process_script.sh' -- $*` 
+args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::reprocess: -n 'process_script.sh' -- $*` #d:D: 
 eval set -- $args 
 # loop through options
 for i; do  
@@ -78,14 +80,16 @@ for i; do
 	    shift ;;
 	-2) runStage2="true"
 	    shift ;;
-	-4) runStage4="true" ; 
-	    shift ;;
-	-d) stage4subDir="$2"
+	-4) runStage4="true" 
+	    stage4subDir="$2"
 	    shift 2 ;;
+#	-d) stage4subDir="$2"
+#	    shift 2 ;;
 	-5) runStage5="true"
-       	    shift ;;
-	-D) stage5subDir="$2"
-	    shift 2 ;; 
+	    stage5subDir="$2"
+       	    shift 2 ;;
+#	-D) stage5subDir="$2"
+#	    shift 2 ;; 
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
 	-r) runMode="$2"
@@ -107,12 +111,13 @@ for i; do
 	    shift 2 ;;
 	--disp) 
 	    stg4method=disp
-	    configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom
+	    dispMethod="$2"
+	    configFlags4="$configFlags4 -DR_Algorithm=Method${dispMethod}" #t stands for tmva, Method6 for average disp and geom
 	    DistanceUpper=1.38
 	    ltVegas=vegas254
-	    #offset=075wobb
-	    zenith="Z-55-70"
-	    shift ;;
+	    offset=000-050-075wobb
+	    zenith=Z50-55-60-65
+	    shift 2 ;; 
 	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
 	    source $environment
 	    envFlag="-e $environment"
@@ -126,13 +131,16 @@ for i; do
 	-h) configFlags4="$configFlags4 -HillasBranchName=HFit"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
 	    method=hfit
+	    stage2subDir=stg2_hfit
 	    #suffix="${suffix}_hfit"
 	    shift ;; #stage4cuts="BDT_hfit4cuts.txt"
 	-b) useStage5outputFile="false"
 	    shift ;;
+	--reprocess)
+	    reprocess=true ; shift ;;
 	-n) nMax=$2 ; shift 2 ;;
 	--) shift; break ;;
-	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
+#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
 done # loop over command line arguments 
 
@@ -216,13 +224,13 @@ setEpoch() { # try to move into common file with setCuts
     
     # determine array for stage 4   
     if (( date < 20090900 )); then
-        array=V4
+        array=oa #V4 
 	#array=MDL8OA_V4_OldArray
     elif (( date > 20120900 )); then
-        array=V6
+        array=ua #V6 
         #array=MDL10UA_V6_PMTUpgrade
     else
-        array=V5
+        array=na #V5 
 	#array=MDL15NA_V5_T1Move
     fi
     
@@ -437,17 +445,23 @@ if [ "$runStage4" == "true" ]; then
 	setEpoch $runDate
 	setCuts
 	
-	tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${method}_d${DistanceUpper//./p}
-	ltFile=$tableDir/lt_${tableBase}.root
-	#ltFile=$tableDir/lt_${array}_ATM${season}_${simulation}_vegasv250rc5_7sam_Alloff_std_d1p43_LZA.root
-	tableFlags="-table=$ltFile" # zen55-70
+	tableFlags=""
 	if [ "$stg4method" == disp ]; then 
-	    dtFile=$tableDir/dt_${tableBase}_${zenith}.root
-	    tableFlags="$tableFlags -DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
+	    tableBase=${model}_${array}_ATM22_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p} # 
+	    #tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p}
+	    #dtFile=$tableDir/dt_${tableBase}_${zenith}.root
+	    dtFile=$tableDir/dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
+	    #dtFile=$GC/processed/tables/dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z60-65_std_d1p38_allNoise.root
+	    tableFlags="-DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
+	else
+	    tableBase=${model}_${array}_ATM${season}_7samples_vegasv250rc5_${offset}_${zenith}
 	fi 
+	ltFile=$tableDir/lt_${tableBase}.root
+	tableFlags="$tableFlags -table=$ltFile" 
 
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
-        if [ ! -f $rootName_4 -a ! -f $queueFile ]; then
+        if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
+	    # don't reprocess if in queue? add to earlier stages? 
             if [ "$stage4cuts" == "auto" ]; then
                 cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
             elif [ "$stage4cuts" == "none" ]; then
@@ -511,7 +525,7 @@ if [ "$runStage5" == "true" ]; then
 	setEpoch $runDate
 	setCuts
 
-	if [ ! -f $rootName_5 ]; then
+	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
 	    queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
 	    if [ ! -f $queueName ]; then
 	

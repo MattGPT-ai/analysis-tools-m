@@ -8,7 +8,7 @@ environment=$HOME/environments/SgrA_source.sh
 outputDir=results
 
 #common defaults, make more variables? 
-options="-S6A_Spectrum=1 -S6A_Batch=1 -OverrideEACheck=0 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
+options="-S6A_Spectrum=1 -OverrideEACheck=0 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
 options="$options -RBM_CoordinateMode=\"Galactic\" -UL_PhotonIndex=2.1"
 exclusionListFlag="-S6A_UserDefinedExclusionList=$HOME/config/SgrA_exclusionList.txt" # put in environment
 RingSize=.1
@@ -21,14 +21,14 @@ extension=".stage5.root"
 readFlag="-S6A_ReadFromStage5Combined=1" 
 
 backupPrompt=false
-useTestPosition=true
+useTestPosition=false 
 trashDir=$HOME/.trash
 
 runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts s:d:n:Bc:l:e:rqb4f: FLAG; do
+while getopts s:d:n:Bc:l:e:r:qb4of: FLAG; do
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -65,10 +65,11 @@ while getopts s:d:n:Bc:l:e:rqb4f: FLAG; do
 	    runFile=$OPTARG
 	    ;;
 	r) 
-	    runMode=run
+	    runMode=$OPTARG
 	    ;;
 	q)
 	    runMode=qsub
+	    options="$option -S6A_Batch=1"
 	    ;;
 	b) # change argument, decide if overwriting runlist, could just trash old before 
 	    regen=false
@@ -103,7 +104,7 @@ if [ ! $name ]; then
     name=${subDir} #${spectrum}${mode}
 fi
 
- # had separate variable for baseDir
+# had separate variable for baseDir
 logDir=$VEGASWORK/log/stage6
 backupDir=$VEGASWORK/backup
 outputDir=$VEGASWORK/$outputDir
@@ -146,11 +147,8 @@ for file in $logFile $outputFile; do
 done
 
 
-if [ ! $runFile ] && [ "$runMode" != print ]; then
-
-    ### set command to be run or printed ###
-    runFile=$HOME/work/${sourceName}_${name}_runlist.txt
-
+if [ "$runMode" != print ]; then
+    
     if [ "$backupPrompt" == "true" ]; then
 	echo "backup these files and continue? type 'Y' to continue"
 	read response
@@ -159,28 +157,38 @@ if [ ! $runFile ] && [ "$runMode" != print ]; then
 	    test ! -f $outputFile || mv $outputFile $backupDir
 	fi
     fi # check file already exists
-
-    ### create runfile using python script if it doesn't exist ###
-    echo "extension: $extension" 
-    if [ ! -f $runFile ]; then 
-	tempRunlist=`mktemp` || exit 1 # intermediate runlist file 
-	while read -r line; do 
-	    set -- $line
-	    echo "$finalRootDir/${2}${extension}" >> $tempRunlist
-	done < $loggenFile
-	echo $loggenFile
-	python $BDT/macros/s6RunlistGen.py --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
-    else
-	echo "$runFile exists, using this!"
-    fi # runfile doesn't exist so must be created
     
-fi # if runFile isn't already specified and runMode is not print only 
+    if [ ! $runFile ]; then 
+
+	### set command to be run or printed ###
+	runFile=$HOME/work/${sourceName}_${name}_runlist.txt
+	### create runfile using python script if it doesn't exist ###
+	echo "extension: $extension" 
+	if [ ! -f $runFile ]; then 
+	    tempRunlist=`mktemp` || exit 1 # intermediate runlist file 
+	    while read -r line; do 
+		set -- $line
+		echo "$finalRootDir/${2}${extension}" >> $tempRunlist
+	    done < $loggenFile
+	    echo $loggenFile
+	    python $BDT/macros/s6RunlistGen.py --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
+	fi # runfile doesn't exist so must be created
+    fi # if runFile isn't already specified  
+fi # if runMode is not print only 
+
+test -n $runFile || ( echo "runFile variable empty!" ; exit 1 ) 
+#test -f $runFile || ( echo "$runFile doesn't exist, exiting!" && exit 2 ) 
+if [ ! -f $runFile ]; then
+    echo -e "$runFile doesn't exist, exiting!\n"
+    exit 2
+fi
 
 cmd="${VEGAS}/bin/vaStage6 -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} ${cutsFlag} $options $readFlag -S6A_RingSize=${RingSize} -RBM_SearchWindowSqCut=$SearchWindowSqCut $runFile " #
 echo "$cmd"
 
-if [ "$runMode" == qsub ]; then
-    qsub<<EOF
+
+if [ "$runMode" != print ]; then
+    $runMode <<EOF
 #PBS -S /bin/bash
 #PBS -l nodes=1,mem=2gb
 #PBS -j oe
@@ -194,31 +202,12 @@ echo "$ROOTSYS"
 
 $cmd
 
-if [ \$? -ne 0 ]; then
-mv $logFile $VEGASWORK/rejected
-test -f todayresult && mv todayresults $VEGASWORK/log/
+test \$? -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
+test -f todayresult && mv todayresult $VEGASWORK/log/
 
 EOF
-EXITCODE=$?
-elif [ "$runMode" == run ]; then
-
-    #print some info
-    date &>> $logFile
-    hostname &>> $logFile
-    echo "$ROOTSYS" &>> $logFile
-
-    $cmd 2>&1 | tee $logFile 
-    EXITCODE=${PIPESTATUS[0]}
-
-    echo "$loggenFile" | tee $logFile
-    echo "exitcode: $EXITCODE" | tee $logFile
-    echo "$cmd" | tee $logFile
-
-    if [ -f todayresult ]; then
-	mv todayresult $VEGASWORK/log/
-    fi
+    EXITCODE=$?
 fi # runModes 
-
 
 # after running and logging, check for successful run
 if [ "$runMode" != print ] && [ $EXITCODE -ne 0 ]; then
