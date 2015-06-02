@@ -11,7 +11,8 @@ simulation=GrISUDet #CORSIKA
 model=Oct2012
 
 azimuths="0,45,90,135,180,225,270,315"
-zeniths="50,55 60,65" # 00,20 30,35 40,45
+#zeniths="50,55 60,65" # 00,20 30,35 40,45
+zeniths="00,20 30,35 40,45 50,55 60,65"
 offsets="0.00,0.50,0.75"
 #offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 
@@ -38,7 +39,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir:,telID,oneNoise -- $*`
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -58,8 +59,6 @@ for i; do
 	    shift 2 ;;
     	--offsets) 
 	    offsets="$2" ; shift 2 ;;
-	--noises)
-	    noises="$2" ; shift 2 ;; 
 	--distance)
 	    DistanceUpper="$2" ; shift 2 ;;
 	--spectrum)
@@ -70,8 +69,10 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--oneNoise)
-	    oneNoise=true ; shift ;; 
+	--noises) # change this maybe
+	    noises="$2" ; shift 2 ;; 
+	--allNoise)
+	    allNoise=true ; shift ;; 
 	--) 
 	    shift ; break ;;
 #	*)
@@ -108,15 +109,15 @@ case "$array" in
         ;;
 esac
 
+noiseNum=${#noiseLevels[@]}
 noises="${noiseArray[0]}"
 while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
-if [ "$oneNoise" = true ]; then
+if [ "$allNoise" = true ]; then
 noiseString="${noiseArray[@]}"
 noiseArray=(${noiseString// /,})
 noiseString="${noiseLevels[@]}"
 noiseLevels=(${noiseString// /,})
 fi # do not split tables by noise level groups 
-noiseNum=${#noiseLevels[@]}
 
 epoch=$array
 simFileSubDir=Oct2012_${array}_ATM${atm}
@@ -134,8 +135,14 @@ for zGroup in $zeniths; do
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
 
-	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_${noiseIndex}noise #modify zeniths, offsets
+	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets
 	    #tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_allNoises_one 
+
+	    if [ "$allNoise" == true ]; then
+		tableFileBase=${tableFileBase}_allNoise
+	    else
+		tableFileBase=${tableFileBase}_${noiseIndex}noise
+	    fi # append noise levels 
 
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
@@ -312,10 +319,10 @@ EOF
 done # zeniths 
 
 offsets=${offsets// /,}
-offsets=${offsets//./}
+offsetName=${offsets//./}
 zeniths=${zeniths// /,}
 azimuths=${azimuths// /,}
-combinedFileBase=${table}_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_${offsets//,/-}off_${zeniths//,/-}zen_std_d${DistanceUpper//./p}
+combinedFileBase=${table}_${model}_${epoch}_ATM${atm}_${simulation}_vegas254_7sam_${offsetName//,/-}wobb_Z${zeniths//,/-}_std_d${DistanceUpper//./p}
 
 case $table in 
     dt)
@@ -331,7 +338,7 @@ if [ "$runMode" != print ]; then
     if [ ! -f $tableList ]; then
 	cat $tempTableList > $tableList
     elif [[ `diff $tempTableList $tableList` != "" ]]; then
-	echo "$simFileList has changed, backing up"
+	echo "$tableList has changed, backing up"
 	mv $tableList $workDir/backup/config/
 	cat $tempTableList > $tableList
     fi

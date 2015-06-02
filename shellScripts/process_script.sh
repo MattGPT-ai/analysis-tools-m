@@ -69,7 +69,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::reprocess: -n 'process_script.sh' -- $*` #d:D: 
+args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::reprocess:customLT -n 'process_script.sh' -- "$@"` #d:D: 
 eval set -- $args 
 # loop through options
 for i; do  
@@ -139,6 +139,9 @@ for i; do
 	--reprocess)
 	    reprocess=true ; shift ;;
 	-n) nMax=$2 ; shift 2 ;;
+	--customLT)
+	    customLT=true
+	    ;; 
 	--) shift; break ;;
 #	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
@@ -433,7 +436,7 @@ fi # stage 1 or stage 2, or laser
 
 ##### STAGE 4 #####
 if [ "$runStage4" == "true" ]; then
-    while read -r line && test $n -lt $nMax; do
+    while read -r line; do #  && test $n -lt $nMax 
 	set -- $line
 	
 	runDate=$1
@@ -460,8 +463,9 @@ if [ "$runStage4" == "true" ]; then
 	tableFlags="$tableFlags -table=$ltFile" 
 
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
-        if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
-	    # don't reprocess if in queue? add to earlier stages? 
+        #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
+	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
+	# don't reprocess if in queue? add to earlier stages? 
             if [ "$stage4cuts" == "auto" ]; then
                 cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
             elif [ "$stage4cuts" == "none" ]; then
@@ -526,41 +530,42 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
-	    if [ ! -f $queueName ]; then
-	
-		if [ "$stage5cuts" == "auto" ]; then
-		    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
-		elif [ "$stage5cuts" == "none" ]; then
-		    cutFlags5=""
-		else
-		    cutFlags5="-cuts=$stage5cuts"
-		fi
-		
-		if [ "$useStage5outputFile" == "true" ]; then
-		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
-		else
-		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
-		fi
-
-		if [ "$useBDT" == "true" ]; then
-		    cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
-		fi
-
-		if [ "$applyTimeCuts" == "true" ]; then
-		    timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
-		    if [ "$timeCutMask" != "NULL" ]; then 
-			cmd="$cmd -ES_CutTimes=${timeCutMask}"
+	    if [ -f $rootName_4 ]; then
+		queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
+		if [ ! -f $queueName ]; then
+		    
+		    if [ "$stage5cuts" == "auto" ]; then
+			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
+		    elif [ "$stage5cuts" == "none" ]; then
+			cutFlags5=""
+		    else
+			cutFlags5="-cuts=$stage5cuts"
 		    fi
-		fi # apply time cuts
-		
-		echo "$cmd"
-
-		if [ "$runMode" != print ]; then
 		    
-		    touch $queueName
+		    if [ "$useStage5outputFile" == "true" ]; then
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+		    else
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
+		    fi
 		    
-		    $runMode <<EOF
+		    if [ "$useBDT" == "true" ]; then
+			cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
+		    fi
+		    
+		    if [ "$applyTimeCuts" == "true" ]; then
+			timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
+			if [ "$timeCutMask" != "NULL" ]; then 
+			    cmd="$cmd -ES_CutTimes=${timeCutMask}"
+			fi
+		    fi # apply time cuts
+		    
+		    echo "$cmd"
+		    
+		    if [ "$runMode" != print ]; then
+			
+			touch $queueName
+			
+			$runMode <<EOF
 $qsubHeader
 #PBS -N ${stage5subDir}${runNum}${suffix}.stage5
 #PBS -o $runLog
@@ -570,7 +575,10 @@ $subscript45 "$cmd" $rootName_5 $rootName_4 $stage5subFlags #removed $cutsDir/$s
 echo "$spectrum"
 EOF
 		    
-		fi # end runmode check
+		    fi # end runmode check
+		else # stage 4 file not present to run stage 5 
+		    echo "$rootName_4 is not present, skipping $rootName_5 !"
+		fi # stage 4 file present
 	    fi # stage 5 not in queue 
 	fi # stage 5 not present yet
     done < $readList

@@ -7,9 +7,14 @@
 environment=$HOME/environments/SgrA_source.sh
 outputDir=results
 
+sourceName=SgrA 
+loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
+#loggenFile=$HOME/runlists/SgrA_wobble_fixed.txt 
+positionFlags="-S6A_TestPositionRA=266.4168 -S6A_TestPositionDEC=-29.0078"
+
 #common defaults, make more variables? 
 options="-S6A_Spectrum=1 -OverrideEACheck=0 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
-options="$options -RBM_CoordinateMode=\"Galactic\" -UL_PhotonIndex=2.1"
+options="$options -UL_PhotonIndex=2.1" # 
 exclusionListFlag="-S6A_UserDefinedExclusionList=$HOME/config/SgrA_exclusionList.txt" # put in environment
 RingSize=.1
 SearchWindowSqCut=.01
@@ -28,7 +33,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts s:d:n:Bc:l:e:r:qb4of: FLAG; do
+while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -73,6 +78,12 @@ while getopts s:d:n:Bc:l:e:r:qb4of: FLAG; do
 	    ;;
 	b) # change argument, decide if overwriting runlist, could just trash old before 
 	    regen=false
+	    ;;
+	t)
+	    useTestPosition=true
+	    ;;
+	g)
+	    options="$options -RBM_CoordinateMode=\"Galactic\""
 	    ;;
 	?) #unrecognized option - show help
 	    echo -e "Option -${BOLD}$OPTARG${NORM} not allowed."
@@ -201,6 +212,7 @@ hostname
 echo "$ROOTSYS"
 
 $cmd
+echo "$cmd" 
 
 test \$? -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
 test -f todayresult && mv todayresult $VEGASWORK/log/
