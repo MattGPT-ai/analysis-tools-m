@@ -34,7 +34,8 @@ source $VSCRIPTS/shellScripts/setCuts.sh
 stage4cuts=auto
 stage5cuts=auto
 
-configFlags4="-OverrideLTCheck=1"
+configFlags4=""
+#configFlags4="-OverrideLTCheck=1"
 configFlags5="-Method=VACombinedEventSelection"
 suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile=true
@@ -219,7 +220,8 @@ setEpoch() { # try to move into common file with setCuts
 
     # try to read from database 
     runMonth=$(( (date % 10000 - date % 100) / 100 ))
-    if (( runMonth > 4 && runMonth < 11 )); then
+    # used to be runMonth > 4, but changed to agree with s6RunlistGen.py 
+    if (( runMonth > 3 && runMonth < 11 )); then
 	season=22
     else
 	season=21
@@ -530,7 +532,7 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    if [ -f $rootName_4 ]; then
+#	    if [ -f $rootName_4 ]; then # || [ -f $queueDir/${stage4subDir}_${runNum}.stage4${suffix} ]
 		queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
 		if [ ! -f $queueName ]; then
 		    
@@ -576,9 +578,9 @@ echo "$spectrum"
 EOF
 		    
 		    fi # end runmode check
-		else # stage 4 file not present to run stage 5 
-		    echo "$rootName_4 is not present, skipping $rootName_5 !"
-		fi # stage 4 file present
+#		else # stage 4 file not present to run stage 5 
+#		    echo "$rootName_4 is not present, skipping $rootName_5 !"
+#		fi # stage 4 file present
 	    fi # stage 5 not in queue 
 	fi # stage 5 not present yet
     done < $readList

@@ -109,15 +109,15 @@ case "$array" in
         ;;
 esac
 
-noiseNum=${#noiseLevels[@]}
-noises="${noiseArray[0]}"
-while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
 if [ "$allNoise" = true ]; then
-noiseString="${noiseArray[@]}"
-noiseArray=(${noiseString// /,})
-noiseString="${noiseLevels[@]}"
-noiseLevels=(${noiseString// /,})
+    noiseString="${noiseArray[@]}"
+    noiseArray=(${noiseString// /,})
+    noiseString="${noiseLevels[@]}"
+    noiseLevels=(${noiseString// /,})
 fi # do not split tables by noise level groups 
+noiseNum=${#noiseLevels[@]}
+n=(0)
+while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
 
 epoch=$array
 simFileSubDir=Oct2012_${array}_ATM${atm}

@@ -1,5 +1,9 @@
 setCuts() { # each argument should only be single valued
 
+if [ $1 ]; then
+    spectrum=$1
+fi
+
 # defaults for all configurations
 NTubesMin=0/5
 MeanScaledLengthLower=0.05
