@@ -447,26 +447,33 @@ if [ "$runStage4" == "true" ]; then
 	rootName_4="$processDir/${stage4subDir}/${runNum}${suffix}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}${suffix}.stage4.txt"
 	
-	setEpoch $runDate
-	setCuts
-	
-	tableFlags=""
-	if [ "$stg4method" == disp ]; then 
-	    tableBase=${model}_${array}_ATM22_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p} # 
-	    #tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p}
-	    #dtFile=$tableDir/dt_${tableBase}_${zenith}.root
-	    dtFile=$tableDir/dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
-	    #dtFile=$GC/processed/tables/dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z60-65_std_d1p38_allNoise.root
-	    tableFlags="-DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
-	else
-	    tableBase=${model}_${array}_ATM${season}_7samples_vegasv250rc5_${offset}_${zenith}
-	fi 
-	ltFile=$tableDir/lt_${tableBase}.root
-	tableFlags="$tableFlags -table=$ltFile" 
-
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
 	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
+	    offset=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT offset_distance FROM tblRun_Info WHERE run_id = ${runNum}"`
+	    #echo "$offset"
+	    #zenith=`mysql -h romulus.ucsc.edu -u readonly -s N -e "use ; SELECT FROM WHERE "`
+
+	    setEpoch $runDate
+	    setCuts
+	    
+	    tableFlags=""
+	    if [ "$stg4method" == disp ]; then 
+		tableBase=${model}_${array}_ATM22_${simulation}_${ltVegas}_7sam_000-050-075wobb_${zenith}_${method}_d${DistanceUpper//./p} # 
+		#tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p}
+		#dtFile=$tableDir/dt_${tableBase}_${zenith}.root
+		dtFile=$tableDir/dt_Oct2012_${array}_ATM${season}_GrISUDet_vegas254_7sam_075wobb_Z60-65_std_d1p38_allNoise.root
+		#dtFile=$tableDir/dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
+		#dtFile=$GC/processed/tables/dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z60-65_std_d1p38_allNoise.root
+		tableFlags="-DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
+	    else
+		#tableBase=${model}_${array}_ATM${season}_7samples_vegasv250rc5_${offset}_${zenith}
+		tableBase=${model}_${array}_ATM${season}_7samples_vegasv250rc5_${offset}_${zenith}
+	    fi 
+	    ltFile=$tableDir/lt_${tableBase}.root
+	    tableFlags="$tableFlags -table=$ltFile" 
+	
+	
 	# don't reprocess if in queue? add to earlier stages? 
             if [ "$stage4cuts" == "auto" ]; then
                 cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"

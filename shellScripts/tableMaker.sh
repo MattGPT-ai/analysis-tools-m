@@ -39,7 +39,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"`
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"` #table:
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -48,8 +48,8 @@ for i; do
 	    runMode="$2" ; shift 2 ;;
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
-	--table) # table type: lt, dt, ea
-	    table="$2" ; shift 2 ;;
+#	--table) # table type: lt, dt, ea
+#	    table="$2" ; shift 2 ;;
 	--array) 
 	    array="$2" ; shift 2 ;;
 	--atm) 
@@ -69,7 +69,7 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--noises) # change this maybe
+	--noises) # change this maybe, probably doesn't work 
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
 	    allNoise=true ; shift ;; 
@@ -80,9 +80,11 @@ for i; do
 #	    exit 1
     esac # argument cases
 done # loop over i in args
-#if [ $1 ]; then
-#    mode="$1"
-#fi
+if [ $1 ]; then
+    table="$1"
+else
+    echo "must specify table type!"
+fi
 
 if [ ! -d $workDir/log/tables ]; then
     echo "Must create table $workDir/log/tables !!!"
@@ -116,7 +118,7 @@ if [ "$allNoise" = true ]; then
     noiseLevels=(${noiseString// /,})
 fi # do not split tables by noise level groups 
 noiseNum=${#noiseLevels[@]}
-n=(0)
+noises=${noiseArray[0]}; n=(1)
 while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
 
 epoch=$array
@@ -228,7 +230,7 @@ for zGroup in $zeniths; do
 
 		if [ "$runMode" != print ]; then
 		    test $nJobs -lt $nJobsMax || exit 0 
-		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable )
+		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable/ )
 		    
 		    $runMode <<EOF
 #PBS -S /bin/bash

@@ -13,15 +13,15 @@ loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 positionFlags="-S6A_TestPositionRA=266.4168 -S6A_TestPositionDEC=-29.0078"
 
 #common defaults, make more variables? 
-options="-S6A_Spectrum=1 -OverrideEACheck=0 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
+options="-S6A_Spectrum=1 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
 options="$options -UL_PhotonIndex=2.1" # 
-exclusionListFlag="-S6A_UserDefinedExclusionList=$HOME/config/SgrA_exclusionList.txt" # put in environment
+exclusionList=$HOME/config/SgrA_exclusionList.txt # put in environment
 
 source $VSCRIPTS/shellScripts/setCuts.sh 
 spectrum=medium
 cuts=auto
 
-subDir=stg5
+#subDir=stg5
 extension=".stage5.root"
 readFlag="-S6A_ReadFromStage5Combined=1" 
 
@@ -33,7 +33,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
+while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtg FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -50,6 +50,13 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 		    cutsFlag="-cuts=$cutsFile" 
 		    ;; 
 	    esac 
+	    ;;
+	C)
+	    configFile=$OPTARG
+	    options="$options -config=$configFile"
+	    ;;
+	x)
+	    exclusionList=$OPTARG
 	    ;;
 	s)
 	    spectrum=$OPTARG
@@ -70,8 +77,11 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    extension=".stage4.root"
 	    ;;
 	o)
+	    options="$options -OverrideEACheck=1"
+	    ;; 
+	O)
 	    options="$options -S6A_ObsMode=On/Off"
-	    ;;
+	    ;; 
 	f)
 	    runFile=$OPTARG
 	    ;;
@@ -96,7 +106,7 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    ;;
     esac # option cases
 done # getopts loop
-shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
+shift $((OPTIND-1))  #This tells getopts to move on to the next argument.    
 
 ### prepare variables and directories after options are read in
 source $environment
@@ -115,8 +125,10 @@ fi
 if [ "$useTestPosition" == "true" ]; then
     options="$options $positionFlags"
 fi
-# could clean up 
-options="$options $exclusionListFlag"
+
+if [ $exclusionList ] && [ "$exclusionList" != none ]; then 
+    options="$options -S6A_UserDefinedExclusionList=$exclusionList"
+fi # could clean up 
 
 # had separate variable for baseDir
 logDir=$VEGASWORK/log/stage6
@@ -161,8 +173,8 @@ if [ "$runMode" != print ]; then
 	echo "backup these files and continue? type 'Y' to continue"
 	read response
 	if [ $response == 'Y' ]; then
-	    test ! -f $logFile || mv $logFile $backupDir
-	    test ! -f $outputFile || mv $outputFile $backupDir
+	    test ! -f $logFile || mv $logFile $backupDir/log/
+	    test ! -f $outputFile || mv $outputFile $backupDir/stage6/
 	fi
     fi # check file already exists
     
@@ -193,7 +205,7 @@ test -n "$runFile" || runFile=$HOME/work/${sourceName}_${name}_runlist.txt
 #( echo "runFile variable empty!" ; exit 1 ) 
 #test -f $runFile || ( echo "$runFile doesn't exist, exiting!" && exit 2 ) 
 
-cmd="${VEGAS}/bin/vaStage6 -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} $options $readFlag $cutsFlag $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} $options $readFlag $cutsFlag $runFile " #
 echo "$cmd"
 
 if [ "$runMode" != print ]; then
@@ -209,6 +221,12 @@ date
 hostname
 root-config --version 
 echo "$ROOTSYS"
+cd $VEGAS
+git describe --tags 
+
+if [ "$exclusionList" != none ]; then 
+cat $exclusionList
+fi
 
 $cmd
 echo "$cmd" 

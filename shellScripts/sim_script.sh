@@ -48,7 +48,7 @@ qsubHeader="
 #PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l disp,BDT,disp5,disp6 -- $*` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp: -- "$@"` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
     case "$i" in
@@ -95,32 +95,20 @@ for i; do
 	    envFlag="-e $environment" ; shift 2 ;;
 	--disp) 
 	    stg4method=disp 
-            configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom 
-	    #DistanceUpper=1.38 
+            configFlags4="$configFlags4 -DR_Algorithm=Method${2}" #t stands for tmva, Method6 for average disp and geom 
+	    DistanceUpper=1.38 
             ltVegas=vegas254 
-            zenith="Z-55-70" 
-            shift ;;
-	--disp5)
-	    stg4method=disp
-            configFlags4="$configFlags4 -DR_Algorithm=Method5" #t stands for tmva, Method6 for average disp and geom                                                        #DistanceUpper=1.38 
-	    ltVegas=vegas254
-            zenith="Z-55-70"
-            shift ;;
-	--disp6)
-            stg4method=disp
-            configFlags4="$configFlags4 -DR_Algorithm=Method6" #t stands for tmva, Method6 for average disp and geom  
-            #DistanceUpper=1.38          
-	    ltVegas=vegas254
-            zenith="Z-55-70"
-            shift ;;
+            echo "using disp method"
+	    zenith="Z55-70" 
+            shift 2 ;;
   	-B|--BDT) useBDT=true
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
 	--) shift ;;
-	?) 
-	    echo -e "Option -${BOLD}$2 not recognized!"
-	    exit ;;
+#	?) 
+#	    echo -e "Option ${BOLD}$1 not recognized!"
+#	    exit ;;
     esac # option cases
 done # loop over options 
 #shift $((OPTIND-1))
@@ -190,11 +178,12 @@ for array in $arrays; do
 					730|870) nGroup=4 ;;
 				    esac
 
-				    dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_${nGroup}noise
+				    #dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_${nGroup}noise
 				    #dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA
+				    dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z50-55_std_d1p38_allNoise
 				    
-				    #dtFile=$tableDir/${dtName}.root
-				    dtFile=$GC/processed/tables/${dtName}.root
+				    dtFile=$tableDir/${dtName}.root
+				    #dtFile=$GC/processed/tables/${dtName}.root
 
 				    test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
 				    tableFlags="$tableFlags -DR_DispTable=$dtFile" 
@@ -246,7 +235,7 @@ EOF
 				#sims organized into directories for training 
 				
 				if [ "$cutMode5" == auto ]; then
-				    setCuts
+				    #setCuts
 				    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 				    cutFlags5="$cutFlags5 -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 				    test "$MaxHeightLower" -ne -100 && cutFlags5="$cutFlags5 -MaxHeightLower=$MaxHeightLower"
