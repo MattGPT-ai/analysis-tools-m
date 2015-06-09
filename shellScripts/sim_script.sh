@@ -95,6 +95,7 @@ for i; do
 	    envFlag="-e $environment" ; shift 2 ;;
 	--disp) 
 	    stg4method=disp 
+	    dispMethod=${2}
             configFlags4="$configFlags4 -DR_Algorithm=Method${2}" #t stands for tmva, Method6 for average disp and geom 
 	    DistanceUpper=1.38 
             ltVegas=vegas254 
@@ -138,6 +139,14 @@ for array in $arrays; do
 		for n in $noises; do
 
 		    setCuts
+
+		    case $n in
+			100|150|200) nGroup=0 ;;
+			250|300) nGroup=1 ;;
+			350|400) nGroup=2 ;; 
+			490|605) nGroup=3 ;; 
+			730|870) nGroup=4 ;;
+		    esac
 		    
 		    if [ "$hillasMode" != HFit ]; then
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb_${n}noise
@@ -160,34 +169,25 @@ for array in $arrays; do
 
 				if [ "$ltMode" == auto ]; then
 				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
-				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA_noise150fix
-				    
+				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
 				    ltFile=$tableDir/${ltName}.root
-				fi
+				fi # automatic lookup table 
 				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
 				tableFlags="-table=${ltFile}"
+
 				if [ "$stg4method" == disp ]; then
-				    #dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_allNoise
-
-				    case $n in
-					100|150|200) nGroup=0 ;;
-					250|300) nGroup=1 ;;
-					350|400) nGroup=2 ;; 
-					490|605) nGroup=3 ;; 
-					730|870) nGroup=4 ;;
-				    esac
-
-				    #dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_${nGroup}noise
-				    #dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA
-				    dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z50-55_std_d1p38_allNoise
 				    
-				    dtFile=$tableDir/${dtName}.root
-				    #dtFile=$GC/processed/tables/${dtName}.root
-
+				    if [ "$dispMethod" == 5t ]; then
+					dtName=TMVA_Disp.xml
+				    else
+				       	dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_${offset}wobb_Z50-55_std_d1p38_allNoise.root 
+					# specify disp mode 
+				    fi
+				    
+				    dtFile=$tableDir/${dtName}
 				    test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
 				    tableFlags="$tableFlags -DR_DispTable=$dtFile" 
-				fi
-
+				fi # disp method 
 
 				if [ "$cutMode4" == auto ]; then
 				    cutFlags4="-DistanceUpper=0/${DistanceUpper} -SizeLower=$SizeLower -NTubesMin=$NTubesMin"

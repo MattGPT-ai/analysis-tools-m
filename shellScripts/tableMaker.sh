@@ -150,7 +150,7 @@ for zGroup in $zeniths; do
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
 	    else 
-		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_${stage4dir}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
+		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
 	    fi 
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
 	    for z in ${zGroup//,/ }; do 
