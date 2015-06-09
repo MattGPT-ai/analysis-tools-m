@@ -188,7 +188,7 @@ for array in V5 V6; do
 done # check for weights dirs
 
 ### quick check for files and directories ###
-for subDir in rejected queue backup processed; do
+for subDir in queue processed log completed rejected results config backup; do
   if [ ! -d $workDir/$subDir ]; then
       echo "Must create directory $workDir/$subDir"
       if [ "$runMode" != "print" ]; then
@@ -336,19 +336,23 @@ EOF
 	    laserRoot="$laserProcessed/${laserNum}_laser.root"
 	    
 	else # process the combined laser file
-	    if [ ! -f $laserQueue/${combinedLaserName} ]; then
-		if [ ! -f $laserProcessed/${combinedLaserName}.root ]; then
-		    
-		    echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
-		    
+	    queueFile=$laserQueue/${combinedLaserName}
+	    combinedLaserRoot=$laserProcessed/${combinedLaserName}.root
+	    if [ ! -f $queueFile ]; then
+		if [ ! -f $combinedLaserRoot ]; then		    
+		    cmd="root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$
+laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
+		    echo "$cmd"
+		    logFile=$laserLog/${combinedLaserName}.txt
+
 		    if [ "$runMode" != print ]; then     
 			
-			touch $laserQueue/${combinedLaserName}
-			
+			touch $queueFile			
+
 			$runMode <<EOF
 $qsubHeader
 #PBS -N ${combinedLaserName}
-#PBS -o $laserLog/${combinedLaserName}.txt
+#PBS -o $logFile
 #PBS -p $priority
 
 cd $VEGAS/macros/ # so you can process macros
@@ -356,16 +360,19 @@ pwd
 while [ -f $laserQueue/${laser1}_laser -o -f $laserQueue/${laser2}_laser -o -f $laserQueue/${laser3}_laser -o -f $laserQueue/${laser4}_laser ]; do
     sleep $((RANDOM%10+20))
 done 
-bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $laserProcessed/${combinedLaserName}.root
-echo "bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $laserProcessed/${combinedLaserName}.root"
+bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $combinedLaserRoot
+echo "bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $combinedLaserRoot"
 
-root -b -l -q 'combineLaser.C("$laserProcessed/${combinedLaserName}.root","$laserProcessed/${laser1}_laser.root","$laserProcessed/${laser2}_laser.root","$laserProcessed/${laser3}_laser.root","$laserProcessed/${laser4}_laser.root")'
+$cmd
 exitCode=\$?
-rm $laserQueue/${combinedLaserName}
-echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
+rm $queueFile
+echo "$cmd"
+
 if [ \$exitCode -ne 0 ]; then
-rm $laserProcessed/${combinedLaserName}.root
-mv $laserLog/${combinedLaserName}.txt $rejectDir/
+rm $combinedLaserRoot
+mv $logFile $rejectDir/
+else
+cp $logFile $workDir/completed/
 EOF
 #PBS -o $laserLog/qsubLog.txt
 

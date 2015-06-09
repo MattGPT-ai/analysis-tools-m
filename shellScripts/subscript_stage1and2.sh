@@ -149,4 +149,6 @@ fi # stage 2 command isn't null
 #    rm $logDir/${runNum}.stage12.txt
 #fi
 
+cp $logFile $workDir/completed/ 
+
 exit 0 # great success

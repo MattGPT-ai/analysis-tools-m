@@ -120,4 +120,6 @@ if [ `grep -c unzip $logFile` -gt 0 ]; then
     exit 1
 fi # unzip error, sigh
 
+cp $logFile $workDir/completed/
+
 exit 0 # great success

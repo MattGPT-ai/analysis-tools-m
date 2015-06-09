@@ -26,6 +26,7 @@ dtLength="-DTM_Length=0.05,0.09,0.13,0.17,0.21,0.25,0.29,0.33,0.37,0.41,0.45,0.5
 ltFlags="$ltFlags -LTM_WindowSizeForNoise=7"
 ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractionalErrorCut=0.25"
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
+ltFlags="$ltFlags -TelID=0,1,2,3"
 
 source $VSCRIPTS/shellScripts/setCuts.sh
 spectrum=medium # only applies to effective areas 
@@ -234,7 +235,7 @@ for zGroup in $zeniths; do
 		    
 		    $runMode <<EOF
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=2gb,walltime=24:00:00
+#PBS -l nodes=1,mem=4gb,walltime=24:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
@@ -286,10 +287,12 @@ rm -rf $scratchDir/$tableFileBase
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
 echo "exit code: \$exitCode"
-cp $logFile $workDir/rejected/
-#mv $logFile $workDir/rejected/
-exit \$exitCode
+
 mv $smallTableFile $workDir/backup/tables/
+mv $logFile $workDir/rejected/
+exit \$exitCode
+else
+cp $logFile $workDir/completed/
 fi
 
 echo "Exiting successfully!"

@@ -159,8 +159,7 @@ for array in $arrays; do
 			    if [ -f $simFile ]; then
 
 				if [ "$ltMode" == auto ]; then
-				    #ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
-				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_Z50-55-60-65_std_d${DistanceUpper//./p}
+				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
 				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA_noise150fix
 				    
 				    ltFile=$tableDir/${ltName}.root
