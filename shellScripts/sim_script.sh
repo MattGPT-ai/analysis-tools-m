@@ -48,7 +48,7 @@ qsubHeader="
 #PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp: -- "$@"` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel: -- "$@"` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
     case "$i" in
@@ -102,6 +102,9 @@ for i; do
             echo "using disp method"
 	    zenith="Z55-70" 
             shift 2 ;;
+	--cutTel)
+	    configFlags4="$configFlags4 -CutTelescope=${2}/1"
+	    shift 2 ;; 
   	-B|--BDT) useBDT=true
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
