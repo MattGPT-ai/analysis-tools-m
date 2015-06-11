@@ -229,14 +229,23 @@ cat $exclusionList
 fi
 
 $cmd
+exitCode=\$?
 echo "$cmd" 
 
 if [ $cutsFile ]; then
 cat $cutsFile
 fi
 
-test \$? -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
+#test \$exitCode -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
 test -f todayresult && mv todayresult $VEGASWORK/log/
+
+if [ "\$exitCode" -e 0 ]; then 
+cp $logFile $VEGASWORK/completed/
+else
+test -f $logFile && mv $logFile $VEGASWORK/rejected/
+fi
+
+exit \$exitCode 
 
 EOF
     EXITCODE=$?
