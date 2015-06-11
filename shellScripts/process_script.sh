@@ -69,7 +69,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::reprocess:customLT -n 'process_script.sh' -- "$@"` #d:D: 
+args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::reprocess:,customLT -n 'process_script.sh' -- "$@"` #d:D: 
 eval set -- $args 
 # loop through options
 for i; do  
