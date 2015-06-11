@@ -141,14 +141,11 @@ pwd
 #cp $trainMacro .
 
 $cmd
-completion=$?
+completion=\$?
 
 echo "$cmd"
 
-echo "exit code: $completion"
-
 #mv ${trainMacro##*/} $logDirFull/
-
 #cd $plotDirFull
 #cp $plotMacro .
 
@@ -160,6 +157,14 @@ $plotCMD &>> $plotLog
 mv weights/${fileNameBase}.* . #weights/TMVAClassification_${fileNameBase}.*
 mv plots/* $plotDirFull
 #rmdir plots
+
+if [ \$completion -ne 0 ]; then
+mv $logFile $BDT/rejected/
+exit 1 # failure 
+fi
+
+cp $logFile $BDT/completed/ 
+exit 0 # successful exit 
 
 EOF
 		# end if qsub 

@@ -48,7 +48,7 @@ qsubHeader="
 #PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l disp,BDT,disp5,disp6 -- $*` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp: -- "$@"` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
     case "$i" in
@@ -95,32 +95,21 @@ for i; do
 	    envFlag="-e $environment" ; shift 2 ;;
 	--disp) 
 	    stg4method=disp 
-            configFlags4="$configFlags4 -DR_Algorithm=Method5t" #t stands for tmva, Method6 for average disp and geom 
-	    #DistanceUpper=1.38 
+	    dispMethod=${2}
+            configFlags4="$configFlags4 -DR_Algorithm=Method${2}" #t stands for tmva, Method6 for average disp and geom 
+	    DistanceUpper=1.38 
             ltVegas=vegas254 
-            zenith="Z-55-70" 
-            shift ;;
-	--disp5)
-	    stg4method=disp
-            configFlags4="$configFlags4 -DR_Algorithm=Method5" #t stands for tmva, Method6 for average disp and geom                                                        #DistanceUpper=1.38 
-	    ltVegas=vegas254
-            zenith="Z-55-70"
-            shift ;;
-	--disp6)
-            stg4method=disp
-            configFlags4="$configFlags4 -DR_Algorithm=Method6" #t stands for tmva, Method6 for average disp and geom  
-            #DistanceUpper=1.38          
-	    ltVegas=vegas254
-            zenith="Z-55-70"
-            shift ;;
+            echo "using disp method"
+	    zenith="Z55-70" 
+            shift 2 ;;
   	-B|--BDT) useBDT=true
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
 	--) shift ;;
-	?) 
-	    echo -e "Option -${BOLD}$2 not recognized!"
-	    exit ;;
+#	?) 
+#	    echo -e "Option ${BOLD}$1 not recognized!"
+#	    exit ;;
     esac # option cases
 done # loop over options 
 #shift $((OPTIND-1))
@@ -150,6 +139,14 @@ for array in $arrays; do
 		for n in $noises; do
 
 		    setCuts
+
+		    case $n in
+			100|150|200) nGroup=0 ;;
+			250|300) nGroup=1 ;;
+			350|400) nGroup=2 ;; 
+			490|605) nGroup=3 ;; 
+			730|870) nGroup=4 ;;
+		    esac
 		    
 		    if [ "$hillasMode" != HFit ]; then
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb_${n}noise
@@ -171,35 +168,26 @@ for array in $arrays; do
 			    if [ -f $simFile ]; then
 
 				if [ "$ltMode" == auto ]; then
-				    #ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}
-				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_Z50-55-60-65_std_d${DistanceUpper//./p}
-				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA_noise150fix
-				    
+				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
+				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
 				    ltFile=$tableDir/${ltName}.root
-				fi
+				fi # automatic lookup table 
 				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
 				tableFlags="-table=${ltFile}"
+
 				if [ "$stg4method" == disp ]; then
-				    #dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_allNoise
-
-				    case $n in
-					100|150|200) nGroup=0 ;;
-					250|300) nGroup=1 ;;
-					350|400) nGroup=2 ;; 
-					490|605) nGroup=3 ;; 
-					730|870) nGroup=4 ;;
-				    esac
-
-				    dtName=dt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsets// /-}wobb_Z${zeniths// /-}_std_d${DistanceUpper//./p}_${nGroup}noise
-				    #dtName=dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA
 				    
-				    #dtFile=$tableDir/${dtName}.root
-				    dtFile=$GC/processed/tables/${dtName}.root
-
+				    if [ "$dispMethod" == 5t ]; then
+					dtName=TMVA_Disp.xml
+				    else
+				       	dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_${offset}wobb_Z50-55_std_d1p38_allNoise.root 
+					# specify disp mode 
+				    fi
+				    
+				    dtFile=$tableDir/${dtName}
 				    test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
 				    tableFlags="$tableFlags -DR_DispTable=$dtFile" 
-				fi
-
+				fi # disp method 
 
 				if [ "$cutMode4" == auto ]; then
 				    cutFlags4="-DistanceUpper=0/${DistanceUpper} -SizeLower=$SizeLower -NTubesMin=$NTubesMin"
@@ -246,7 +234,7 @@ EOF
 				#sims organized into directories for training 
 				
 				if [ "$cutMode5" == auto ]; then
-				    setCuts
+				    #setCuts
 				    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 				    cutFlags5="$cutFlags5 -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 				    test "$MaxHeightLower" -ne -100 && cutFlags5="$cutFlags5 -MaxHeightLower=$MaxHeightLower"

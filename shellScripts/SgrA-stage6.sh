@@ -13,15 +13,15 @@ loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 positionFlags="-S6A_TestPositionRA=266.4168 -S6A_TestPositionDEC=-29.0078"
 
 #common defaults, make more variables? 
-options="-S6A_Spectrum=1 -OverrideEACheck=0 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
+options="-S6A_Spectrum=1 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
 options="$options -UL_PhotonIndex=2.1" # 
-exclusionListFlag="-S6A_UserDefinedExclusionList=$HOME/config/SgrA_exclusionList.txt" # put in environment
-RingSize=.1
-SearchWindowSqCut=.01
+exclusionList=$HOME/config/SgrA_exclusionList.txt # put in environment
 
+source $VSCRIPTS/shellScripts/setCuts.sh 
 spectrum=medium
+cuts=auto
 
-subDir=stg5
+#subDir=stg5
 extension=".stage5.root"
 readFlag="-S6A_ReadFromStage5Combined=1" 
 
@@ -33,7 +33,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
+while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtg FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -42,8 +42,21 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    loggenFile=$OPTARG # right now this has to come after environment option
 	    ;;
 	c)
-	    cutsFile=$OPTARG
-	    cutsFlag="-cuts=${cutsFile}"
+	    case $OPTARG in 
+		all | auto) cuts=$OPTARG;; 
+		*) 
+		    cuts=file
+		    cutsFile=$OPTARG
+		    cutsFlag="-cuts=$cutsFile" 
+		    ;; 
+	    esac 
+	    ;;
+	C)
+	    configFile=$OPTARG
+	    options="$options -config=$configFile"
+	    ;;
+	x)
+	    exclusionList=$OPTARG
 	    ;;
 	s)
 	    spectrum=$OPTARG
@@ -64,8 +77,11 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    extension=".stage4.root"
 	    ;;
 	o)
+	    options="$options -OverrideEACheck=1"
+	    ;; 
+	O)
 	    options="$options -S6A_ObsMode=On/Off"
-	    ;;
+	    ;; 
 	f)
 	    runFile=$OPTARG
 	    ;;
@@ -74,7 +90,7 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    ;;
 	q)
 	    runMode=qsub
-	    options="$option -S6A_Batch=1"
+	    options="$options -S6A_Batch=1"
 	    ;;
 	b) # change argument, decide if overwriting runlist, could just trash old before 
 	    regen=false
@@ -90,10 +106,9 @@ while getopts s:d:n:Bc:l:e:r:qb4of:tg FLAG; do
 	    ;;
     esac # option cases
 done # getopts loop
-shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
+shift $((OPTIND-1))  #This tells getopts to move on to the next argument.    
 
 ### prepare variables and directories after options are read in
-
 source $environment
 finalRootDir=$VEGASWORK/processed/${subDir}
 
@@ -103,17 +118,17 @@ for variable in $sourceName $loggenFile $spectrum $workDir; do
 	exit 1
     fi
 done # check that necessary variables are set
+if [ ! $name ]; then
+    name=${subDir} #${spectrum}${mode}
+fi
 
 if [ "$useTestPosition" == "true" ]; then
     options="$options $positionFlags"
 fi
 
-# could clean up 
-options="$options $exclusionListFlag"
-
-if [ ! $name ]; then
-    name=${subDir} #${spectrum}${mode}
-fi
+if [ $exclusionList ] && [ "$exclusionList" != none ]; then 
+    options="$options -S6A_UserDefinedExclusionList=$exclusionList"
+fi # could clean up 
 
 # had separate variable for baseDir
 logDir=$VEGASWORK/log/stage6
@@ -126,25 +141,19 @@ for dir in $logDir $backupDir $outputDir; do
     fi
 done
 
-# set spectrum stuff
-if [ "$spectrum" == "soft" ]; then
-    RingSize=.17
-    SearchWindowSqCut=.03
-    pyCuts=soft
-elif [ "$spectrum" == "medium" ]; then
-    RingSize=.1
-    SearchWindowSqCut=.01
-    pyCuts=med
-elif [ "$spectrum" == "hard" ]; then
-    RingSize=.1
-    SearchWindowSqCut=.01
-    pyCuts=hard
-elif [ "$spectrum" == "loose" ]; then
-    RingSize=.17
-    SearchWindowSqCut=.03
-    pyCuts=loose
+# set cuts based on spectrum 
+setCuts $spectrum 
+if [ "$cuts" == auto ] || [ "$cuts" == all ]; then
+    cutsFlag="-S6A_RingSize=${S6A_RingSize} -RBM_SearchWindowSqCut=$RBM_SearchWindowSqCut"
+    if [ "$cuts" == all ]; then
+	cutsFlag="$cutsFlag -MeanScaledLengthLower=${MeanScaledLengthLower} -MeanScaledLengthUpper=${MeanScaledLengthUpper} -MeanScaledWidthLower=${MeanScaledWidthLower} -MeanScaledWidthUpper=${MeanScaledWidthUpper} -MaxHeightLower=${MaxHeightLower}"
+    fi
 fi
-
+if [ "$spectrum" == "medium" ]; then
+    pyCuts=med
+else
+    pyCuts="$spectrum"
+fi 
 
 # check to see if root file or logfile already exists, and back up
 logFile=$logDir/stage6_${name}_${sourceName}.txt
@@ -164,14 +173,13 @@ if [ "$runMode" != print ]; then
 	echo "backup these files and continue? type 'Y' to continue"
 	read response
 	if [ $response == 'Y' ]; then
-	    test ! -f $logFile || mv $logFile $backupDir
-	    test ! -f $outputFile || mv $outputFile $backupDir
+	    test ! -f $logFile || mv $logFile $backupDir/log/
+	    test ! -f $outputFile || mv $outputFile $backupDir/stage6/
 	fi
     fi # check file already exists
     
     if [ ! $runFile ]; then 
 
-	### set command to be run or printed ###
 	runFile=$HOME/work/${sourceName}_${name}_runlist.txt
 	### create runfile using python script if it doesn't exist ###
 	echo "extension: $extension" 
@@ -185,18 +193,20 @@ if [ "$runMode" != print ]; then
 	    python $BDT/macros/s6RunlistGen.py --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
 	fi # runfile doesn't exist so must be created
     fi # if runFile isn't already specified  
+    
+    if [ ! -f $runFile ]; then
+	echo -e "$runFile doesn't exist, exiting!\n"
+	exit 2
+    fi
+
 fi # if runMode is not print only 
 
-test -n $runFile || ( echo "runFile variable empty!" ; exit 1 ) 
+test -n "$runFile" || runFile=$HOME/work/${sourceName}_${name}_runlist.txt
+#( echo "runFile variable empty!" ; exit 1 ) 
 #test -f $runFile || ( echo "$runFile doesn't exist, exiting!" && exit 2 ) 
-if [ ! -f $runFile ]; then
-    echo -e "$runFile doesn't exist, exiting!\n"
-    exit 2
-fi
 
-cmd="${VEGAS}/bin/vaStage6 -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} ${cutsFlag} $options $readFlag -S6A_RingSize=${RingSize} -RBM_SearchWindowSqCut=$SearchWindowSqCut $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} $options $readFlag $cutsFlag $runFile " #
 echo "$cmd"
-
 
 if [ "$runMode" != print ]; then
     $runMode <<EOF
@@ -209,10 +219,21 @@ if [ "$runMode" != print ]; then
 source $environment
 date
 hostname
+root-config --version 
 echo "$ROOTSYS"
+cd $VEGAS
+git describe --tags 
+
+if [ "$exclusionList" != none ]; then 
+cat $exclusionList
+fi
 
 $cmd
 echo "$cmd" 
+
+if [ $cutsFile ]; then
+cat $cutsFile
+fi
 
 test \$? -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
 test -f todayresult && mv todayresult $VEGASWORK/log/

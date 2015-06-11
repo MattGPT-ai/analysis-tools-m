@@ -26,6 +26,7 @@ dtLength="-DTM_Length=0.05,0.09,0.13,0.17,0.21,0.25,0.29,0.33,0.37,0.41,0.45,0.5
 ltFlags="$ltFlags -LTM_WindowSizeForNoise=7"
 ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractionalErrorCut=0.25"
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
+ltFlags="$ltFlags -TelID=0,1,2,3"
 
 source $VSCRIPTS/shellScripts/setCuts.sh
 spectrum=medium # only applies to effective areas 
@@ -39,7 +40,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,table:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"`
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"` #table:
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -48,8 +49,8 @@ for i; do
 	    runMode="$2" ; shift 2 ;;
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
-	--table) # table type: lt, dt, ea
-	    table="$2" ; shift 2 ;;
+#	--table) # table type: lt, dt, ea
+#	    table="$2" ; shift 2 ;;
 	--array) 
 	    array="$2" ; shift 2 ;;
 	--atm) 
@@ -69,7 +70,7 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--noises) # change this maybe
+	--noises) # change this maybe, probably doesn't work 
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
 	    allNoise=true ; shift ;; 
@@ -80,9 +81,11 @@ for i; do
 #	    exit 1
     esac # argument cases
 done # loop over i in args
-#if [ $1 ]; then
-#    mode="$1"
-#fi
+if [ $1 ]; then
+    table="$1"
+else
+    echo "must specify table type!"
+fi
 
 if [ ! -d $workDir/log/tables ]; then
     echo "Must create table $workDir/log/tables !!!"
@@ -109,15 +112,15 @@ case "$array" in
         ;;
 esac
 
-noiseNum=${#noiseLevels[@]}
-noises="${noiseArray[0]}"
-while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
 if [ "$allNoise" = true ]; then
-noiseString="${noiseArray[@]}"
-noiseArray=(${noiseString// /,})
-noiseString="${noiseLevels[@]}"
-noiseLevels=(${noiseString// /,})
+    noiseString="${noiseArray[@]}"
+    noiseArray=(${noiseString// /,})
+    noiseString="${noiseLevels[@]}"
+    noiseLevels=(${noiseString// /,})
 fi # do not split tables by noise level groups 
+noiseNum=${#noiseLevels[@]}
+noises=${noiseArray[0]}; n=(1)
+while (( n < noiseNum )); do noises="${noises},${noiseArray[$n]}"; n=$((n+1)); done # 
 
 epoch=$array
 simFileSubDir=Oct2012_${array}_ATM${atm}
@@ -147,7 +150,7 @@ for zGroup in $zeniths; do
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
 	    else 
-		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_${stage4dir}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
+		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
 	    fi 
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
 	    for z in ${zGroup//,/ }; do 
@@ -228,11 +231,11 @@ for zGroup in $zeniths; do
 
 		if [ "$runMode" != print ]; then
 		    test $nJobs -lt $nJobsMax || exit 0 
-		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable )
+		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable/ )
 		    
 		    $runMode <<EOF
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=2gb,walltime=24:00:00
+#PBS -l nodes=1,mem=4gb,walltime=24:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
@@ -284,10 +287,12 @@ rm -rf $scratchDir/$tableFileBase
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
 echo "exit code: \$exitCode"
-cp $logFile $workDir/rejected/
-#mv $logFile $workDir/rejected/
-exit \$exitCode
+
 mv $smallTableFile $workDir/backup/tables/
+mv $logFile $workDir/rejected/
+exit \$exitCode
+else
+cp $logFile $workDir/completed/
 fi
 
 echo "Exiting successfully!"

@@ -26,6 +26,7 @@ simulation=GrISUDet # CORSIKA
 model=Oct2012  
 method=std
 environment="" #$HOME/environments/SgrA_source.sh
+ltMode=auto
 ltVegas=vegasv250rc5
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
@@ -34,7 +35,8 @@ source $VSCRIPTS/shellScripts/setCuts.sh
 stage4cuts=auto
 stage5cuts=auto
 
-configFlags4="-OverrideLTCheck=1"
+configFlags4=""
+#configFlags4="-OverrideLTCheck=1"
 configFlags5="-Method=VACombinedEventSelection"
 suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile=true
@@ -83,13 +85,13 @@ for i; do
 	-4) runStage4="true" 
 	    stage4subDir="$2"
 	    shift 2 ;;
-#	-d) stage4subDir="$2"
-#	    shift 2 ;;
+	#	-d) stage4subDir="$2"
+	#	    shift 2 ;;
 	-5) runStage5="true"
 	    stage5subDir="$2"
        	    shift 2 ;;
-#	-D) stage5subDir="$2"
-#	    shift 2 ;; 
+	#	-D) stage5subDir="$2"
+	#	    shift 2 ;; 
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
 	-r) runMode="$2"
@@ -143,7 +145,7 @@ for i; do
 	    customLT=true
 	    ;; 
 	--) shift; break ;;
-#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
+	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
 done # loop over command line arguments 
 
@@ -187,13 +189,13 @@ for array in V5 V6; do
 done # check for weights dirs
 
 ### quick check for files and directories ###
-for subDir in rejected queue backup processed; do
-  if [ ! -d $workDir/$subDir ]; then
-      echo "Must create directory $workDir/$subDir"
-      if [ "$runMode" != "print" ]; then
-	  mkdir -p $workDir/$subDir
-      fi
-  fi # processing directories do not exist 
+for subDir in queue processed log completed rejected results config backup; do
+    if [ ! -d $workDir/$subDir ]; then
+	echo "Must create directory $workDir/$subDir"
+	if [ "$runMode" != "print" ]; then
+	    mkdir -p $workDir/$subDir
+	fi
+    fi # processing directories do not exist 
 done
 subDirs="$stage1subDir $stage2subDir"
 if [ "$runStage4" == "true" ]; then
@@ -219,10 +221,11 @@ setEpoch() { # try to move into common file with setCuts
 
     # try to read from database 
     runMonth=$(( (date % 10000 - date % 100) / 100 ))
-    if (( runMonth > 4 && runMonth < 11 )); then
-	season=22
+    # used to be runMonth > 4, but changed to agree with s6RunlistGen.py 
+    if (( runMonth > 3 && runMonth < 11 )); then
+	atm=22
     else
-	season=21
+	atm=21
     fi
     
     # determine array for stage 4   
@@ -317,7 +320,7 @@ $qsubHeader
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
-#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
+				#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
 
 			    fi # end qsub for regular laser 
 			    
@@ -334,19 +337,23 @@ EOF
 	    laserRoot="$laserProcessed/${laserNum}_laser.root"
 	    
 	else # process the combined laser file
-	    if [ ! -f $laserQueue/${combinedLaserName} ]; then
-		if [ ! -f $laserProcessed/${combinedLaserName}.root ]; then
-		    
-		    echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
-		    
+	    queueFile=$laserQueue/${combinedLaserName}
+	    combinedLaserRoot=$laserProcessed/${combinedLaserName}.root
+	    if [ ! -f $queueFile ]; then
+		if [ ! -f $combinedLaserRoot ]; then		    
+		    cmd="root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$
+laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
+		    echo "$cmd"
+		    logFile=$laserLog/${combinedLaserName}.txt
+
 		    if [ "$runMode" != print ]; then     
 			
-			touch $laserQueue/${combinedLaserName}
-			
+			touch $queueFile			
+
 			$runMode <<EOF
 $qsubHeader
 #PBS -N ${combinedLaserName}
-#PBS -o $laserLog/${combinedLaserName}.txt
+#PBS -o $logFile
 #PBS -p $priority
 
 cd $VEGAS/macros/ # so you can process macros
@@ -354,18 +361,21 @@ pwd
 while [ -f $laserQueue/${laser1}_laser -o -f $laserQueue/${laser2}_laser -o -f $laserQueue/${laser3}_laser -o -f $laserQueue/${laser4}_laser ]; do
     sleep $((RANDOM%10+20))
 done 
-bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $laserProcessed/${combinedLaserName}.root
-echo "bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $laserProcessed/${combinedLaserName}.root"
+bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $combinedLaserRoot
+echo "bbcp -e -E md5= $laserProcessed/${laser1}_laser.root $combinedLaserRoot"
 
-root -b -l -q 'combineLaser.C("$laserProcessed/${combinedLaserName}.root","$laserProcessed/${laser1}_laser.root","$laserProcessed/${laser2}_laser.root","$laserProcessed/${laser3}_laser.root","$laserProcessed/${laser4}_laser.root")'
+$cmd
 exitCode=\$?
-rm $laserQueue/${combinedLaserName}
-echo "root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
+rm $queueFile
+echo "$cmd"
+
 if [ \$exitCode -ne 0 ]; then
-rm $laserProcessed/${combinedLaserName}.root
-mv $laserLog/${combinedLaserName}.txt $rejectDir/
+rm $combinedLaserRoot
+mv $logFile $rejectDir/
+else
+cp $logFile $workDir/completed/
 EOF
-#PBS -o $laserLog/qsubLog.txt
+			#PBS -o $laserLog/qsubLog.txt
 
 		    fi # end qsub for combined laser 
 		fi # if combined laser root file does not exist
@@ -409,7 +419,7 @@ EOF
 		    echo -e "\e[0;31mData file ${dataFile} does not exist! check directory\e[0m"
 		fi # original data file exists in expected location, file not in queu
 	    fi # stage 2 root file does not exist and isn't in queue
-	    	    
+	    
 	    if [ "$runBool" == "true" ]; then
 		if [ "$runMode" != print ]; then
 		    
@@ -424,7 +434,7 @@ $qsubHeader
 
 $subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot $envFlag
 EOF
-#PBS -o $logDir/${runNum}.stage12.txt
+		    #PBS -o $logDir/${runNum}.stage12.txt
 
 		fi # end qsub for stage 1 data file
 	    fi # end runBool = true
@@ -445,27 +455,39 @@ if [ "$runStage4" == "true" ]; then
 	rootName_4="$processDir/${stage4subDir}/${runNum}${suffix}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}${suffix}.stage4.txt"
 	
-	setEpoch $runDate
-	setCuts
-	
-	tableFlags=""
-	if [ "$stg4method" == disp ]; then 
-	    tableBase=${model}_${array}_ATM22_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p} # 
-	    #tableBase=${model}_${array}_ATM${season}_${simulation}_${ltVegas}_7sam_${offset}_${zenith}_${method}_d${DistanceUpper//./p}
-	    #dtFile=$tableDir/dt_${tableBase}_${zenith}.root
-	    dtFile=$tableDir/dt_Oct2012_ua_ATM22_7samples_vegasv250rc5_050wobb_LZA.root
-	    #dtFile=$GC/processed/tables/dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_075wobb_Z60-65_std_d1p38_allNoise.root
-	    tableFlags="-DR_DispTable=$dtFile" # PathToTMVA_Disp.xml
-	else
-	    tableBase=${model}_${array}_ATM${season}_7samples_vegasv250rc5_${offset}_${zenith}
-	fi 
-	ltFile=$tableDir/lt_${tableBase}.root
-	tableFlags="$tableFlags -table=$ltFile" 
-
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
 	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
-	# don't reprocess if in queue? add to earlier stages? 
+	    offset=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT offset_distance FROM tblRun_Info WHERE run_id = ${runNum}"`
+	    #echo "$offset"
+	    #zenith=`mysql -h romulus.ucsc.edu -u readonly -s N -e "use ; SELECT FROM WHERE "`
+
+	    setEpoch $runDate
+	    setCuts
+
+	    if [ "$ltMode" == auto ]; then
+		ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
+		#ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
+		ltFile=$tableDir/${ltName}.root
+	    fi # automatic lookup table 
+	    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
+	    tableFlags="-table=${ltFile}"
+
+	    if [ "$stg4method" == disp ]; then
+		
+		if [ "$dispMethod" == 5t ]; then
+		    dtName=TMVA_Disp.xml
+		else
+		    dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_${offset}wobb_Z50-55_std_d1p38_allNoise.root 
+		    # specify disp mode 
+		fi
+		
+		dtFile=$tableDir/${dtName}
+		test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
+		tableFlags="$tableFlags -DR_DispTable=$dtFile" 
+	    fi # disp method 
+	    
+	    # don't reprocess if in queue? add to earlier stages? 
             if [ "$stage4cuts" == "auto" ]; then
                 cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
             elif [ "$stage4cuts" == "none" ]; then
@@ -474,7 +496,7 @@ if [ "$runStage4" == "true" ]; then
                 cutFlags4="-cuts=${stage4cuts}"
             fi
 
-            if [ "$array" == "V4" ]; then
+            if [ "$array" == "oa" ]; then # V4
                 telCombosToDeny="-TelCombosToDeny=T1T4"
 	    else
 		telCombosToDeny=""
@@ -505,9 +527,9 @@ $subscript45 "$cmd" $rootName_4 $rootName_2 $stage4subFlags
 echo "$spectrum"
 EOF
 
-#		if [ $? -e 0 ]; then
+		#		if [ $? -e 0 ]; then
 		n=$((n+1))
-#		fi # increment job number
+		#		fi # increment job number
 
 	    fi # end runmode check
 	fi # rootName_4 does not exist
@@ -530,42 +552,42 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    if [ -f $rootName_4 ]; then
-		queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
-		if [ ! -f $queueName ]; then
-		    
-		    if [ "$stage5cuts" == "auto" ]; then
-			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
-		    elif [ "$stage5cuts" == "none" ]; then
-			cutFlags5=""
-		    else
-			cutFlags5="-cuts=$stage5cuts"
+	    #	    if [ -f $rootName_4 ]; then # || [ -f $queueDir/${stage4subDir}_${runNum}.stage4${suffix} ]
+	    queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
+	    if [ ! -f $queueName ]; then
+		
+		if [ "$stage5cuts" == "auto" ]; then
+		    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
+		elif [ "$stage5cuts" == "none" ]; then
+		    cutFlags5=""
+		else
+		    cutFlags5="-cuts=$stage5cuts"
+		fi
+		
+		if [ "$useStage5outputFile" == "true" ]; then
+		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+		else
+		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
+		fi
+		
+		if [ "$useBDT" == "true" ]; then
+		    cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
+		fi
+		
+		if [ "$applyTimeCuts" == "true" ]; then
+		    timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
+		    if [ "$timeCutMask" != "NULL" ]; then 
+			cmd="$cmd -ES_CutTimes=${timeCutMask}"
 		    fi
+		fi # apply time cuts
+		
+		echo "$cmd"
+		
+		if [ "$runMode" != print ]; then
 		    
-		    if [ "$useStage5outputFile" == "true" ]; then
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
-		    else
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
-		    fi
+		    touch $queueName
 		    
-		    if [ "$useBDT" == "true" ]; then
-			cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
-		    fi
-		    
-		    if [ "$applyTimeCuts" == "true" ]; then
-			timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
-			if [ "$timeCutMask" != "NULL" ]; then 
-			    cmd="$cmd -ES_CutTimes=${timeCutMask}"
-			fi
-		    fi # apply time cuts
-		    
-		    echo "$cmd"
-		    
-		    if [ "$runMode" != print ]; then
-			
-			touch $queueName
-			
-			$runMode <<EOF
+		    $runMode <<EOF
 $qsubHeader
 #PBS -N ${stage5subDir}${runNum}${suffix}.stage5
 #PBS -o $runLog
@@ -575,10 +597,10 @@ $subscript45 "$cmd" $rootName_5 $rootName_4 $stage5subFlags #removed $cutsDir/$s
 echo "$spectrum"
 EOF
 		    
-		    fi # end runmode check
-		else # stage 4 file not present to run stage 5 
-		    echo "$rootName_4 is not present, skipping $rootName_5 !"
-		fi # stage 4 file present
+		fi # end runmode check
+		#		else # stage 4 file not present to run stage 5 
+		#		    echo "$rootName_4 is not present, skipping $rootName_5 !"
+		#		fi # stage 4 file present
 	    fi # stage 5 not in queue 
 	fi # stage 5 not present yet
     done < $readList
