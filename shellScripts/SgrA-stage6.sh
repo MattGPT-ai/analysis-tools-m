@@ -236,14 +236,13 @@ if [ $cutsFile ]; then
 cat $cutsFile
 fi
 
-#test \$exitCode -ne 0 && test -f $logFile && mv $logFile $VEGASWORK/rejected 
 test -f todayresult && mv todayresult $VEGASWORK/log/
 
-if [ "\$exitCode" -e 0 ]; then 
+#if [ "\$exitCode" -e 0 ]; then 
 cp $logFile $VEGASWORK/completed/
-else
-test -f $logFile && mv $logFile $VEGASWORK/rejected/
-fi
+#else
+#test -f $logFile && mv $logFile $VEGASWORK/rejected/
+#fi
 
 exit \$exitCode 
 

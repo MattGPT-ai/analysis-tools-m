@@ -31,13 +31,11 @@ configFlags5="-G_SimulationMode=1 -Method=VACombinedEventSelection"
 
 environment=$HOME/environments/SgrA_source.sh 
 envFlag="-e $environment"
-
-ltMode=auto
-runMode=print
-
 subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
 
 ltMode=auto
+runMode=print
+nJobsMax=(1000) 
 
 qsubHeader="
 #!/bin/bash -f
@@ -48,7 +46,7 @@ qsubHeader="
 #PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel: -- "$@"` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel:,override,noises: -- "$@"` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
     case "$i" in
@@ -56,6 +54,7 @@ for i; do
 	-5) runStage5=true ; shift ;; 
 	-q) runMode="qsub" ; shift ;;
 	-r) runMode="${2}" ; shift 2 ;;
+	-n) nJobsMax=$2 ; shift 2 ;; 
 	-c) 
 	    case ${2} in 
 		auto)
@@ -79,7 +78,7 @@ for i; do
 	    shift ;; 
 	-d) subDir=$2 ; shift 2 ;; # directory name should not contain spaces 
 	-z) zeniths="$2" ; shift 2 ;;
-	-n) noises="$2" ; shift 2 ;;
+	--noises) noises="$2" ; shift 2 ;;
 	-a) arrays="$2" ; shift 2 ;;
 	-A) atmospheres="$2" ; shift 2 ;;
 	-o) offsets="$2" ; shift 2 ;;
@@ -109,6 +108,9 @@ for i; do
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
+	--override) 
+	    configFlags4="$configFlags4 -OverrideLTCheck=1"
+	    shift ;; 
 	--) shift ;;
 #	?) 
 #	    echo -e "Option ${BOLD}$1 not recognized!"
@@ -123,23 +125,26 @@ processDir=$workDir/processed
 logDir=$workDir/log
 queueDir=$workDir/queue
 
-if [ "$runMode" != print ]; then 
-    for dir in $processDir $logDir; do 
-	if [ ! -d $dir/$subDir ]; then
-	    echo "must create $dir/$subDir"
-	    if [ "$runMode" != "print" ]; then
-		mkdir $dir/$subDir
-	    fi 
-	fi
-    done 
-fi # check dirs exist 
+for dir in $processDir $logDir; do 
+    if [ ! -d $dir/$subDir ]; then
+	echo "must create $dir/$subDir"
+	if [ "$runMode" != "print" ]; then
+	    mkdir $dir/$subDir
+	fi 
+    fi
+done  # check dirs exist 
 
+nJobs=(0) 
 #for simFile in `ls $dataDir/*noise.root`
 for array in $arrays; do
     for atm in $atmospheres; do
 	for z in $zeniths; do 
 	    for offset in $offsets; do 
 		for n in $noises; do
+
+		    if (( nJobs >= nJobsMax )); then
+			exit 0 
+		    fi
 
 		    setCuts
 
@@ -268,7 +273,7 @@ EOF
 			    fi # either stage 4 file exists or is in queue 
 			fi # stage 5 file does not exist 
 		    fi # run stage 5
-		    
+		    nJobs=$((nJobs+1))
 		done # loop over noises
 	    done # loop over offsets
 	done # zeniths

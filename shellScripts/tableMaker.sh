@@ -235,7 +235,7 @@ for zGroup in $zeniths; do
 		    
 		    $runMode <<EOF
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=4gb,walltime=24:00:00
+#PBS -l nodes=1,mem=4gb,walltime=48:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
