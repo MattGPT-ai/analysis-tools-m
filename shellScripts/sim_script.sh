@@ -42,8 +42,8 @@ qsubHeader="
 #PBS -l nodes=1,mem=2gb,walltime=24:00:00
 #PBS -j oe
 #PBS -V 
+#PBS -p 500
 "
-#PBS -p 0
 
 #while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
 args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel:,override,noises: -- "$@"` # -n 'sim_script.sh
