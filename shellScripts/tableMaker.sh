@@ -126,7 +126,7 @@ epoch=$array
 simFileSubDir=Oct2012_${array}_ATM${atm}
 
 if [ "$table" == ea ]; then
-    tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}_${spectrum}.txt    
+    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}.txt    
 else
     tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
 fi
@@ -138,9 +138,16 @@ for zGroup in $zeniths; do
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
 
-	    tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets
-	    #tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p}_allNoises_one 
-
+	    if [ "$table" == ea ]; then 
+		setCuts
+		tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
+		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
+		tableFileBase="${tableFileBase}_ThetaSq${ThetaSquareUpper//./p}"
+	    else
+		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+	    fi # 
+	    
 	    if [ "$allNoise" == true ]; then
 		tableFileBase=${tableFileBase}_allNoise
 	    else
@@ -176,15 +183,7 @@ for zGroup in $zeniths; do
 		    cat $tempSimFileList > $simFileList
 		fi
 	    fi # update simFileList if it's new 
-
-	    if [ "$table" == ea ]; then 
-		setCuts
-		tableFileBase="${tableFileBase}_${stage4dir}"
-		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
-		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
-		tableFileBase="${tableFileBase}_ThetaSq${ThetaSquareUpper//./p}"
-	    fi # 
-
+	    
 	    smallTableFile=$workDir/processed/tables/${tableFileBase}.root
 	    echo "$smallTableFile" >> $tempTableList
 

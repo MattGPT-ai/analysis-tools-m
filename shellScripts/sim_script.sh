@@ -39,13 +39,12 @@ nJobsMax=(1000)
 
 qsubHeader="
 #!/bin/bash -f
-#PBS -l nodes=1,mem=2gb,walltime=24:00:00
+#PBS -l nodes=1,mem=2gb,walltime=48:00:00
 #PBS -j oe
 #PBS -V 
-#PBS -p 500
+#PBS -p 0
 "
 
-#while getopts 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: flag; do
 args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel:,override,noises: -- "$@"` # -n 'sim_script.sh
 eval set -- $args
 for i; do 
@@ -161,7 +160,7 @@ for array in $arrays; do
 			simFile=$dataDir/Oct2012_${array}_ATM${atm}/${z}_deg/${simFileBase}.root
 		    else
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv251_7samples_${z}deg_${offset//./}wobb_${n}noise
-			simFile=$dataDir/Oct2012_${array}_ATM${atm}/${simFileBase}.root
+			simFile=$dataDir/Oct2012_${array}_ATM${atm}_HFit/${simFileBase}.root
 		    fi # set name of simfile 
 		    
 		    rootName_4="$processDir/$subDir/${simFileBase}.stage4.root"

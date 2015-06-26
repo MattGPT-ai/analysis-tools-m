@@ -53,6 +53,8 @@ queueFile=${queueDir}/${subDir}_${runName}
 
 if [ -d $logDir ]; then
     logFile=$logDir/${runName}.txt
+    echo "" > $logFile 
+    #test ! -f $logFile || mv $logFile $trashDir 
 else
     echo -e "\e[0;31m Log directory $logDir does not exist!  \e[0m"
 fi

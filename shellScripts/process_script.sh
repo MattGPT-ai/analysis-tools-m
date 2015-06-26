@@ -36,8 +36,7 @@ stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
-#configFlags4="-OverrideLTCheck=1"
-configFlags5="-Method=VACombinedEventSelection"
+configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile=true
 useBDT=false
@@ -52,7 +51,6 @@ subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
 applyTimeCuts="true"
 
 ##bin/sh -f
-#PBS -p 0
 qsubHeader="
 #PBS -S /bin/bash 
 #PBS -l nodes=1,mem=2gb
@@ -71,7 +69,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:ahbB::s:qr:e:c:C:p:kdn: -l disp:,BDT::,cutTel:,reprocess:,customLT -n 'process_script.sh' -- "$@"` #d:D: 
+args=`getopt -o l124:5:d:ahbB::s:qr:e:c:C:p:kdn:o: -l disp:,BDT::,cutTel:,reprocess -n 'process_script.sh' -- "$@"` #
 eval set -- $args 
 # loop through options
 for i; do  
@@ -85,13 +83,11 @@ for i; do
 	-4) runStage4="true" 
 	    stage4subDir="$2"
 	    shift 2 ;;
-	#	-d) stage4subDir="$2"
-	#	    shift 2 ;;
+	-d) stage4subDir=$2
+	    shift 2 ;; 
 	-5) runStage5="true"
 	    stage5subDir="$2"
        	    shift 2 ;;
-	#	-D) stage5subDir="$2"
-	#	    shift 2 ;; 
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
 	-r) runMode="$2"
@@ -144,8 +140,8 @@ for i; do
 	--cutTel)
 	    configFlags4="$configFlags4 -CutTelescope=$2"
 	    shift 2 ;; 
-	--customLT)
-	    customLT=true
+	-o)
+	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
 	--) shift; break ;;
 	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
@@ -233,14 +229,11 @@ setEpoch() { # try to move into common file with setCuts
     
     # determine array for stage 4   
     if (( date < 20090900 )); then
-        array=oa #V4 
-	#array=MDL8OA_V4_OldArray
+        array=oa #V4, MDL8OA_V4_OldArray
     elif (( date > 20120900 )); then
-        array=ua #V6 
-        #array=MDL10UA_V6_PMTUpgrade
+        array=ua #V6, MDL10UA_V6_PMTUpgrade
     else
-        array=na #V5 
-	#array=MDL15NA_V5_T1Move
+        array=na #V5, MDL15NA_V5_T1Move
     fi
     
 } # end setEpoch 
@@ -392,6 +385,8 @@ EOF
 	
 	rootName_1="$processDir/${stage1subDir}/${runNum}.stage1.root"	    
 	rootName_2="$processDir/${stage2subDir}/${runNum}.stage2.root"
+	queueFile_1="${queueDir}/${stage1subDir}_${runNum}.stage1"
+	queueFile_2="${queueDir}/${stage2subDir}_${runNum}.stage2"
 	runBool="false" # reset 
 	stage1cmd="NULL" # must match NULL assignment in subscript
 	stage2cmd="NULL"
@@ -400,7 +395,7 @@ EOF
 	if [ "$runStage1" == "true" -o "$runStage2" == "true" ]; then
 
 	    ##### STAGE 1 #####
-	    if ( [ ! -f $rootName_1 ] && [ ! -f ${queueDir}/${runNum}.stage1 ] ) && ( ( [ ! -f $rootName_2 ] && [ ! -f ${queueDir}/${runNum}.stage2 ] && [ "$runStage2" == "true" ] ) || [ "$runStage1" == "true" ] ); then
+	    if ( [ ! -f $rootName_1 ] && [ ! -f $queueFile_1 ] ) && ( ( [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ] ) || [ "$runStage1" == "true" ] ); then
 		if [ -f $dataFile ]; then
 		    runBool="true"
 		    stage1cmd="`which vaStage1` -Stage1_RunMode=data "
@@ -411,7 +406,7 @@ EOF
 	    fi # stage 1 file doesn't exist and isn't in queue, and you're either running stage 1 or stage 2
 	    
 	    ##### STAGE 2 #####
-	    if [ ! -f $rootName_2 ] && [ ! -f ${queueDir}/${runNum}.stage2 ] && [ "$runStage2" == "true" ]; then
+	    if [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ]; then
 		if [ -f $dataFile ]; then
   		    
 		    runBool="true"
@@ -426,8 +421,8 @@ EOF
 	    if [ "$runBool" == "true" ]; then
 		if [ "$runMode" != print ]; then
 		    
-		    touch $queueDir/${stage1subDir}_${runNum}.stage1
-		    touch $queueDir/${stage2subDir}_${runNum}.stage2
+		    touch $queueFile_1
+		    touch $queueFile_2
 		    
 		    $runMode <<EOF
 $qsubHeader
@@ -455,10 +450,10 @@ if [ "$runStage4" == "true" ]; then
 	runDate=$1
 	runNum=$2
 	rootName_2="$processDir/${stage2subDir}/${runNum}.stage2.root"
-	rootName_4="$processDir/${stage4subDir}/${runNum}${suffix}.stage4.root"
-	runLog="$logDir/${stage4subDir}/${runNum}${suffix}.stage4.txt"
+	rootName_4="$processDir/${stage4subDir}/${runNum}.stage4.root"
+	runLog="$logDir/${stage4subDir}/${runNum}.stage4.txt"
 	
-        queueFile=$queueDir/${stage4subDir}_${runNum}.stage4${suffix}
+        queueFile=$queueDir/${stage4subDir}_${runNum}.stage4
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
 	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
 	    offset=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT offset_distance FROM tblRun_Info WHERE run_id = ${runNum}"`
@@ -522,7 +517,7 @@ if [ "$runStage4" == "true" ]; then
 
 		$runMode <<EOF
 $qsubHeader
-#PBS -N ${stage4subDir}${runNum}${suffix}.stage4
+#PBS -N ${stage4subDir}${runNum}.stage4
 #PBS -o $runLog
 #PBS -p $priority
 
@@ -530,11 +525,8 @@ $subscript45 "$cmd" $rootName_4 $rootName_2 $stage4subFlags
 echo "$spectrum"
 EOF
 
-		#		if [ $? -e 0 ]; then
-		n=$((n+1))
-		#		fi # increment job number
-
 	    fi # end runmode check
+#	    n=$((n+1))
 	fi # rootName_4 does not exist
     done < $readList  
 fi # runStage4
@@ -547,16 +539,16 @@ if [ "$runStage5" == "true" ]; then
 	
 	runDate=$1
 	runNum=$2
-	rootName_4="${processDir}/${stage4subDir}/${runNum}${suffix}.stage4.root"
-	rootName_5="${processDir}/${stage5subDir}/${runNum}${suffix}.stage5.root"
-	runLog="${logDir}/${stage5subDir}/${runNum}${suffix}.stage5.txt"
+	rootName_4="${processDir}/${stage4subDir}/${runNum}.stage4.root"
+	rootName_5="${processDir}/${stage5subDir}/${runNum}.stage5.root"
+	runLog="${logDir}/${stage5subDir}/${runNum}.stage5.txt"
 
 	setEpoch $runDate
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    #	    if [ -f $rootName_4 ]; then # || [ -f $queueDir/${stage4subDir}_${runNum}.stage4${suffix} ]
-	    queueName=${queueDir}/${stage5subDir}_${runNum}${suffix}.stage5
+	    #	    if [ -f $rootName_4 ]; then # || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]
+	    queueName=${queueDir}/${stage5subDir}_${runNum}.stage5
 	    if [ ! -f $queueName ]; then
 		
 		if [ "$stage5cuts" == "auto" ]; then
@@ -592,7 +584,7 @@ if [ "$runStage5" == "true" ]; then
 		    
 		    $runMode <<EOF
 $qsubHeader
-#PBS -N ${stage5subDir}${runNum}${suffix}.stage5
+#PBS -N ${stage5subDir}${runNum}.stage5
 #PBS -o $runLog
 #PBS -p $priority
 

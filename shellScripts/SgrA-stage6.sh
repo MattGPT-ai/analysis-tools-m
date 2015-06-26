@@ -166,6 +166,9 @@ for file in $logFile $outputFile; do
     fi
 done
 
+if [ -n "$runFile" ]; then
+    test -f $runFile || ( echo "$runFile does not exist! exiting.."; exit 1 )
+fi # if runFile is specified, make sure it exists 
 
 if [ "$runMode" != print ]; then
     
@@ -200,10 +203,6 @@ if [ "$runMode" != print ]; then
     fi
 
 fi # if runMode is not print only 
-
-test -n "$runFile" || runFile=$HOME/work/${sourceName}_${name}_runlist.txt
-#( echo "runFile variable empty!" ; exit 1 ) 
-#test -f $runFile || ( echo "$runFile doesn't exist, exiting!" && exit 2 ) 
 
 cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} $options $readFlag $cutsFlag $runFile " #
 echo "$cmd"

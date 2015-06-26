@@ -95,11 +95,15 @@ if [ "$stage1cmd" != "NULL" ]; then
 	rm $queue2
 	rm $scratchDir/${runNum}.cvbf
 	exit 1
-    fi # command unsuccessfully completed                                          
+    else
+	cp $logFile1 $workDir/completed/	
+    fi # command unsuccessfully completed
+                                          
     if [ `grep -c unzip $logFile` -gt 0 ]; then
 	echo -e "\e[0;31m$rootName_1 UNZIP ERROR!!!\e[0m"
 	mv $logFile1 $rejectDir/
     fi
+
 fi # stage 1 command isn't null 
 
 if [ "$stage2cmd" != "NULL" ]; then 
@@ -133,14 +137,15 @@ if [ "$stage2cmd" != "NULL" ]; then
 	mv $logFile2 $rejectDir/
 	rm $rootName_2
 	exit 1
+    else
+	rm $rootName_1
+	cp $logFile2 $workDir/completed/ 	
     fi # command unsuccessfully completed
 
     if [ `grep -c unzip $logFile` -gt 0 ]; then
 	echo -e "\e[0;31m$rootName_2 UNZIP ERROR!!!\e[0m"
 	mv $logFile2 $rejectDir/	
     fi
-
-rm $rootName_1
 
 fi # stage 2 command isn't null
 
@@ -149,6 +154,5 @@ fi # stage 2 command isn't null
 #    rm $logDir/${runNum}.stage12.txt
 #fi
 
-cp $logFile $workDir/completed/ 
 
 exit 0 # great success
