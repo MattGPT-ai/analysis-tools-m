@@ -14,7 +14,7 @@ positionFlags="-S6A_TestPositionRA=266.4168 -S6A_TestPositionDEC=-29.0078"
 
 #common defaults, make more variables? 
 options="-S6A_Spectrum=1 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
-options="$options -UL_PhotonIndex=2.1" # 
+options="$options -UL_PhotonIndex=2.5 -RBM_CoordinateMode=\"Galactic\""  
 exclusionList=$HOME/config/SgrA_exclusionList.txt # put in environment
 
 source $VSCRIPTS/shellScripts/setCuts.sh 
@@ -33,7 +33,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtg FLAG; do 
+while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtj FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -98,10 +98,10 @@ while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtg FLAG; do
 	t)
 	    useTestPosition=true
 	    ;;
-	g)
-	    options="$options -RBM_CoordinateMode=\"Galactic\""
+	j)
+	    options="$options -RBM_CoordinateMode=\"J2000"\"
 	    ;;
-	?) #unrecognized option - show help
+	?) # unrecognized option - show help
 	    echo -e "Option -${BOLD}$OPTARG${NORM} not allowed."
 	    ;;
     esac # option cases

@@ -452,7 +452,14 @@ if [ "$runStage4" == "true" ]; then
 	rootName_2="$processDir/${stage2subDir}/${runNum}.stage2.root"
 	rootName_4="$processDir/${stage4subDir}/${runNum}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}.stage4.txt"
-	
+
+	laserNum=(1)
+	#cutTelFlags=""
+	for laser in $3 $4 $5 $6; do 
+	    test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
+	    laserNum=$((laserNum+1))
+	done
+
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
 	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
@@ -464,11 +471,12 @@ if [ "$runStage4" == "true" ]; then
 	    setCuts
 
 	    if [ "$ltMode" == auto ]; then
-		ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
+		ltName=lt_Oct2012_${array}_ATM22_${simulation}_vegas254_7sam_allOff_LZA_std_d${DistanceUpper//./p}
+		#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
 		#ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
 		ltFile=$tableDir/${ltName}.root
 	    fi # automatic lookup table 
-	    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
+#	    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
 	    tableFlags="-table=${ltFile}"
 
 	    if [ "$stg4method" == disp ]; then
@@ -481,7 +489,7 @@ if [ "$runStage4" == "true" ]; then
 		fi
 		
 		dtFile=$tableDir/${dtName}
-		test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
+#		test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
 		tableFlags="$tableFlags -DR_DispTable=$dtFile" 
 	    fi # disp method 
 	    
@@ -500,9 +508,10 @@ if [ "$runStage4" == "true" ]; then
 		telCombosToDeny=""
 	    fi
 
-            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $telCombosToDeny $rootName_4"
+            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $telCombosToDeny $cutTelFlags $rootName_4"
 	    echo "$cmd"
 
+	    # condense 
 	    if [ ! -f $ltFile ]; then
 		echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
 		continue

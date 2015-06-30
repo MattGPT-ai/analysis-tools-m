@@ -6,7 +6,6 @@ simDir=$BDT/processed/sims_medium
 
 processDir=$BDT/processed
 trainMacro=$BDT/macros/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
-#trainMacro=$BDT/macros/VegasTMVAClassification.C
 logDir=$BDT/log
 plotLog=$logDir/plotLog.txt # on
 backupDir=$BDT/backup
@@ -15,35 +14,32 @@ plotDir=$BDT/plots
 plotMacro=$BDT/macros/MakePlots.C
 
 #used in cmd to find appropriate sim files
-array=na # change to V5?
-atm=21
-noise=350
+array=ua # change to V6?
+atm=22
 wobble=050
 
-runMode="print"
+runMode=print
 
 zeniths="10 20 30 40"
 
-args=`getopt b:qrt:d:s:a:V: $*`
-set -- $args
-
+args=`getopt -o b:qr:t:d:s:a:V: -l atm:,array: -- "$@"` # zeniths:
+eval set -- ${args//\'/}
+echo ${args//\'/}
 for i; do
     case "$i" in 
-#	-t) trainDir=$2
-#	    shift ; shift ;;
-	-q) runMode="qsub"
-	    shift ;;
-	-r) runMode="shell"
-	    shift ;;
+	-q) runMode=qsub
+	    shift ;;       
+	-r) runMode="$2"
+	    shift 2 ;;
 	-b) bgDir=$2
-	    shift ; shift ;;
+	    shift 2 ;;
 	-d) subDir=$2
-	    shift ; shift ;;
+	    shift 2 ;;
 	-s) simDir=$2
+	    shift 2 ;;
+	--array) array=$2
 	    shift ; shift ;;
-	-V) array=$2
-	    shift ; shift ;;
-	-a) atm=$2
+	--atm) atm=$2
 	    shift ; shift ;;
 	--) shift ; break ;;
     esac
@@ -57,28 +53,27 @@ while [ $1 ]; do
     shift
 done
 
-trainDir=$weightsDir/${subDir} 
+trainDir=$weightsDir/$subDir 
 echo "training directory: $trainDir"
 
 logDirFull=$logDir/train_${subDir}
 plotDirFull=$plotDir/${subDir}
 for dir in $trainDir $logDirFull $plotDirFull; do
     if [ ! -d $dir ]; then
-	echo "Creating directory: $dir"
-	mkdir -p $dir
+	echo "Must create directory: $dir"
+	test $runMode == print ||  mkdir -p $dir
     fi
-done
+done # loop over necessary directories
 
 #if macro doesn't exist in this directory, ask about copying and copy it over
 for macro in $trainMacro $plotMacro; do 
     if [ ! -f $trainDir/${macro##*/} ]; then
-	echo "Copy of macro $macro does not exist in $trainDir, copying..."
-	cp $macro $trainDir/
+	echo "Copy of macro $macro does not exist in $trainDir, must copy!"
+	test $runMode == print || cp $macro $trainDir/
     fi
 done
 
 for z in $zeniths; do
-    #bgDir=$processDir/$bgDir
     
     if [ ! -d $bgDir ]; then
 	echo "directory: $bgDir with background files does not exist!"
@@ -103,13 +98,11 @@ for z in $zeniths; do
 	fi
 	    
 	fileNameBase="TMVAClassification_TestBDT_ELow${eLow}_EHigh${eHigh}_Zenith${z}"
-	#fileNameBase="TestBDT_ELow${eLow}_EHigh${eHigh}_Zenith${z}"
 	if [ ! -f $trainDir/${fileNameBase}.weights.xml ]
-	    then
+	then
 
-	    cmd="root -l -b -q 'VegasBDTClassification.C(\"$bgDir/\",\"$simDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${simZ}deg_${wobble}wobb\",\"${eLow}\",\"${eHigh}\",\"${z}\")'"  
-	    #cmd="root -l -b -q 'VegasTMVAClassification.C(\"$bgDir/\",\"$simDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${simZ}deg_${wobble}wobb_${noise}noise.stage5.root\",\"${eLow}\",\"${eHigh}\",\"${z}\")'"   
-
+	    cmd="root -l -b -q 'VegasBDTClassification.C(\"$bgDir\",\"$simDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${simZ}deg_${wobble}wobb\",\"${eLow}\",\"${eHigh}\",\"${z}\")'"  
+	
 	    echo $cmd
 	    
 	    plotCMD="root -l -b -q 'MakePlots.C(\"$trainDir/TestBDT_ELow${eLow}_EHigh${eHigh}_Zenith${z}.root\")'"
@@ -125,9 +118,9 @@ for z in $zeniths; do
 		fi
 	    fi
 
-	    if [ $runMode = "qsub" ]; then
+	    if [ $runMode != print ]; then
 	    
-		qsub <<EOF
+		$runMode <<EOF
 #PBS -S /bin/bash
 #PBS -l nodes=1,mem=2gb
 #PBS -j oe
@@ -167,15 +160,8 @@ cp $logFile $BDT/completed/
 exit 0 # successful exit 
 
 EOF
-		# end if qsub 
-	    elif [ $runMode = "shell" ]; then
-		
-		$cmd &> $logFile
-		#$cmd 2>&1 | tee $logFile
-		echo "$cmd" >> $logFile
-	    
-	    fi
-
+   
+	    fi	    # end if runMode != print
 
 	fi # if this xml file does not exist yet
     done # for loop over energy

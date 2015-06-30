@@ -5,8 +5,7 @@ runStage5=false
 
 offsets="000 050 075" # offsets isn't looped over, but the following all are
 #zeniths="00 20 30 40" # BDT
-#zeniths="50 55 60 65"
-zeniths="60 65"
+zeniths="55 60 65"
 atmospheres="21 22"
 arrays="na ua"
 noises="100 150 200 250 300 350 400 490 605 730 870"
@@ -20,6 +19,7 @@ tableDir=$TABLEDIR
 workDir=/veritas/userspace2/mbuchove/BDT
 
 subDir=sims_medium
+#stage4dir=/veritas/userspace2/mbuchove/SgrA/processed/sims_v254_disp5t 
 spectrum=medium
 
 cutMode4=auto
@@ -45,7 +45,7 @@ qsubHeader="
 #PBS -p 0
 "
 
-args=`getopt -o 45qr:c:C:d:a:A:z:o:n:s:hl:w:BD:e: -l BDT,disp:,cutTel:,override,noises: -- "$@"` # -n 'sim_script.sh
+args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e: -l BDT,disp:,cutTel:,override,array:,atm:,stage4dir:,noises: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -55,31 +55,33 @@ for i; do
 	-r) runMode="${2}" ; shift 2 ;;
 	-n) nJobsMax=$2 ; shift 2 ;; 
 	-c) 
-	    case ${2} in 
+	    case "$2" in 
 		auto)
-		    cutMode4=auto ; shift 2 ;; 
+		    cutMode4=auto ;; 
 		none)
-		    cutMode4=none
-		    cuFlags4="" ; shift 2 ;; 
+		    cutMode4=none 
+		    cutFlags4="" ;; 
 		*)
 		    cutMode4=file
-		    cutFlags4="-cuts=${2}" ; shift 2 ;;
+		    cutFlags4="-cuts=${2}" ;; 
 	    esac 
-	    shift ;; 
+	    shift 2 ;; 
 	-C)
 	    case ${2} in 
-		auto) cutMode5=auto ; shift 2 ;; 
+		auto) cutMode5=auto ;; 
 		none) cutMode5=none # not necessary 
-		    cutFlags5="" ; shift 2 ;; 
+		    cutFlags5="" ;; 
 		*)  cutMode5=file 
-		    cutFlags5="-cuts=${2}" ; shift 2 ;; 
+		    cutFlags5="-cuts=${2}" ;; 
 	    esac 
-	    shift ;; 
+	    shift 2 ;; 
 	-d) subDir=$2 ; shift 2 ;; # directory name should not contain spaces 
+	--stage4dir) 
+	    stage4dir=$2 ; shift 2 ;; 
 	-z) zeniths="$2" ; shift 2 ;;
 	--noises) noises="$2" ; shift 2 ;;
-	-a) arrays="$2" ; shift 2 ;;
-	-A) atmospheres="$2" ; shift 2 ;;
+	--array) arrays="$2" ; shift 2 ;;
+	--atm) atmospheres="$2" ; shift 2 ;;
 	-o) offsets="$2" ; shift 2 ;;
 	-s) spectrum="$2" ; shift 2 ;; 
 	-h) hillasMode=HFit
@@ -103,7 +105,8 @@ for i; do
 	--cutTel)
 	    configFlags4="$configFlags4 -CutTelescope=${2}/1"
 	    shift 2 ;; 
-  	-B|--BDT) useBDT=true
+  	-B|--BDT) 
+	    useBDT=true
 	    cutMode5=none # not necessary 
 	    cutFlags5="" ; shift ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
@@ -111,19 +114,18 @@ for i; do
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
 	--) shift ;;
-#	?) 
-#	    echo -e "Option ${BOLD}$1 not recognized!"
-#	    exit ;;
     esac # option cases
 done # loop over options 
-#shift $((OPTIND-1))
 
 source $environment 
-
 processDir=$workDir/processed
 logDir=$workDir/log
 queueDir=$workDir/queue
 
+if [ -z "$stage4dir" ]; then
+    stage4dir=$processDir/$subDir
+    #subDir=${stage4dir##*/}
+fi
 for dir in $processDir $logDir; do 
     if [ ! -d $dir/$subDir ]; then
 	echo "must create $dir/$subDir"
@@ -134,7 +136,7 @@ for dir in $processDir $logDir; do
 done  # check dirs exist 
 
 nJobs=(0) 
-#for simFile in `ls $dataDir/*noise.root`
+
 for array in $arrays; do
     for atm in $atmospheres; do
 	for z in $zeniths; do 
@@ -147,14 +149,6 @@ for array in $arrays; do
 
 		    setCuts
 
-		    case $n in
-			100|150|200) nGroup=0 ;;
-			250|300) nGroup=1 ;;
-			350|400) nGroup=2 ;; 
-			490|605) nGroup=3 ;; 
-			730|870) nGroup=4 ;;
-		    esac
-		    
 		    if [ "$hillasMode" != HFit ]; then
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb_${n}noise
 			simFile=$dataDir/Oct2012_${array}_ATM${atm}/${z}_deg/${simFileBase}.root
@@ -162,23 +156,22 @@ for array in $arrays; do
 			simFileBase=Oct2012_${array}_ATM${atm}_vegasv251_7samples_${z}deg_${offset//./}wobb_${n}noise
 			simFile=$dataDir/Oct2012_${array}_ATM${atm}_HFit/${simFileBase}.root
 		    fi # set name of simfile 
-		    
-		    rootName_4="$processDir/$subDir/${simFileBase}.stage4.root"
-		    rootName_5="$processDir/$subDir/${simFileBase}.stage5.root"
+
+		    rootName_4="$stage4dir/${simFileBase}.stage4.root"
 
 		    ##### STAGE 4 #####
 
 		    if [ "$runStage4" == "true" ]; then
 			runLog="$logDir/$subDir/${simFileBase}.stage4.txt"
-			#			if [ true ]; then
 			if [ ! -f $rootName_4 ]; then
 			    if [ -f $simFile ]; then
 
 				if [ "$ltMode" == auto ]; then
+				    ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
+				elif [ "ltMode" == custom ]; then
 				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
-				    #ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
-				    ltFile=$tableDir/${ltName}.root
 				fi # automatic lookup table 
+				ltFile=$tableDir/${ltName}.root
 				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
 				tableFlags="-table=${ltFile}"
 
@@ -218,7 +211,7 @@ $subscript45 "$stage4cmd" $rootName_4 $simFile $envFlag # should be able to remo
 
 exit 0 
 EOF
-				    #echo "VEGAS job " $PBS_JOBID " started  at: " ` date ` >> $logDir/PBS.txt
+
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mSource simulation file $simFile does not exist! check directory\e[0m"
@@ -228,13 +221,15 @@ EOF
 		    
 		    ##### STAGE 5 #####
 		    if [ $runStage5 == "true" ]; then
-			if [ -n "$useBDT" ]; then
+
+			if [ "$useBDT" == true ]; then
 			    stage5Dir=$processDir/$subDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb
 			    test -d $stage5Dir || mkdir $stage5Dir;
 			else
 			    stage5Dir=$processDir/$subDir
 			fi
-
+			rootName_5=$stage5Dir/${simFileBase}.stage5.root
+			
 			if [[ ! -f $stage5Dir/${simFileBase}.stage5${extension}.root ]]; then 
 			    if [ -f $rootName_4 ] || [ -f $queueDir/${subDir}_${simFileBase}.stage4${extension} ] || [ "$runMode" == print ]; then 
 				runLog="$logDir/$subDir/${simFileBase}.stage5${extension}.txt"
@@ -245,7 +240,6 @@ EOF
 				    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 				    cutFlags5="$cutFlags5 -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 				    test "$MaxHeightLower" -ne -100 && cutFlags5="$cutFlags5 -MaxHeightLower=$MaxHeightLower"
-				    #			    test -n $MaxHeightLower
 				fi # automatic cuts for stage 5 based on array 
 				
 				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
@@ -261,11 +255,11 @@ $qsubHeader
  
 # deal with cuts file 
 $subscript45 "$stage5cmd" $rootName_5 $rootName_4 $envFlag 
-test -z "$useBDT" || mv $rootName_5 $stage5Dir
+#test -z "$useBDT" || mv $rootName_5 $stage5Dir
 
 exit 0
 EOF
-				    # echo "VEGAS job " $PBS_JOBID " started at: " ` date ` >> $logDir/PBS.txt
+
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mStage 4 file $rootName_4 does not exist and is not in queue!\e[0m"
