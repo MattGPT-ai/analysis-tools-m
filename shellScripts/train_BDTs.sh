@@ -5,13 +5,13 @@ subDir=5-16_medium_V5 #subdirectory for weights, under weightsDir
 simDir=$BDT/processed/sims_medium
 
 processDir=$BDT/processed
-trainMacro=$BDT/macros/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
+trainMacro=$VERITASBASE/VEGAS-BDT/BDT/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
 logDir=$BDT/log
 plotLog=$logDir/plotLog.txt # on
 backupDir=$BDT/backup
 weightsDir=$BDT/weights
 plotDir=$BDT/plots
-plotMacro=$BDT/macros/MakePlots.C
+plotMacro=$VERITASBASE/VEGAS-BDT/BDT/MakePlots.C
 
 #used in cmd to find appropriate sim files
 array=ua # change to V6?
