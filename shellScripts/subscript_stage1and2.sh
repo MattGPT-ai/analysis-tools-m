@@ -3,7 +3,7 @@
 # VA subscript, for use with larger submission scripts
 
 # environment stuff:
-scratchDir=/scratch/mbuchove/
+scratchDir=/scratch/mbuchove
 trashDir=$TRASHDIR
 stage1subDir=stg1 #needs to match process_script.sh
 stage2subDir=stg2 #also must match

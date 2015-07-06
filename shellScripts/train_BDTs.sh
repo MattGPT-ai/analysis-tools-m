@@ -23,7 +23,7 @@ runMode=print
 zeniths="10 20 30 40"
 
 args=`getopt -o b:qr:t:d:s:a:V: -l atm:,array: -- "$@"` # zeniths:
-eval set -- ${args//\'/}
+eval set -- ${args//\'/} # not sure why i have to do this, single quotes are being added around option arguments for some reason 
 echo ${args//\'/}
 for i; do
     case "$i" in 
@@ -80,23 +80,29 @@ for z in $zeniths; do
 	exit 1
     fi
 
-    if [ "$z" = "10" ]; then
-	simZ="00"
-    else
-	simZ="$z"
-    fi
+    arrayLow=( 0 320 500 1000 )
+    arrayHigh=( 320 560 1120 30000 )
+    case $z in 
+	10) 
+	    simZ=00 ;; 
+	20|30) ;;
+	40) 
+	    arrayLow=( 0 500 1000 )
+	    arrayHigh=( 560 1120 30000 ) 
+	    ;; 
+	60) 
+	    arrayLow=( 0 )
+	    arrayHigh=( 30000 )
+	    ;;
+    esac # zenith cases
+    numBinsE=${#arrayLow[@]}
 
-    for eLow in 0 320 500 1000; do
-	if [ "$eLow" = "0" ]; then
-	    eHigh=320
-	elif [ "$eLow" = "320" ]; then
-	    eHigh=560
-	elif [ "$eLow" = "500" ]; then
-	    eHigh=1120
-	elif [ "$eLow" = "1000" ]; then
-	    eHigh=30000
-	fi
-	    
+    eBin=(0) # the energy bin index 
+    while (( eBin < numBinsE )); do 
+
+	eLow=${arrayLow[eBin]}
+	eHigh=${arrayHigh[eBin]}
+
 	fileNameBase="TMVAClassification_TestBDT_ELow${eLow}_EHigh${eHigh}_Zenith${z}"
 	if [ ! -f $trainDir/${fileNameBase}.weights.xml ]
 	then
@@ -109,7 +115,7 @@ for z in $zeniths; do
 
 	    logFile=$logDirFull/${fileNameBase}.txt
 	    plotLog=$logDirFull/plotLog.txt
-	    if [ "$runMode" == "qsub" -o "$runMode" == "shell" ]; then
+	    if [ "$runMode" == "qsub" -o "$runMode" == "bash" ]; then
 		if [ -f $logFile ]; then
 		    if [ ! -d $backupDir/$subDir ]; then
 			mkdir -p $backupDir/$subDir
@@ -162,9 +168,9 @@ exit 0 # successful exit
 EOF
    
 	    fi	    # end if runMode != print
-
 	fi # if this xml file does not exist yet
-    done # for loop over energy
+	eBin=$((eBin+1))
+    done # loop over energy bins 
 done # for loop over zenith
 
 exit 0 # success

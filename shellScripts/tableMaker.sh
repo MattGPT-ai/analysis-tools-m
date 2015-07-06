@@ -104,7 +104,6 @@ case "$array" in
 	#model=MDL15NA epoch=V5_T1Move ;;
     ua) #V6 
 	noiseArray=(4.24,5.21,6 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
-	#noiseArray=(4.24,5.21,6.00 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
 	#model=MDL10UA epoch=V6_PMTUpgrade ;;
     *) 
 	echo "Array $array not recognized! Choose either oa, na, or ua!!"
@@ -133,7 +132,7 @@ fi
 tempTableList=`mktemp` || ( echo "tempTableList creation failed" ; exit 1 )
 
 for zGroup in $zeniths; do 
-    for oGroup in "$offsets"; do 
+    for oGroup in $offsets; do 
 	noiseIndex=(0) #noiseIndex
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
@@ -234,7 +233,7 @@ for zGroup in $zeniths; do
 		    
 		    $runMode <<EOF
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=4gb,walltime=48:00:00
+#PBS -l nodes=1,mem=2gb,walltime=48:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase

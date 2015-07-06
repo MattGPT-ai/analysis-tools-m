@@ -15,7 +15,7 @@ runStage6="false"
 
 baseDataDir=/veritas/data
 scratchDir=/scratch/mbuchove
-tableDir="$USERSPACE/tables"
+tableDir=$USERSPACE/tables
 laserDir=$LASERDIR
 weightsDirBase=$BDT/weights
 weightsDir=5-34_defaults
@@ -69,7 +69,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahbB::s:qr:e:c:C:p:kdn:o: -l disp:,BDT::,cutTel:,reprocess -n 'process_script.sh' -- "$@"` #
+args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,BDT:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -106,6 +106,7 @@ for i; do
 	    configFlags5="$configFlags5 -UseBDT=1"
 	    useBDT="true"
 	    weightsDir="$2" # check that optional argument works 
+	    stage5cuts=none
 	    shift 2 ;;
 	--disp) 
 	    stg4method=disp
@@ -180,13 +181,6 @@ else
     sizeSpec=$spectrum 
 fi # size setting for soft and loose is the same 
 
-# change to live checking 
-for array in V5 V6; do 
-    if [[ "$useBDT" == "true" ]] && [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
-	echo "$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!"
-    fi
-done # check for weights dirs
-
 ### quick check for files and directories ###
 for subDir in queue processed log completed rejected results config backup; do
     if [ ! -d $workDir/$subDir ]; then
@@ -251,7 +245,7 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 	laser1=$3; laser2=$4; laser3=$5; laser4=$6 # shorten variable names
 	combinedLaserName="combined_${laser1}_${laser2}_${laser3}_${laser4}_laser"
 
-	dataDir=$baseDataDir/d${runDate}/
+	dataDir=$baseDataDir/d${runDate}
 	runData="$scratchDir/${runNum}.cvbf"
 	
 	laserProcessed=$laserDir/processed # shorten variable name 
@@ -575,8 +569,13 @@ if [ "$runStage5" == "true" ]; then
 		fi
 		
 		if [ "$useBDT" == "true" ]; then
+		    
 		    cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
-		fi
+		    # change to live checking 
+		    if [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
+			echo -e "\e[0;31m$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!\e[0m"
+		    fi
+		fi 
 		
 		if [ "$applyTimeCuts" == "true" ]; then
 		    timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
