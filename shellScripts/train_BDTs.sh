@@ -5,13 +5,13 @@ subDir=5-16_medium_V5 #subdirectory for weights, under weightsDir
 simDir=$BDT/processed/sims_medium
 
 processDir=$BDT/processed
-trainMacro=$VERITASBASE/VEGAS-BDT/BDT/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
+trainMacro=$VEGAS/BDT/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
 logDir=$BDT/log
 plotLog=$logDir/plotLog.txt # on
 backupDir=$BDT/backup
 weightsDir=$BDT/weights
 plotDir=$BDT/plots
-plotMacro=$VERITASBASE/VEGAS-BDT/BDT/MakePlots.C
+plotMacro=$VEGAS/BDT/MakePlots.C
 
 #used in cmd to find appropriate sim files
 array=ua # change to V6?
@@ -24,7 +24,7 @@ zeniths="10 20 30 40"
 
 args=`getopt -o b:qr:t:d:s:a:V: -l atm:,array: -- "$@"` # zeniths:
 eval set -- ${args//\'/} # not sure why i have to do this, single quotes are being added around option arguments for some reason 
-echo ${args//\'/}
+#echo ${args//\'/}
 for i; do
     case "$i" in 
 	-q) runMode=qsub
@@ -54,7 +54,9 @@ while [ $1 ]; do
 done
 
 trainDir=$weightsDir/$subDir 
+
 echo "training directory: $trainDir"
+echo "zeniths: $zeniths" 
 
 logDirFull=$logDir/train_${subDir}
 plotDirFull=$plotDir/${subDir}
@@ -80,6 +82,7 @@ for z in $zeniths; do
 	exit 1
     fi
 
+    simZ=$z
     arrayLow=( 0 320 500 1000 )
     arrayHigh=( 320 560 1120 30000 )
     case $z in 

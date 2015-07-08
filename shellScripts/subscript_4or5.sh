@@ -67,6 +67,7 @@ date
 hostname  # first entry
 root-config --version 
 echo $ROOTSYS 
+git --git-dir $VEGAS/.git describe --tags
 if [[ "$cmd" =~ "-cuts" ]]; then
     afterCuts=${cmd#*-cuts=}
     set -- $afterCuts

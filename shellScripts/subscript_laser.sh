@@ -58,6 +58,7 @@ trap "rm $scratchFile $laserRoot $queueDir/$runName >> $logFile; mv $logFile $re
 hostname > $logFile # first entry
 root-config --version >> $logFile
 echo $ROOTSYS >> $logFile
+git --git-dir $VEGAS/.git describe --tags
 
 sleep $((RANDOM%10+10));
 while [[ "`ps cax`" =~ " bbcp" ]]; do

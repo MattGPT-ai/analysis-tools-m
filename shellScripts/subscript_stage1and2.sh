@@ -80,6 +80,7 @@ if [ "$stage1cmd" != "NULL" ]; then
     hostname >> $logFile1 
     root-config --version >> $logFile1
     echo $ROOTSYS >> $logFile1
+    git --git-dir $VEGAS/.git describe --tags
     
     $stage1cmd $scratchDir/${runNum}.cvbf $rootName_1 &>> $logFile1
     completion=$?
@@ -112,6 +113,7 @@ if [ "$stage2cmd" != "NULL" ]; then
     hostname >> $logFile2
     root-config --version >> $logFile2
     echo $ROOTSYS >> $logFile2
+    git --git-dir $VEGAS/.git describe --tags
     
     while [[ "`ps cax`" =~ "bbcp" ]]; do 
 	sleep $((RANDOM%10+10)); 

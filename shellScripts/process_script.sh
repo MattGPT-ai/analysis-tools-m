@@ -27,7 +27,8 @@ model=Oct2012
 method=std
 environment="" #$HOME/environments/SgrA_source.sh
 ltMode=auto
-ltVegas=vegasv250rc5
+ltVegas=vegasv254
+#ltVegas=vegasv250rc5
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
@@ -448,7 +449,7 @@ if [ "$runStage4" == "true" ]; then
 	runLog="$logDir/${stage4subDir}/${runNum}.stage4.txt"
 
 	laserNum=(1)
-	#cutTelFlags=""
+	cutTelFlags=""
 	for laser in $3 $4 $5 $6; do 
 	    test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
 	    laserNum=$((laserNum+1))

@@ -33,7 +33,7 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtj FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtj FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -60,6 +60,9 @@ while getopts d:l:f:s:n:Bc:C:x:e:r:qb4oOtj FLAG; do
 	    ;;
 	s)
 	    spectrum=$OPTARG
+	    ;;
+	S)
+	    options="$options -S6A_Spectrum=0"
 	    ;;
 	d) 
 	    subDir=$OPTARG
@@ -220,8 +223,9 @@ date
 hostname
 root-config --version 
 echo "$ROOTSYS"
-cd $VEGAS
-git describe --tags 
+cd $VEGASWORK
+#git --git-dir $VEGAS/.git rev-parse HEAD
+git --git-dir $VEGAS/.git describe --tags 
 
 if [ "$exclusionList" != none ]; then 
 cat $exclusionList
