@@ -1,21 +1,34 @@
-#import matplotlib
-#import pylab
+import os
+import sys
+import argparse
 import numpy
 import math
-import sys
-import os
+#import matplotlib
+#import pylab
 
-#star catalog
-stars_fov = open("Bright_stars_Hipparcos_MAG9_1997_reduced.dat", mode="r")
-mode = "wobble" # wobble or centered
-offset = 0.5 # for wobble 
-
-#background region intersection
+# default parameters 
 pointing_dist = 0.6 # radius of background region, centered at pointing direction 
 star_excl_rad = 0.35 # radius of exclusion region for bright stars
 star_min_mag = 7 # minimum magnitude of stars to list
+search_radius = 2.5 # degrees 
+runID = 0 
+mode = "wobble" # wobble or centered
+offset = 0.5 # for wobble 
 
-search_radius = 2.5 # degrees
+# parse arguments 
+parser = argparse.ArgumentParser(description="Check different fields of view for bright stars")
+parser.add_argument('coordinates', type=float, nargs='*', help="coordinates for right ascension and declination, either in 2 or 6 parameters. not necessary if runID is specified")
+parser.add_argument('--runID', help="check the coordinates of a particular run, accounting for wobble")
+#action='store_const', const=0,
+parser.add_argument('--rad', action='store_true', help="coordinates entered are to be interpreted as in radians, default is degrees")
+args = parser.parse_args()
+
+#star catalog
+stars_cat = open("/veritas/userspace2/mbuchove/BDT/data/Bright_stars_Hipparcos_MAG9_1997_reduced.dat", mode="r")
+
+print ( args.runID )
+print ( args.coordinates ) 
+print ( args.rad )
 
 def printStar( ):
         "This prints the parameters of the current star"
@@ -23,31 +36,29 @@ def printStar( ):
         return
 
 def checkForStars( ra_check, dec_check ):
-        stars_fov.seek(0)
-        for line in stars_fov:
-                co_stars = line.split()
-                ra_star = float ( co_stars[0] )
-                dec_star = float ( co_stars[1] )
-                magnitude = float ( co_stars[3] )
+        stars_cat.seek(0)
+        for line in stars_cat:
+                star_line = line.split()
+                ra_star = float ( star_line[0] )
+                dec_star = float ( star_line[1] )
+                magnitude = float ( star_line[3] )
 #                print (magnitude)
                 if magnitude <= star_min_mag:
-                        #print ( "ra_star:" + str (ra_star) + " ra_check:" + str(ra_check) )
-                        #print ( "dec_star:" + str(dec_star) + " dec_check:" + str(dec_check) )
-# calculate the distance between star and the wobble pointing direction
-# problems could arise near RA of 0 or 360 degrees, or DEC = +/- 90 degrees
-                        distance = math.sqrt ( math.pow((ra_star - ra_check),2) + math.pow((dec_star - dec_check),2) )
+                    # calculate the distance between star and the wobble pointing direction
+                    # problems could arise near RA of 0 or 360 degrees, or DEC = +/- 90 degrees
+                    distance = math.sqrt ( math.pow((ra_star - ra_check),2) + math.pow((dec_star - dec_check),2) )
                         #print ( distance )
-                        if distance <= ( pointing_dist + star_excl_rad ):
-#                                printStar()
-                                print("magnitude: "+str(magnitude)+
-                                      " distance: "+str(distance)+
-                                      " RA: "+str(ra_star)+
-                                      " DEC: "+str(dec_star)+os.linesep)
+                    if distance <= ( pointing_dist + star_excl_rad ):
+                        #printStar()
+                        print("magnitude: "+str(magnitude)+
+                              " distance: "+str(distance)+
+                              " RA: "+str(ra_star)+
+                              " DEC: "+str(dec_star)+os.linesep)
 
 # read in right ascension and declination in either explicit or expanded form
-print ( sys.argv )
 
-if sys.argv.__len__() == 3:
+
+if len(sys.argv) == 3:
         ra_source = float ( sys.argv[1] )
         dec_source = float ( sys.argv[2] )
 elif sys.argv.__len__() == 7:
@@ -81,13 +92,13 @@ print
 
 #if mode == "centered":
 print ( "checking for stars within " + str ( search_radius ) + " degrees of: " )
-for line in stars_fov:
-	co_stars = line.split()
-	ra_star = float ( co_stars[0] )
-	dec_star = float ( co_stars[1] )
+for line in stars_cat:
+	star_line = line.split()
+	ra_star = float ( star_line[0] )
+	dec_star = float ( star_line[1] )
 	distance = math.sqrt ( (ra_star - ra_source) * (ra_star - ra_source) + (dec_star - dec_source) * (dec_star - dec_source)  ) 
 	if numpy.abs( distance ) <= search_radius:
-		magnitude = float ( co_stars[3] )
+		magnitude = float ( star_line[3] )
 		printStar()
 		
 
@@ -103,6 +114,6 @@ checkForStars( ( ra_source + offset ), dec_source )
 print ( " W wobble: " )
 checkForStars( ( ra_source - offset ), dec_source )
 
-stars_fov.close()
+stars_cat.close()
 
 sys.exit(0) # success!
