@@ -12,7 +12,9 @@ loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 #common defaults, make more variables? 
 options="-S6A_Spectrum=1 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
 
-source $VSCRIPTS/shellScripts/setCuts.sh 
+source $VSCRIPTS/shellScripts/setCuts.sh
+#runlistGen=$HOME/VEGAS_scripts-macros/python/s6RunlistGen.py 
+runlistGen=$VEGAS/resultsExtractor/utilities/s6RunlistGen.py
 spectrum=medium
 cuts=auto
 
@@ -28,13 +30,13 @@ runMode=print
 regen=false # for remaking runlist
 
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
 	    ;;
 	l)
-	    loggenFile=$OPTARG # right now this has to come after environment option
+	    loggenFileOR=$OPTARG #overrides loggen file set in environment 
 	    ;;
 	c)
 	    case $OPTARG in 
@@ -96,6 +98,10 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz: FLAG; do
 	t)
 	    useTestPosition=true
 	    ;;
+	A)
+	    options="$options -S6A_LoadAcceptance=1 -S6A_AcceptanceLookup=$OPTARG"
+	    test -f "$OPTARG" || echo "Acceptance map $OPTARG does not exist!"
+	    ;;
 	j)
 	    options="$options -RBM_CoordinateMode=\"J2000"\"
 	    ;;
@@ -112,6 +118,7 @@ shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
 ### prepare variables and directories after options are read in
 source $environment
 finalRootDir=$VEGASWORK/processed/${subDir}
+test -n $loggenFileOR && loggenFile=$loggenFileOR # if loggenFile was selected in options, use this instead of environment variable 
 
 for variable in $sourceName $loggenFile $spectrum; do 
     if [ ! $variable ]; then
@@ -193,8 +200,8 @@ if [ "$runMode" != print ]; then
 		set -- $line
 		echo "$finalRootDir/${2}${extension}" >> $tempRunlist
 	    done < $loggenFile
-	    echo $loggenFile
-	    python $BDT/macros/s6RunlistGen.py --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
+
+	    python $runlistGen --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
 	fi # runfile doesn't exist so must be created
     fi # if runFile isn't already specified  
     
