@@ -10,7 +10,8 @@ outputDir=results
 loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 
 #common defaults, make more variables? 
-options="-S6A_Spectrum=1 -S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3"
+options="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
+useSpectrum=1
 
 source $VSCRIPTS/shellScripts/setCuts.sh
 #runlistGen=$HOME/VEGAS_scripts-macros/python/s6RunlistGen.py 
@@ -27,10 +28,10 @@ useTestPosition=false
 trashDir=$HOME/.trash
 
 runMode=print
-regen=false # for remaking runlist
+regen=false # for remaking runlist, currently not used, though there is an option 
 
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:R FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -59,7 +60,10 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A: FLAG; do
 	    spectrum=$OPTARG
 	    ;;
 	S)
-	    options="$options -S6A_Spectrum=0"
+	    useSpectrum=0
+	    ;;
+	R)
+	    options="$options -S6A_SuppressRBM=1"
 	    ;;
 	d) 
 	    subDir=$OPTARG
@@ -92,7 +96,7 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A: FLAG; do
 	    runMode=qsub
 	    options="$options -S6A_Batch=1"
 	    ;;
-	b) # change argument, decide if overwriting runlist, could just trash old before 
+	b) # change argument, decide if overwriting runlist, could just backup old before 
 	    regen=false
 	    ;;
 	t)
@@ -119,6 +123,7 @@ shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
 source $environment
 finalRootDir=$VEGASWORK/processed/${subDir}
 test -n $loggenFileOR && loggenFile=$loggenFileOR # if loggenFile was selected in options, use this instead of environment variable 
+options="$options -S6A_Spectrum=${useSpectrum}"
 
 for variable in $sourceName $loggenFile $spectrum; do 
     if [ ! $variable ]; then
@@ -246,11 +251,11 @@ fi
 
 test -f todayresult && mv todayresult $VEGASWORK/log/
 
-#if [ "\$exitCode" -e 0 ]; then 
+if [ "\$exitCode" -eq 0 ]; then 
 cp $logFile $VEGASWORK/completed/
-#else
-#test -f $logFile && mv $logFile $VEGASWORK/rejected/
-#fi
+else
+test -f $logFile && mv $logFile $VEGASWORK/rejected/
+fi
 
 exit \$exitCode 
 

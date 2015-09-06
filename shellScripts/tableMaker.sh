@@ -40,7 +40,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,testname:,stage4dir:,telID,allNoise -- "$@"` #table:
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,TelCombosToDeny:,allNoise -- "$@"` #table:
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -49,8 +49,6 @@ for i; do
 	    runMode="$2" ; shift 2 ;;
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
-#	--table) # table type: lt, dt, ea
-#	    table="$2" ; shift 2 ;;
 	--array) 
 	    array="$2" ; shift 2 ;;
 	--atm) 
@@ -64,12 +62,14 @@ for i; do
 	    DistanceUpper="$2" ; shift 2 ;;
 	--spectrum)
 	    spectrum="$2" ; shift 2 ;; 
-	--testname) 
-	    testnameflag="_${2}" ; shift 2 ;; 
+	--nameExt) 
+	    nameExt="_${2}" ; shift 2 ;; 
 	--stage4dir)
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
+	--TelCombosToDeny)
+	    options="-TelCombosToDeny=${2}" ; shift ;; 
 	--noises) # change this maybe, probably doesn't work 
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
@@ -77,8 +77,6 @@ for i; do
 	--) 
 	    shift ; break ;;
 #	*)
-#	    echo "argument $1 is not valid!"
-#	    exit 1
     esac # argument cases
 done # loop over i in args
 if [ $1 ]; then
@@ -183,7 +181,7 @@ for zGroup in $zeniths; do
 		fi
 	    fi # update simFileList if it's new 
 	    
-	    smallTableFile=$workDir/processed/tables/${tableFileBase}.root
+	    smallTableFile=$workDir/processed/tables/${tableFileBase}${nameExt}.root
 	    echo "$smallTableFile" >> $tempTableList
 
 	    logFile=$workDir/log/tables/${tableFileBase}.txt
