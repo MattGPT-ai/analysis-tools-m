@@ -40,7 +40,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,TelCombosToDeny:,allNoise -- "$@"` #table:
+args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -68,8 +68,8 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--TelCombosToDeny)
-	    options="-TelCombosToDeny=${2}" ; shift ;; 
+	--options)
+	    options="$options ${2}" ; shift ;; 
 	--noises) # change this maybe, probably doesn't work 
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
