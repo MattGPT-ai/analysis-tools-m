@@ -257,6 +257,7 @@ else
 test -f $logFile && mv $logFile $VEGASWORK/rejected/
 fi
 
+sync_script.sh 
 exit \$exitCode 
 
 EOF

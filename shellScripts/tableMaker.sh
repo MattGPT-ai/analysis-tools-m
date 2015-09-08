@@ -68,9 +68,9 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--options)
-	    options="$options ${2}" ; shift ;; 
-	--noises) # change this maybe, probably doesn't work 
+	--options) # must enter full argument 
+	    options="$options ${2}" ; shift 2 ;; 
+	--noises) # questionable  
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
 	    allNoise=true ; shift ;; 
@@ -217,7 +217,7 @@ for zGroup in $zeniths; do
 		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
 
-		cmd="makeEA $cuts $flags $simFileList $smallTableFile" 
+		cmd="makeEA $cuts $flags $options $simFileList $smallTableFile" 
 	    fi # effective area table
 
 	    if [ ! -f $queueFile ]; then
