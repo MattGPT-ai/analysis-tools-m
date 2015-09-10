@@ -23,11 +23,11 @@ veritas.elevation = 1268
 minElevation = 20 # the lowest elevation stars to look at
 
 #argument parser
-parser = argparse.ArgumentParser(description='Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement. For a more general look at elevation and moon distance, see moonDist.py..')
+parser = argparse.ArgumentParser(description='Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each star. For a more general look at elevation and moon distance, see moonDist.py..')
 
 parser.add_argument('--date',default=veritas.date, help='specify DATE (in UT) in the format "YYYY/MM/DD HH:MM"   don\'t forget the quotation marks')
 
-parser.add_argument('--minMoonDist',default='10',help="the minimum distance in degrees that a star should be from the moon to include it in the list") 
+parser.add_argument('--minMoonDist',default='30',help="the minimum distance in degrees that a star should be from the moon to include it in the list") 
 
 parser.add_argument('--maxMoonDist',default='90',help="the maximum distance in degrees that a star should be from the moon, to prevent backlighting and arm shadows")
 
@@ -41,7 +41,8 @@ veritas.date = args.date
 #letting user know the date and target collection used.
 print
 print "Date and time used (in UT): %s" %veritas.date
-print "Calculating angular distances from the Moon for targets in %s collection..." %args.targets
+print "Will select stars between %s and %s degrees from the moon.." %(args.minMoonDist,args.maxMoonDist)
+print "Generating an ordered list of stars to use for a PSF measurement using targets in %s collection..." %args.targets
 
 #MySQL command, runs on command line through subprocess
 execCMD = "SELECT tblObserving_Collection.source_id,ra,decl,epoch FROM tblObserving_Sources JOIN tblObserving_Collection ON tblObserving_Sources.source_id = tblObserving_Collection.source_id WHERE tblObserving_Collection.collection_id='%s'" %args.targets
@@ -97,6 +98,7 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   moonlightSources[sourceName]=[(sourceEl, sourceAz, degFromMoon)]
 #end of for loop
 
+# sort the sources by elevation 
 sorted_sources = sorted(moonlightSources.iteritems(), key=operator.itemgetter(1), reverse=True)
 
 #fbdy = ephem.FixedBody()
@@ -105,25 +107,36 @@ sorted_sources = sorted(moonlightSources.iteritems(), key=operator.itemgetter(1)
 
 # for first column 
 columnTitle = "Source"
-columnTabs = int( ceil( (ceil(maxNameLength/8.)*8.-len(columnTitle))/8.) )
-print()
+columnLength = ceil(maxNameLength/8.)*8.
+columnTabs = int( ceil( (columnLength-len(columnTitle))/8.) )
+print("")
 #sys.stdout.write( columnTitle )
 print(columnTitle),
 for x in range(0, columnTabs):
   print('\t'),
-print("Elevation\tAzimuth\t\tDegrees\t\tExposure")
+print("Elevation\tAzimuth\t\tMoonDist\tExposure")
 print("----------------------------------------------------------------------------------------")
 #print sorted_sources
 for source in sorted_sources:
   name = source[0] 
-  magnitude =  name.split()[1]
   el = source[1][0][0] # distance from moon 
   az = source[1][0][1] # azimuth 
   dist = source[1][0][2] # elevation 
-  if el > minElevation: # and dist > args.minMoonDist and dist < args.maxMoonDist:
-    exposure = 1.5 # recommended time for exposure 
+  magnitude =  float( name.split()[1] )
+  # check that star meets parameters 
+  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist):
+    # recommend time for exposure based on star magnitude 
+    if magnitude > 4.:
+      exposure = 2.0 
+    elif magnitude > 3.:
+      exposure = 1.5
+    elif magnitude > 2.:
+      exposure = 1.0
+    else:
+      exposure = 0.5
+
     length = len(name)
-    numTabs = int( ceil( ( ceil(maxNameLength/8.)*8.-length-1)/8. ) ) 
+    numTabs = int( ceil( (columnLength-length-1)/8. ) ) 
     print(name),
     for i in range (0, numTabs):
       print("\t"),
@@ -132,4 +145,5 @@ for source in sorted_sources:
 print("----------------------------------------------------------------------------------------")
 print("The Moon is %0.2f%% illuminated" % illum)
 print(TheMoon.dec) 
+
 exit(0) # great job 
