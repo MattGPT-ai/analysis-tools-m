@@ -6,7 +6,7 @@ use CGI qw(header path_info);
 use CGI::Carp qw(warningsToBrowser fatalsToBrowser);
 use File::Temp;
 use DateTime;
-use DateTime::Format::MySQL;
+use DateTime::Format::MySQL; # requires libdatetime-format-mysql-perl 
 
 my @ARGS = split(/&/,$ENV{QUERY_STRING});
 my $input = @ARGS[1];

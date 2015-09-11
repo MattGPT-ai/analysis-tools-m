@@ -1,21 +1,13 @@
-/*
- * ElevationPanel.java
- *
- * Created on June 12, 2008
- * by Jeremy Perkins
- * 
- * This is a test panel that gets a random number from the
- * backend.  This is a good starting point for making a new
- * panel.
- */
+// Panel used to show the elevation of sources plotted over the hours in the night
 
-package org.veritas.client;
+package org.veritas.client; // put the included classes into the veritas client package
 
 import java.util.Date;
 
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.Random;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -29,13 +21,8 @@ import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.http.client.*;
 import com.google.gwt.json.client.*;
-import com.google.gwt.user.client.Random;
 
 
-/**
- *
- * @author jperkins
- */
 public class ElevationPanel extends VerticalPanel{
     
     //Set up the default panel which has the basic 
