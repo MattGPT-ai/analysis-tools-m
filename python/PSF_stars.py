@@ -23,48 +23,48 @@ veritas.elevation = 1268
 minElevation = 20 # the lowest elevation stars to look at
 
 #argument parser
-parser = argparse.ArgumentParser(description='Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each star. For a more general look at elevation and moon distance, see moonDist.py..')
+parser = argparse.ArgumentParser(description="Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each star. For a more general look at elevation and moon distance, see moonDist.py..")
 
-parser.add_argument('--date',default=veritas.date, help='specify DATE (in UT) in the format "YYYY/MM/DD HH:MM"   don\'t forget the quotation marks')
+parser.add_argument('--date', default=veritas.date, help="Specify DATE (in UT) in the format \"YYYY/MM/DD HH:MM\"   don\'t forget the quotation marks. The default value is today's date.")
 
-parser.add_argument('--minMoonDist',default='30',help="the minimum distance in degrees that a star should be from the moon to include it in the list") 
+parser.add_argument('--minMoonDist', default='30', type=float, help="The minimum distance in degrees that a star should be from the moon to include it in the list. The default value is 30 degrees.") 
 
-parser.add_argument('--maxMoonDist',default='90',help="the maximum distance in degrees that a star should be from the moon, to prevent backlighting and arm shadows")
+parser.add_argument('--maxMoonDist', default='90', type=float, help="The maximum distance in degrees that a star should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
 
-parser.add_argument('--targets',default='psf_stars',help='specifies collection of targets. Allowed values for TARGETS: psf_stars, yale_bright_star, yale_bright_stars_5.0 -- or any valid VERITAS source collection') 
+parser.add_argument('--targets', default='psf_stars', help="Specifies collection of targets in the database. Allowed values for TARGETS: psf_stars (default), yale_bright_star, yale_bright_stars_5.0 -- or any valid VERITAS source collection") 
 # moonlight_targets, moonlight_bright, primary_targets, secondary_targets, blazar_filler_targetsGRB, filler_targets, blank_sky, next_day_analysis, lat_highe, reduced_HV_targets, snapshot_targets, survey_crab, survey_cygnus, UV_filter_targets, all
 
 args = parser.parse_args()
 
-#setting date/time to user-spefied value (or default to current date/time)
+# setting date/time to user-spefied value (or default to current date/time)
 veritas.date = args.date
-#letting user know the date and target collection used.
+# letting user know the date and target collection used.
 print
 print "Date and time used (in UT): %s" %veritas.date
 print "Will select stars between %s and %s degrees from the moon.." %(args.minMoonDist,args.maxMoonDist)
 print "Generating an ordered list of stars to use for a PSF measurement using targets in %s collection..." %args.targets
 
-#MySQL command, runs on command line through subprocess
+# MySQL command, runs on command line through subprocess
 execCMD = "SELECT tblObserving_Collection.source_id,ra,decl,epoch FROM tblObserving_Sources JOIN tblObserving_Collection ON tblObserving_Sources.source_id = tblObserving_Collection.source_id WHERE tblObserving_Collection.collection_id='%s'" %args.targets
 
 sqlOut = subprocess.Popen(["mysql","-h","%s" %(hostName),"-P","%s" %(portNum),"-u", "readonly", "-D","VERITAS", "--execute=%s" %(execCMD)], stdout=subprocess.PIPE)
 
-#stores query results
+# stores query results
 QUERY, err = sqlOut.communicate()
 if QUERY == "":
   print
   print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :("
 
-#dict for sorting/writing stars and their info 
+# dict for sorting/writing stars and their info 
 moonlightSources = {}
 maxNameLength = 0 
-#loop through all objects in the bright moonlight list
-#calculating and printing out angular separation from moon
+# loop through all objects in the bright moonlight list
+# calculating and printing out angular separation from moon
 for count,source in enumerate(QUERY.rstrip().split("\n")):
-  #skip header in query results
+  # skip header in query results
   if count == 0:
     continue
-  #parsing through query results
+  # parsing through query results
   sourceName=source.split("\t")[0]
   sourceRA=source.split("\t")[1]
   sourceDEC=source.split("\t")[2]
@@ -73,20 +73,20 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   if len(sourceName) > maxNameLength:
     maxNameLength = float(len(sourceName))
 
-  #makes sure same epoch is used
+  # makes sure same epoch is used
   veritas.epoch = float(sourceEpoch)
 
-  #Define ephem moon object and calculate position (ra, dec) and phase
+  # Define ephem moon object and calculate position (ra, dec) and phase
   TheMoon = ephem.Moon(veritas)
   TheMoon.compute(veritas)
   illum = TheMoon.moon_phase*100.
 
   moonReflection = ephem.FixedBody(TheMoon.ra,TheMoon.dec)
 
-  #Get angular separation of moon and target
+  # Get angular separation of moon and target
   degFromMoon = 180./ephem.pi * ephem.separation((TheMoon.ra,TheMoon.dec),(float(sourceRA),float(sourceDEC)))
 
-  #Define ehpem object for source, to get elevation
+  # Define ehpem object for source, to get elevation
   sourceObj = ephem.FixedBody()
   sourceObj._ra = float(sourceRA)
   sourceObj._dec = float(sourceDEC)
@@ -96,7 +96,7 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   sourceAz = sourceObj.az*180./ephem.pi # azimuth of source 
 
   moonlightSources[sourceName]=[(sourceEl, sourceAz, degFromMoon)]
-#end of for loop
+# end of for loop
 
 # sort the sources by elevation 
 sorted_sources = sorted(moonlightSources.iteritems(), key=operator.itemgetter(1), reverse=True)
