@@ -33,6 +33,8 @@ parser.add_argument('--maxMoonDist', default='90', type=float, help="The maximum
 
 parser.add_argument('--targets', default='psf_stars', help="Specifies collection of targets in the database. Allowed values for TARGETS: psf_stars (default), yale_bright_star, yale_bright_stars_5.0 -- or any valid VERITAS source collection") 
 # moonlight_targets, moonlight_bright, primary_targets, secondary_targets, blazar_filler_targetsGRB, filler_targets, blank_sky, next_day_analysis, lat_highe, reduced_HV_targets, snapshot_targets, survey_crab, survey_cygnus, UV_filter_targets, all
+parser.add_argument('--print-doublets', dest='printDoublets', action='store_true')
+parser.set_defaults( printDoublets=True )
 
 args = parser.parse_args()
 
@@ -65,10 +67,10 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   if count == 0:
     continue
   # parsing through query results
-  sourceName=source.split("\t")[0]
-  sourceRA=source.split("\t")[1]
-  sourceDEC=source.split("\t")[2]
-  sourceEpoch=source.split("\t")[3]
+  sourceName = source.split("\t")[0]
+  sourceRA = float( source.split("\t")[1] )
+  sourceDEC = float ( source.split("\t")[2] )
+  sourceEpoch = source.split("\t")[3]
 
   if len(sourceName) > maxNameLength:
     maxNameLength = float(len(sourceName))
@@ -84,13 +86,34 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   moonReflection = ephem.FixedBody(TheMoon.ra,TheMoon.dec)
 
   # Get angular separation of moon and target
-  degFromMoon = 180./ephem.pi * ephem.separation((TheMoon.ra,TheMoon.dec),(float(sourceRA),float(sourceDEC)))
+  degFromMoon = 180./ephem.pi * ephem.separation((TheMoon.ra,TheMoon.dec),(sourceRA,sourceDEC))
 
   # Define ehpem object for source, to get elevation
   sourceObj = ephem.FixedBody()
-  sourceObj._ra = float(sourceRA)
-  sourceObj._dec = float(sourceDEC)
+  sourceObj._ra = sourceRA
+  sourceObj._dec = sourceDEC
   sourceObj.compute(veritas)
+
+  if printDoublets:
+    minStarDist = float("inf")
+    for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
+      if count2 == 0: 
+        continue
+      starCmpName = sourceComp.split("\t")[0]    
+      starCmpRA = float( sourceComp.split("\t")[1] )
+      starCmpDEC = float( sourceComp.split("\t")[2] )
+      starCmpEpoch = sourceComp.split("\t")[3]
+      starCmpObjCmp = ephem.FixedBody()
+      starCmpObjCmp._ra = starCmpRA
+      starCmpObjCmp._dec = starCmpDEC
+      starCmpObjCmp.compute(veritas)
+      starDist = 180./ephem.pi * ephem.separation((sourceRA,sourceDEC),(starCmpRA,starCmpDEC))
+      if starCmpName != sourceName:
+        if starDist < minStarDist: 
+          minStarDist = starDist      
+          if starDist < 0.5:
+            starDistString = str(starDist)+" "+sourceName+" "+str(sourceRA)+" "+str(sourceDEC)+" "+starCmpName+" "+str(starCmpRA)+" "+str(starCmpDEC)
+            print(starDistString)
   
   sourceEl = sourceObj.alt*180./ephem.pi # elevation of source
   sourceAz = sourceObj.az*180./ephem.pi # azimuth of source 
