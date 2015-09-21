@@ -26,6 +26,7 @@ readFlag="-S6A_ReadFromStage5Combined=1"
 backupPrompt=false
 useTestPosition=false 
 trashDir=$HOME/.trash
+syncCmd="sync_script.sh >> /home/mbuchove/log/syncLog.txt" 
 
 runMode=print
 regen=false # for remaking runlist, currently not used, though there is an option 
@@ -257,7 +258,7 @@ else
 test -f $logFile && mv $logFile $VEGASWORK/rejected/
 fi
 
-sync_script.sh 
+$syncCmd
 exit \$exitCode 
 
 EOF
