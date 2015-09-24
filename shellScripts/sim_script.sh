@@ -24,14 +24,15 @@ spectrum=medium
 
 cutMode4=auto
 cutMode5=auto
-source $VSCRIPTS/shellScripts/setCuts.sh
+scriptDir=${0/f${0##*/}/}
+source $scriptDir/setCuts.sh
 
 configFlags4="-G_SimulationMode=1"
 configFlags5="-G_SimulationMode=1 -Method=VACombinedEventSelection"
 
 environment=$HOME/environments/SgrA_source.sh 
 envFlag="-e $environment"
-subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
+subscript45=$scriptDir/subscript_4or5.sh
 
 ltMode=auto
 runMode=print

@@ -28,7 +28,7 @@ ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractional
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
 ltFlags="$ltFlags -TelID=0,1,2,3"
 
-source $VSCRIPTS/shellScripts/setCuts.sh
+source ${0/f${0##*/}/}/setCuts.sh
 spectrum=medium # only applies to effective areas 
 stage4dir=sims_v254_medium
 

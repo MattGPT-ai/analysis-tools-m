@@ -32,7 +32,8 @@ ltVegas=vegasv254
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
-source $VSCRIPTS/shellScripts/setCuts.sh 
+scriptDir=${0/${0##*/}/}
+source $scriptDir/setCuts.sh 
 stage4cuts=auto
 stage5cuts=auto
 
@@ -45,9 +46,9 @@ useBDT=false
 reprocess=false
 runMode=print # 
 
-laserSubscript=$VSCRIPTS/shellScripts/subscript_laser.sh
-subscript12=$VSCRIPTS/shellScripts/subscript_stage1and2.sh
-subscript45=$VSCRIPTS/shellScripts/subscript_4or5.sh
+laserSubscript=$scriptDir/shellScripts/subscript_laser.sh
+subscript12=$scriptDir/shellScripts/subscript_stage1and2.sh
+subscript45=$scriptDir/shellScripts/subscript_4or5.sh
 
 applyTimeCuts="true"
 

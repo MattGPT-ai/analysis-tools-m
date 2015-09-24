@@ -13,9 +13,9 @@ loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 options="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
 useSpectrum=1
 
-source $VSCRIPTS/shellScripts/setCuts.sh
-#runlistGen=$HOME/VEGAS_scripts-macros/python/s6RunlistGen.py 
+source ${0/${0##*/}/}/setCuts.sh
 runlistGen=$VEGAS/resultsExtractor/utilities/s6RunlistGen.py
+#runlistGen=$HOME/VEGAS_scripts-macros/python/s6RunlistGen.py 
 spectrum=medium
 cuts=auto
 
