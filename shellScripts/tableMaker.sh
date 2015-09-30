@@ -28,7 +28,7 @@ ltFlags="$ltFlags -GC_CorePositionAbsoluteErrorCut=20 -GC_CorePositionFractional
 ltFlags="$ltFlags -Log10SizePerBin=0.07 -ImpDistUpperLimit=800 -MetersPerBin=5.5"
 ltFlags="$ltFlags -TelID=0,1,2,3"
 
-source ${0/f${0##*/}/}/setCuts.sh
+source ${0/${0##*/}/}/setCuts.sh
 spectrum=medium # only applies to effective areas 
 stage4dir=sims_v254_medium
 
@@ -137,7 +137,8 @@ for zGroup in $zeniths; do
 
 	    if [ "$table" == ea ]; then 
 		setCuts
-		tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		tableFileBase=${table}${nameExt}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		#tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
 		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
 		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
 		tableFileBase="${tableFileBase}_ThetaSq${ThetaSquareUpper//./p}"

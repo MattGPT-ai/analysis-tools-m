@@ -24,7 +24,7 @@ spectrum=medium
 
 cutMode4=auto
 cutMode5=auto
-scriptDir=${0/f${0##*/}/}
+scriptDir=${0/${0##*/}/}
 source $scriptDir/setCuts.sh
 
 configFlags4="-G_SimulationMode=1"
@@ -46,7 +46,7 @@ qsubHeader="
 #PBS -p 0
 "
 
-args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e: -l BDT,disp:,cutTel:,override,array:,atm:,stage4dir:,noises: -n sim_script.sh -- "$@"`
+args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -80,6 +80,7 @@ for i; do
 	--stage4dir) 
 	    stage4dir=$2 ; shift 2 ;; 
 	-z) zeniths="$2" ; shift 2 ;;
+	--offsets) offsets="$2" ; shift 2 ;; 
 	--noises) noises="$2" ; shift 2 ;;
 	--array) arrays="$2" ; shift 2 ;;
 	--atm) atmospheres="$2" ; shift 2 ;;
@@ -89,8 +90,15 @@ for i; do
 	    configFlags4="$configFlags4 -HillasBranchName=HFit"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
 	    shift ;;
-	-l) ltMode=single
-	    ltName=$2 ; shift 2 ;; 
+	-l) 
+	    case "$2" in 
+		auto | custom) 
+		    ltMode=$2 ;; 
+		*)
+		    ltMode=single
+		    ltName=$2 ;; 
+	    esac
+	    shift 2 ;; 
 	-w) workDir=$2 ; shift 2 ;; 
 	-e) environment=$2  
 	    envFlag="-e $environment" ; shift 2 ;;
@@ -159,18 +167,19 @@ for array in $arrays; do
 		    fi # set name of simfile 
 
 		    rootName_4="$stage4dir/${simFileBase}.stage4.root"
+		    queueName_4=$queueDir/${subDir}_${simFileBase}.stage4${extension}
 
 		    ##### STAGE 4 #####
 
 		    if [ "$runStage4" == "true" ]; then
 			runLog="$logDir/$subDir/${simFileBase}.stage4.txt"
-			if [ ! -f $rootName_4 ]; then
+			if [ ! -f $rootName_4 ] && [ ! -f $queueName_4 ]; then
 			    if [ -f $simFile ]; then
 
 				if [ "$ltMode" == auto ]; then
 				    ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
-				elif [ "ltMode" == custom ]; then
-				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
+				elif [ "$ltMode" == custom ]; then
+				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_allOff_LZA_std_d${DistanceUpper//./p}
 				fi # automatic lookup table 
 				ltFile=$tableDir/${ltName}.root
 				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
@@ -200,7 +209,7 @@ for array in $arrays; do
 				
 				if [ "$runMode" != print ]; then
 
-				    test "$runMode" == "qsub" && touch $queueDir/${subDir}_${simFileBase}.stage4${extension}
+				    test "$runMode" == "qsub" && touch $queueName_4
 				    
 				    $runMode <<EOF  
 $qsubHeader  
@@ -230,9 +239,10 @@ EOF
 			    stage5Dir=$processDir/$subDir
 			fi
 			rootName_5=$stage5Dir/${simFileBase}.stage5.root
-			
-			if [[ ! -f $stage5Dir/${simFileBase}.stage5${extension}.root ]]; then 
-			    if [ -f $rootName_4 ] || [ -f $queueDir/${subDir}_${simFileBase}.stage4${extension} ] || [ "$runMode" == print ]; then 
+			queueName_5=$queueDir/${subDir}_${simFileBase}.stage5${extension}
+
+			if [ ! -f $rootName_5 ] && [ ! -f $queueName_5 ]; then 
+			    if [ -f $rootName_4 ] || [ -f $queueName_4 ] || [ "$runMode" == print ]; then 
 				runLog="$logDir/$subDir/${simFileBase}.stage5${extension}.txt"
 				#sims organized into directories for training 
 				
@@ -246,7 +256,7 @@ EOF
 				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 				echo "$stage5cmd"
 				if [ "$runMode" != print ]; then 
-				    test "$runMode" == "qsub" && touch $queueDir/${subDir}_${simFileBase}.stage5${extension}
+				    test "$runMode" == "qsub" && touch $queueName_5
 				    
 				    $runMode <<EOF  
   

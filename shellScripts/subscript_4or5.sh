@@ -59,7 +59,7 @@ else
     echo -e "\e[0;31m Log directory $logDir does not exist!  \e[0m"
 fi
 
-trap "rm $queueFile $processRoot; mv $logFile $rejectDir/; echo \"TRAP!\"; exit 130" 1 2 3 4 5 6
+trap "rm $queueFile $processRoot; mv $logFile $rejectDir/; echo \"TRAP!\"; exit 130" SIGTERM #1 2 3 4 5 6
 
 sleep $((RANDOM%10))
 

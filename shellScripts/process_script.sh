@@ -46,9 +46,9 @@ useBDT=false
 reprocess=false
 runMode=print # 
 
-laserSubscript=$scriptDir/shellScripts/subscript_laser.sh
-subscript12=$scriptDir/shellScripts/subscript_stage1and2.sh
-subscript45=$scriptDir/shellScripts/subscript_4or5.sh
+laserSubscript=$scriptDir/subscript_laser.sh
+subscript12=$scriptDir/subscript_stage1and2.sh
+subscript45=$scriptDir/subscript_4or5.sh
 
 applyTimeCuts="true"
 

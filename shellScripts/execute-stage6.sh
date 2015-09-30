@@ -11,7 +11,7 @@ loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 
 #common defaults, make more variables? 
 options="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
-useSpectrum=1
+suppressRBM=1
 
 source ${0/${0##*/}/}/setCuts.sh
 runlistGen=$VEGAS/resultsExtractor/utilities/s6RunlistGen.py
@@ -26,13 +26,13 @@ readFlag="-S6A_ReadFromStage5Combined=1"
 backupPrompt=false
 useTestPosition=false 
 trashDir=$HOME/.trash
-syncCmd="sync_script.sh >> /home/mbuchove/log/syncLog.txt" 
+syncCmd="sync_script.sh > /dev/null" #>> /home/mbuchove/log/syncLog.txt" 
 
 runMode=print
 regen=false # for remaking runlist, currently not used, though there is an option 
 
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:R FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -61,10 +61,18 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:R FLAG; do
 	    spectrum=$OPTARG
 	    ;;
 	S)
-	    useSpectrum=0
+	    options="$options -S6A_Spectrum=1"
 	    ;;
+	m) # mode to run
+	    echo "$OPTARG"
+	    case $OPTARG in
+		spectrum)
+		    options="$options -S6A_Spectrum=1" ; suppressRBM=1 ;; 
+		skymap) 
+		    suppressRBM=0 ;; 
+	    esac ;; 
 	R)
-	    options="$options -S6A_SuppressRBM=1"
+	    suppressRBM=0
 	    ;;
 	d) 
 	    subDir=$OPTARG
@@ -87,10 +95,10 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:R FLAG; do
 	O)
 	    options="$options -S6A_ObsMode=On/Off"
 	    ;; 
-	f)
+	f) # runlist file 
 	    runFile=$OPTARG
 	    ;;
-	r) 
+	r) # command used to run the generated script, e.g. bash, qsub, condor, etc. 
 	    runMode=$OPTARG
 	    ;;
 	q)
@@ -124,7 +132,7 @@ shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
 source $environment
 finalRootDir=$VEGASWORK/processed/${subDir}
 test -n $loggenFileOR && loggenFile=$loggenFileOR # if loggenFile was selected in options, use this instead of environment variable 
-options="$options -S6A_Spectrum=${useSpectrum}"
+options="$options -S6A_SuppressRBM=${suppressRBM}"
 
 for variable in $sourceName $loggenFile $spectrum; do 
     if [ ! $variable ]; then
@@ -172,7 +180,7 @@ fi
 # check to see if root file or logfile already exists, and back up
 logFile=$logDir/stage6_${name}_${sourceName}.txt
 test "$runMode" != print  && logOption="| tee $logFile"
-outputFile=$VEGASWORK/results/stage6_${name}_${sourceName}s6.root
+outputFile=$VEGASWORK/results/stage6_${name}_${sourceName}_s6.root
 for file in $logFile $outputFile; do
     if [ -f $file ]; then
 	echo "$file already exists! "
@@ -192,6 +200,8 @@ if [ "$runMode" != print ]; then
 	if [ $response == 'Y' ]; then
 	    test ! -f $logFile || mv $logFile $backupDir/log/
 	    test ! -f $outputFile || mv $outputFile $backupDir/stage6/
+	else
+	    exit  
 	fi
     fi # check file already exists
     
