@@ -5,7 +5,8 @@ runStage5=false
 
 offsets="000 050 075" # offsets isn't looped over, but the following all are
 #zeniths="00 20 30 40" # BDT
-zeniths="55 60 65"
+#zeniths="55 60 65"
+zeniths="00 20 30 35 40 45 50 55 60 65"
 atmospheres="21 22"
 arrays="na ua"
 noises="100 150 200 250 300 350 400 490 605 730 870"
@@ -179,7 +180,8 @@ for array in $arrays; do
 				if [ "$ltMode" == auto ]; then
 				    ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
 				elif [ "$ltMode" == custom ]; then
-				    ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_allOff_LZA_std_d${DistanceUpper//./p}
+				    ltName=lt_Oct2012_${array}_ATM${atm}_7samples_${ltVegas}_allOffsets_LZA_d${DistanceUpper//./p}
+				    #ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_${ltVegas}_7sam_allOff_LZA_d${DistanceUpper//./p}
 				fi # automatic lookup table 
 				ltFile=$tableDir/${ltName}.root
 				test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"

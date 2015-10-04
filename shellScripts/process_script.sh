@@ -27,8 +27,8 @@ model=Oct2012
 method=std
 environment="" #$HOME/environments/SgrA_source.sh
 ltMode=auto
-ltVegas=vegasv254
-#ltVegas=vegasv250rc5
+#ltVegas=vegasv254
+ltVegas=vegasv250rc5
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
@@ -71,7 +71,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,BDT:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,atm:,BDT:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -116,8 +116,9 @@ for i; do
 	    configFlags4="$configFlags4 -DR_Algorithm=Method${dispMethod}" #t stands for tmva, Method6 for average disp and geom
 	    DistanceUpper=1.38
 	    ltVegas=vegas254
-	    offset=000-050-075wobb
-	    zenith=Z50-55-60-65
+	    shift 2 ;; 
+	--atm) # use one atmosphere for every run 
+	    ATM=$2
 	    shift 2 ;; 
 	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
 	    source $environment
@@ -217,12 +218,14 @@ setEpoch() { # try to move into common file with setCuts
     # try to read from database 
     runMonth=$(( (date % 10000 - date % 100) / 100 ))
     # used to be runMonth > 4, but changed to agree with s6RunlistGen.py 
-    if (( runMonth > 3 && runMonth < 11 )); then
-	atm=22
-    else
-	atm=21
+    if [ ! $ATM ]; then 
+	if (( runMonth > 3 && runMonth < 11 )); then
+	    atm=22
+	else
+	    atm=21
+	fi
     fi
-    
+
     # determine array for stage 4   
     if (( date < 20090900 )); then
         array=oa #V4, MDL8OA_V4_OldArray
@@ -467,9 +470,10 @@ if [ "$runStage4" == "true" ]; then
 	    setCuts
 
 	    if [ "$ltMode" == auto ]; then
-		ltName=lt_Oct2012_${array}_ATM22_${simulation}_vegas254_7sam_allOff_LZA_std_d${DistanceUpper//./p}
-		#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_vegas254_7sam_000-050-075wobb_LZA_std_d${DistanceUpper//./p}
-		#ltName=lt_Oct2012_${array}_ATM${atm}_7samples_vegasv250rc5_allOffsets_LZA
+		ltName=lt_Oct2012_${array}_ATM${atm}_7samples_${ltVegas}_allOffsets_LZA
+		#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_${ltVegas}_7sam_allOff_LZA_std_d${DistanceUpper//./p}
+		test "$DistanceUpper" == 1.43 || ltName=${ltName}_std_d${DistanceUpper//./p}
+
 		ltFile=$tableDir/${ltName}.root
 	    fi # automatic lookup table 
 #	    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"

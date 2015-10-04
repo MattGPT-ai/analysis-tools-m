@@ -13,8 +13,8 @@ model=Oct2012
 azimuths="0,45,90,135,180,225,270,315"
 #zeniths="50,55 60,65" # 00,20 30,35 40,45
 zeniths="00,20 30,35 40,45 50,55 60,65"
-offsets="0.00,0.50,0.75"
-#offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
+#offsets="0.00,0.50,0.75"
+offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
 
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870) # must be reflected in qsub file
 oneNoise=false
@@ -36,11 +36,12 @@ workDir=$GC
 simFileSourceDir=/veritas/upload/OAWG/stage2/vegas2.5
 scratchDir=/scratch/mbuchove
 
+priority=(0)
 nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise -- "$@"`
+args=`getopt -o qr:n:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -49,6 +50,8 @@ for i; do
 	    runMode="$2" ; shift 2 ;;
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
+	-p) 
+	    priority=($2) ; shift 2 ;; 
 	--array) 
 	    array="$2" ; shift 2 ;;
 	--atm) 
@@ -137,20 +140,20 @@ for zGroup in $zeniths; do
 
 	    if [ "$table" == ea ]; then 
 		setCuts
-		tableFileBase=${table}${nameExt}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
-		#tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		#tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} 
 		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
 		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
 		tableFileBase="${tableFileBase}_ThetaSq${ThetaSquareUpper//./p}"
 	    else
 		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
-	    fi # 
-	    
+	    fi # 	    
 	    if [ "$allNoise" == true ]; then
 		tableFileBase=${tableFileBase}_allNoise
 	    else
 		tableFileBase=${tableFileBase}_${noiseIndex}noise
 	    fi # append noise levels 
+	    tableFileBase="${tableFileBase}${nameExt}"
 
 	    if [ "$table" != ea ]; then 
 		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
@@ -182,7 +185,7 @@ for zGroup in $zeniths; do
 		fi
 	    fi # update simFileList if it's new 
 	    
-	    smallTableFile=$workDir/processed/tables/${tableFileBase}${nameExt}.root
+	    smallTableFile=$workDir/processed/tables/${tableFileBase}.root
 	    echo "$smallTableFile" >> $tempTableList
 
 	    logFile=$workDir/log/tables/${tableFileBase}.txt
@@ -237,6 +240,7 @@ for zGroup in $zeniths; do
 #PBS -V 
 #PBS -N $tableFileBase
 #PBS -o $logFile
+#PBS -p $priority
 
 cleanUp() {
 mv $logFile $workDir/rejected/
@@ -333,7 +337,7 @@ case $table in
 	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}.root" ;; 
     ea) 
 	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
-	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}.root" ;; # $cuts 
+	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${noises} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}${nameExt}.root" ;; # $cuts 
 esac # build commands based on table type 
 
 if [ "$runMode" != print ]; then
