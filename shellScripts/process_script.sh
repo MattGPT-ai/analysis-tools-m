@@ -71,7 +71,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,atm:,BDT:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -141,6 +141,8 @@ for i; do
 	--reprocess)
 	    reprocess=true ; shift ;;
 	-n) nMax=$2 ; shift 2 ;;
+	--deny)
+	    telCombosToDeny="$2" ; shift 2 ;; 
 	--cutTel)
 	    configFlags4="$configFlags4 -CutTelescope=$2"
 	    shift 2 ;; 
@@ -224,6 +226,8 @@ setEpoch() { # try to move into common file with setCuts
 	else
 	    atm=21
 	fi
+    else
+	atm=$ATM
     fi
 
     # determine array for stage 4   
@@ -472,7 +476,7 @@ if [ "$runStage4" == "true" ]; then
 	    if [ "$ltMode" == auto ]; then
 		ltName=lt_Oct2012_${array}_ATM${atm}_7samples_${ltVegas}_allOffsets_LZA
 		#ltName=lt_Oct2012_${array}_ATM${atm}_${simulation}_${ltVegas}_7sam_allOff_LZA_std_d${DistanceUpper//./p}
-		test "$DistanceUpper" == 1.43 || ltName=${ltName}_std_d${DistanceUpper//./p}
+		test "$DistanceUpper" == 1.43 || ltName=${ltName}_d${DistanceUpper//./p} # std 
 
 		ltFile=$tableDir/${ltName}.root
 	    fi # automatic lookup table 
@@ -484,12 +488,12 @@ if [ "$runStage4" == "true" ]; then
 		if [ "$dispMethod" == 5t ]; then
 		    dtName=TMVA_Disp.xml
 		else
-		    dtName=dt_Oct2012_ua_ATM22_GrISUDet_vegas254_7sam_${offset}wobb_Z50-55_std_d1p38_allNoise.root 
+		    dtName=dt_Oct2012_${array}_ATM${atm}_GrISUDet_${ltVegas}_7sam_${offset}wobb_Z50-55_std_d${DistanceUpper//./p}.root 
 		    # specify disp mode 
 		fi
 		
 		dtFile=$tableDir/${dtName}
-#		test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
+		test -f $dtFile || echo -e "\e[0;31mDisp table $dtFile does not exist! \e[0m"
 		tableFlags="$tableFlags -DR_DispTable=$dtFile" 
 	    fi # disp method 
 	    
@@ -502,13 +506,15 @@ if [ "$runStage4" == "true" ]; then
                 cutFlags4="-cuts=${stage4cuts}"
             fi
 
-            if [ "$array" == "oa" ]; then # V4
-                telCombosToDeny="-TelCombosToDeny=T1T4"
+	    if [ -n "$telCombosToDeny" ]; then # if [ $telCombosToDeny ]
+		denyFlag="-TelCombosToDeny=$telCombosToDeny"
+            elif [ "$array" == "oa" ]; then # V4
+                denyFlag="-TelCombosToDeny=T1T4"
 	    else
-		telCombosToDeny=""
+		denyFlag=""
 	    fi
 
-            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $telCombosToDeny $cutTelFlags $rootName_4"
+            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$cmd"
 
 	    # condense 
