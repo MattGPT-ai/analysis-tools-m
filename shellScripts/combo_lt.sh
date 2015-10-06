@@ -13,13 +13,13 @@ fi
 if [ $3 ]; then 
     buildOptions="$3"
 else
-    buildOptions="-TelID=0,1,2,3 -Azimuth=0,45,90,135,180,225,270,315 -Zenith=00,20,30,35,40,45,50,55,60,65 -AbsoluteOffset=0.00,0.50,0.75,0.25,1.00,1.25,1.50,1.75,2.00 -Noise=4.24,5.21,6,6.68,7.27,7.82,8.33,9.20,10.19,11.17,12.17"
+    buildOptions="-TelID=0,1,2,3 -Azimuth=0,45,90,135,180,225,270,315 -Zenith=00,20,30,35,40,45,50,55,60,65 -AbsoluteOffset=0.00,0.50,0.75,0.25,1.00 -Noise=4.24,5.21,6,6.68,7.27,7.82,8.33,9.20,10.19,11.17,12.17"
 fi
 
 runMode=qsub
 #runMode=bash
 
-finalTable=lt_Oct2012_${array}_ATM${atm}_7samples_vegas254_allOffsets_LZA.root
+finalTable=lt_Oct2012_${array}_ATM${atm}_7samples_vegas254_allOffsets_LZA_d1p38.root
 
 logFile=$GC/log/tables/combine_lt_${array}_ATM${atm}_allOffsets_LZA.txt
 test -f $logFile && mv $logFile $GC/backup/logTable/
