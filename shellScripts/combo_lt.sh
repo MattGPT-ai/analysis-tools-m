@@ -18,17 +18,17 @@ fi
 
 runMode=cat
 
-finalTable=lt_Oct2012_${array}_ATM${atm}_7samples_vegas254_allOffsets_LZA_d1p38.root
+finalTableName=lt_Oct2012_${array}_ATM${atm}_7samples_vegas254_allOffsets_LZA_d1p38.root
 
 logFile=$GC/log/tables/combine_lt_${array}_ATM${atm}_allOffsets_LZA.txt
-test -f $logFile && mv $logFile $GC/backup/logTable/
 
 while getopts qr: FLAG; do 
     case $FLAG in
 	q)
 	    runMode=qsub ;; 
 	r) 
-	    runMode=$OPTARG ;; 
+	    runMode=bash
+	    teePipe=" | tee $logFile";; 
 	?)
 	    echo "Option -${BOLD}${OPTARG}${NORM} not allowed"
     esac # option cases
@@ -36,12 +36,14 @@ done # while loop over options
 shift $((OPTIND-1))
 
 
-$runMode <<EOF
+$runMode $teeFlag <<EOF
 
 #PBS -l nodes=1,mem=4gb,walltime=5:00:00
 #PBS -j oe
 #PBS -o $logFile 
 #PBS -N combine_lt_${array}_ATM${atm}_allOffsets_LZA
+
+test -f $logFile && mv $logFile $VEGASWORK/backup/logTable/
 
 read -r firstTable < /veritas/userspace2/mbuchove/SgrA/config/tableList_lt_${array}_ATM${atm}.txt
 
@@ -55,13 +57,13 @@ root -l -b -q "combo.C(\"$GC/config/tableList_lt_${array}_ATM${atm}.txt\", \"\$b
 
 \$buildCmd
 
-mv \$firstTable $GC/processed/tables/${finalTable}
+mv \$firstTable $GC/processed/tables/${finalTableName}
 mv \${firstTable}.backup \$firstTable
 
-root -l -b -q "validate.C(\"$GC/processed/tables/${finalTable})"
+root -l -b -q "validate.C(\"$GC/processed/tables/${finalTableName})"
 
-rsync $GC/processed/tables/$finalTable $TABLEDIR/${finalTable}
+rsync $GC/processed/tables/$finalTableName $TABLEDIR/${finalTableName}
 
 EOF
 
-exit 0 
+exit 0

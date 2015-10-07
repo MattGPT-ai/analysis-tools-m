@@ -1,9 +1,8 @@
 #!/bin/bash
 
 runMode=print # doesn't do anything but print command 
-
-table=dt
-DistanceUpper=1.38
+mem=2gb
+#DistanceUpper=1.38
 
 array=ua
 atm=22
@@ -41,7 +40,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise -- "$@"`
+args=`getopt -o qr:n:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise,waitFor:,mem: -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -52,6 +51,8 @@ for i; do
 	    nJobsMax=($2) ; shift 2 ;; 
 	-p) 
 	    priority=($2) ; shift 2 ;; 
+	--mem)
+	    mem="$2" ; shift 2 ;; 
 	--array) 
 	    array="$2" ; shift 2 ;;
 	--atm) 
@@ -77,9 +78,11 @@ for i; do
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
 	    allNoise=true ; shift ;; 
+	--waitFor) # do not start if pattern shows up in current processes 
+	    waitString="$2" ; shift 2 ;; 
 	--) 
 	    shift ; break ;;
-#	*)
+	#	*)
     esac # argument cases
 done # loop over i in args
 if [ $1 ]; then
@@ -99,13 +102,13 @@ cuts="-SizeLower=0/0 -DistanceUpper=0/${DistanceUpper} -NTubesMin=0/5"
 case "$array" in
     oa) #V4 
 	noiseArray=(3.62,4.45,5.13 5.71,6.21 6.66,7.10 7.83,8.66 9.49,10.34) ;; 
-	#model=MDL8OA ; epoch=V4_OldArray ;;
+    #model=MDL8OA ; epoch=V4_OldArray ;;
     na) #V5 
 	noiseArray=(4.29,5.28,6.08 6.76,7.37 7.92,8.44 9.32,10.33 11.32,12.33) ;;
-	#model=MDL15NA epoch=V5_T1Move ;;
+    #model=MDL15NA epoch=V5_T1Move ;;
     ua) #V6 
 	noiseArray=(4.24,5.21,6 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
-	#model=MDL10UA epoch=V6_PMTUpgrade ;;
+    #model=MDL10UA epoch=V6_PMTUpgrade ;;
     *) 
 	echo "Array $array not recognized! Choose either oa, na, or ua!!"
 	exit 1
@@ -149,17 +152,19 @@ for zGroup in $zeniths; do
 		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
 	    fi # 	    
 	    if [ "$allNoise" == true ]; then
-		tableFileBase=${tableFileBase}_allNoise
+		noiseSpec=allNoise
 	    else
-		tableFileBase=${tableFileBase}_${noiseIndex}noise
+		noiseSpec=${noiseIndex//,/-}noise
 	    fi # append noise levels 
-	    tableFileBase="${tableFileBase}${nameExt}"
+	    tableFileBase="${tableFileBase}_${noiseSpec}${nameExt}"
 
 	    if [ "$table" != ea ]; then 
-		simFileList=$workDir/config/simFileList_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise.txt 
+		simFileList=$workDir/config/simFileList
 	    else 
-		simFileList=$workDir/config/eaFileList_${stage4dir}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseIndex//,/-}noise_${spectrum}.txt
+		simFileList=$workDir/config/eaFileList_${stage4dir}_${spectrum}
 	    fi 
+	    simFileList=${simFileList}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseSpec}${nameExt}.txt 
+
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
 	    for z in ${zGroup//,/ }; do 
 		for o in ${oGroup//,/ }; do 
@@ -216,7 +221,7 @@ for zGroup in $zeniths; do
 		flags="-EA_RealSpectralIndex=-2.4" # -2.1
 		flags="$flags -Azimuth=${azimuths}"
 		flags="$flags -Zenith=${zGroup} -Noise=${noiseArray[$noiseIndex]}" # same as lookup table
-#		flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
+		#		flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
 		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
@@ -233,9 +238,10 @@ for zGroup in $zeniths; do
 		    test $nJobs -lt $nJobsMax || exit 0 
 		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable/ )
 		    
-		    $runMode <<EOF
+		    $runMode <<EOF 
+
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=2gb,walltime=48:00:00
+#PBS -l nodes=1,mem=${mem},walltime=48:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
@@ -243,37 +249,45 @@ for zGroup in $zeniths; do
 #PBS -p $priority
 
 cleanUp() {
-mv $logFile $workDir/rejected/
-rm $queueFile
-rm -rf $scratchDir/$tableFileBase
+    mv $logFile $workDir/rejected/
+    rm $queueFile
+    rm -rf $scratchDir/$tableFileBase
 }
 
-mkdir $scratchDir/$tableFileBase
+mkdir -p $scratchDir/$tableFileBase
 hostname
 noiseLevels=(100,150,200 250,300 350,400 490,605 730,870)
 #noiseLevels=(100,150,200,250,300,350,400,490,605,730,870)
 trap "echo \"First trap, Exiting 15\" >> $logFile; cleanUp; exit 15" SIGTERM
 
-while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
-
 if [ "$table" != ea ]; then
-while read -r line; do 
+    while read -r line; do 
 
-set -- \$line
-file=\${1##*/}
-beforeZ=\${file%deg*}
-zenith=\${beforeZ#*_7samples_}
-trap "echo \"file trap, exiting SIGTERM \" >> $logFile; cleanUp; exit 15" SIGTERM 
-test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/$tableFileBase/ 
+        while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
 
-test -f $scratchDir/$tableFileBase/\$file || ( cleanUp; exit 6 )
-#|| ( cleanUp; exit 6 )
-#test \$PIPESTATUS[1] -e 0 || ( cleanUp; exit 6 )
+	set -- \$line
+	file=\${1##*/}
+	beforeZ=\${file%deg*} # part of filename preceding Z 
+	zenith=\${beforeZ#*_7samples_}
+	trap "echo \"file trap, exiting SIGTERM \" >> $logFile; cleanUp; exit 15" SIGTERM 
+	test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/$tableFileBase/ 
 
-done < $simFileList # loop over every sim file in list
+	test -f $scratchDir/$tableFileBase/\$file || ( cleanUp; exit 6 )
+	#|| ( cleanUp; exit 6 )
+	#test \$PIPESTATUS[1] -e 0 || ( cleanUp; exit 6 )
+	
+    done < $simFileList # loop over every sim file in list
+else
+    if [ $waitString ]; then 
+#        while [ -f $VEGASWORK/queue/*${waitString}* ]; do 
+        while [[ "\`qstat -f -1\`" =~ "$waitString" ]]; do 
+            sleep 60 # 30  
+        done 
+    fi 
 fi # don't need to copy for effective area production, stage 4 files already on userspace 
 
 trap "echo \"cmd trap, SIGTERM\" >> $logFile; rm $smallTableFile; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM 
+
 
 timeStart=\`date +%s\`
 $cmd
@@ -287,13 +301,13 @@ rm -rf $scratchDir/$tableFileBase
 
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
-echo "exit code: \$exitCode"
+    echo "exit code: \$exitCode"
 
-mv $smallTableFile $workDir/backup/tables/
-mv $logFile $workDir/rejected/
-exit \$exitCode
+    mv $smallTableFile $workDir/backup/tables/
+    mv $logFile $workDir/rejected/
+    exit \$exitCode
 else
-cp $logFile $workDir/completed/
+    cp $logFile $workDir/completed/
 fi
 
 echo "Exiting successfully!"
@@ -301,12 +315,12 @@ exit 0
 
 EOF
 
-#test -f \$1 || bbcp -e -E md5= \$path $scratchDir/
-#echo "\$file"
-##path=`find $simFileSourceDir -name \$file`
-#echo "\$beforeZ"
-#echo "\$path"
-
+		    #test -f \$1 || bbcp -e -E md5= \$path $scratchDir/
+		    #echo "\$file"
+		    ##path=`find $simFileSourceDir -name \$file`
+		    #echo "\$beforeZ"
+		    #echo "\$path"
+		    
 		    exitCode=$?
 		    nJobs=$((nJobs+1))
 		fi # runMode options

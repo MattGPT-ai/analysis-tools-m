@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash 
+# -x 
 
 runStage4=false
 runStage5=false
@@ -153,6 +154,7 @@ for array in $arrays; do
 	    for offset in $offsets; do 
 		for n in $noises; do
 
+		    
 		    if (( nJobs >= nJobsMax )); then
 			exit 0 
 		    fi
@@ -224,6 +226,7 @@ $subscript45 "$stage4cmd" $rootName_4 $simFile $envFlag # should be able to remo
 exit 0 
 EOF
 
+				    nJobs=$((nJobs+1))
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mSource simulation file $simFile does not exist! check directory\e[0m"
@@ -273,13 +276,13 @@ $subscript45 "$stage5cmd" $rootName_5 $rootName_4 $envFlag
 exit 0
 EOF
 
+				    nJobs=$((nJobs+1))
 				fi # runMode isn't print 
 			    else
 				echo -e "\e[0;31mStage 4 file $rootName_4 does not exist and is not in queue!\e[0m"
 			    fi # either stage 4 file exists or is in queue 
 			fi # stage 5 file does not exist 
 		    fi # run stage 5
-		    nJobs=$((nJobs+1))
 		done # loop over noises
 	    done # loop over offsets
 	done # zeniths
