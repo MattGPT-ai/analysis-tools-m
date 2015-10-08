@@ -48,7 +48,7 @@ qsubHeader="
 #PBS -p 0
 "
 
-args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises: -n sim_script.sh -- "$@"`
+args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises:,zeniths: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -81,13 +81,12 @@ for i; do
 	-d) subDir=$2 ; shift 2 ;; # directory name should not contain spaces 
 	--stage4dir) 
 	    stage4dir=$2 ; shift 2 ;; 
-	-z) zeniths="$2" ; shift 2 ;;
-	--offsets) offsets="$2" ; shift 2 ;; 
+	-z|--zeniths) zeniths="$2" ; shift 2 ;;
+	-o|--offsets) offsets="$2" ; shift 2 ;; 
 	--noises) noises="$2" ; shift 2 ;;
 	--array) arrays="$2" ; shift 2 ;;
 	--atm) atmospheres="$2" ; shift 2 ;;
-	-o) offsets="$2" ; shift 2 ;;
-	-s) spectrum="$2" ; shift 2 ;; 
+	-s|--spec) spectrum="$2" ; shift 2 ;; 
 	-h) hillasMode=HFit
 	    configFlags4="$configFlags4 -HillasBranchName=HFit"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
@@ -124,11 +123,14 @@ for i; do
 	--override) 
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
+	-x) extraFlags="$2"
+	    shift ;; 
 	--) shift ;;
     esac # option cases
 done # loop over options 
 
 source $environment 
+workDir=$VEGASWORK
 processDir=$workDir/processed
 logDir=$workDir/log
 queueDir=$workDir/queue
@@ -207,7 +209,7 @@ for array in $arrays; do
 				    cutFlags4="-DistanceUpper=0/${DistanceUpper} -SizeLower=$SizeLower -NTubesMin=$NTubesMin"
 				fi # set cuts automatically based on array and spectrum 
 				
-				stage4cmd="`which vaStage4.2` $configFlags4 $tableFlags $cutFlags4 $rootName_4"
+				stage4cmd="`which vaStage4.2` $configFlags4 $tableFlags $cutFlags4 $extraFlags $rootName_4"
 				test "$array" == "oa" && stage4cmd="$stage4cmd -TelCombosToDeny=T1T4" # config only for old array
 				echo "$stage4cmd"
 				
@@ -258,7 +260,7 @@ EOF
 				    test "$MaxHeightLower" -ne -100 && cutFlags5="$cutFlags5 -MaxHeightLower=$MaxHeightLower"
 				fi # automatic cuts for stage 5 based on array 
 				
-				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 $extraFlags -inputFile=$rootName_4 -outputFile=$rootName_5"
 				echo "$stage5cmd"
 				if [ "$runMode" != print ]; then 
 				    test "$runMode" == "qsub" && touch $queueName_5
