@@ -59,7 +59,9 @@ else
     echo -e "\e[0;31m Log directory $logDir does not exist!  \e[0m"
 fi
 
-trap "rm $queueFile $processRoot; mv $logFile $rejectDir/; echo \"TRAP!\"; exit 130" SIGTERM #1 2 3 4 5 6
+# cleanup, 
+trap "rm $queueFile" EXIT 
+trap "echo \"TRAP!\"; rm $queueFile $processRoot; mv $logFile $rejectDir/; exit 130" SIGTERM #1 2 3 4 5 6
 
 sleep $((RANDOM%10))
 
@@ -77,7 +79,8 @@ fi
 
 while [ -f ${queueDir}/${prevSubDir}_${previousName} ]; do
     sleep $((RANDOM%10+10))
-done # wait for previous 
+done 
+# wait for previous 
 
 
 if [ -f $previousRoot ]; then
@@ -103,9 +106,7 @@ fi # previous root file exists
 $cmd 
 completion=$?
 
-test -f $queueFile && rm $queueFile
-echo "" 
-echo "$cmd" 
+echo -e "\n$cmd" 
 
 if [ $completion -ne 0 ]; then
     echo -e "\e[0;31m$processRoot not processed successfully!\e[0m"

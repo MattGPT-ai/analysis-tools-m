@@ -4,7 +4,6 @@
 
 # environment stuff: pass these over
 scratchDir=/scratch/mbuchove/
-
 # source $environment
 
 if [ $3 ]; then
@@ -16,13 +15,11 @@ else
     exit 1 # failure
 fi
 
-args=`getopt e: $*` #s:
+args=`getopt e: $*` 
 set -- $args
 
-for i; do                      # loop through options
+for i; do      # loop through options
     case "$i" in 
-#       -s) subDir=$2
-#           shift ; shift ;;
         -e) source $2
             shift ; shift ;; 
         --) shift; break ;;
@@ -38,26 +35,32 @@ rejectDir=$laserDir/rejected
 base=${laserRoot##*/}
 runName=${base%.root}
 
+
 if [ -d $logDir ]; then
     logFile=$logDir/${runName}.txt
 else
     echo -e "\e[0;31m Log directory does not exist!  \e[0m"
 fi
 
+test -f $logFile && mv $logFile $trashDir/
+
 base=${dataFile##*/}
 dataNum=${base%.cvbf}
 scratchFile=$scratchDir/${dataNum}.cvbf
 
-if [ -f $logFile ]; then
-    mv $logFile $trashDir/
-fi
+queueFile=$queueDir/${runName}
+cleanUp() {
+test -f $scratchFile && rm $scratchFile
+rm $queueFile
+} # clean up to be done upon exit, regardless of how it exits
+trap cleanUp EXIT 
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
+trap "cleanUp; rm $laserRoot; mv $logFile $rejectDir; exit 130" $signals
+# clean up for specific signals 
 
-trap "rm $scratchFile $laserRoot $queueDir/$runName >> $logFile; mv $logFile $rejectDir; exit 130" 1 2 3 4 5 6
-# clean up if end signal received 
-
-hostname > $logFile # first entry
-root-config --version >> $logFile
-echo $ROOTSYS >> $logFile
+hostname # ${redirection/>>/>}
+root-config --version 
+echo $ROOTSYS 
 git --git-dir $VEGAS/.git describe --tags
 
 sleep $((RANDOM%10+10));
@@ -65,20 +68,18 @@ while [[ "`ps cax`" =~ " bbcp" ]]; do
     sleep $((RANDOM%10+10));
 done
 bbCmd="bbcp -e -E md5= $dataFile $scratchDir/"
-echo "$bbCmd" >> $logFile
-$bbCmd &>> $logFile
+echo "$bbCmd" 
+$bbCmd 
 
 Tstart=`date +%s`
-$cmd $scratchFile $laserRoot &>> $logFile
+$cmd $scratchFile $laserRoot 
 completion=$?
 Tend=`date +%s`
 
 test -f $queueDir/$runName && rm $queueDir/$runName
 echo "Analysis completed in: (hours:minutes:seconds)"
-date -d@$((Tend-Tstart)) -u +%H:%M:%S >> $logFile
-echo "$scratchFile $laserRoot" >> $logFile
-echo "" >> $logFile
-echo "$cmd " >> $logFile # $scratchFile $laserRoot 
+date -d@$((Tend-Tstart)) -u +%H:%M:%S 
+echo "$cmd "  # $scratchFile $laserRoot 
 
 rm $scratchFile
 
@@ -90,8 +91,7 @@ if [ $completion -ne 0 ]; then
 fi # command unsuccessfully completed
 
 if [ `grep -c unzip $logFile` -gt 0 ]; then
-    echo -e "\e[0;31m$rootName_new unzip error!\e[0m"
-    echo "UNZIP ERROR!!!" >> $logFile
+    echo -e "\e[0;31m$rootName_new unzip error!\e[0m" 
     mv $logFile $rejectDir
     rm $laserRoot
     exit 1

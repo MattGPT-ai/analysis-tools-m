@@ -37,6 +37,7 @@ envFlag="-e $environment"
 subscript45=$scriptDir/subscript_4or5.sh
 
 ltMode=auto
+bgScriptDir=$HOME/bgScripts
 runMode=print
 nJobsMax=(1000) 
 
@@ -54,8 +55,13 @@ for i; do
     case "$i" in
 	-4) runStage4=true ; shift ;; 
 	-5) runStage5=true ; shift ;; 
-	-q) runMode="qsub" ; shift ;;
+	-q) runMode=qsub ; shift ;;
 	-r) runMode="${2}" ; shift 2 ;;
+	-b) createFile() {
+		cat $1 >> $runLog
+	    }
+	    runMode=createFile 
+	    shift ;; 
 	-n) nJobsMax=$2 ; shift 2 ;; 
 	-c) 
 	    case "$2" in 
@@ -156,7 +162,6 @@ for array in $arrays; do
 	    for offset in $offsets; do 
 		for n in $noises; do
 
-		    
 		    if (( nJobs >= nJobsMax )); then
 			exit 0 
 		    fi
@@ -216,7 +221,7 @@ for array in $arrays; do
 				if [ "$runMode" != print ]; then
 
 				    test "$runMode" == "qsub" && touch $queueName_4
-				    
+						    
 				    $runMode <<EOF  
 $qsubHeader  
 #PBS -N ${subDir}_${simFileBase}.stage4
@@ -263,9 +268,10 @@ EOF
 				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 $extraFlags -inputFile=$rootName_4 -outputFile=$rootName_5"
 				echo "$stage5cmd"
 				if [ "$runMode" != print ]; then 
+
 				    test "$runMode" == "qsub" && touch $queueName_5
-				    
-				    $runMode <<EOF  
+				    test "$redirect" == "true" && redirection="> $bgScriptDir/${queueName_5##*/}.sh"
+				    $runMode $redirection <<EOF  
   
 $qsubHeader   
 #PBS -N ${subDir}_${simFileBase}.stage5${extension}

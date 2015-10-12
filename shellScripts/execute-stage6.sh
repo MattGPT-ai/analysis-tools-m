@@ -178,7 +178,7 @@ else
 fi 
 
 # check to see if root file or logfile already exists, and back up
-logFile=$logDir/stage6_${name}_${sourceName}.txt
+logFile=$logDir/${name}_${sourceName}_stage6.txt
 test "$runMode" != print  && logOption="| tee $logFile"
 outputFile=$VEGASWORK/results/stage6_${name}_${sourceName}_s6.root
 for file in $logFile $outputFile; do
@@ -228,7 +228,7 @@ if [ "$runMode" != print ]; then
 
 fi # if runMode is not print only 
 
-cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=stage6_${name}_${sourceName} $options $readFlag $cutsFlag $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${sourceName}_${name} $options $readFlag $cutsFlag $runFile " #
 echo "$cmd"
 
 if [ "$runMode" != print ]; then

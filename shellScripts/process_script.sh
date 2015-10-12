@@ -61,8 +61,8 @@ qsubHeader="
 #PBS -V 
 "
 
-n=(0) # number of submits 
-nMax=(1000) 
+nJobs=(0) # number of submits 
+nJobsMax=(1000) 
 
 stage1subDir=stg1
 stage2subDir=stg2
@@ -71,7 +71,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahbB:s:qr:e:c:C:p:kdn:o: -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahB:s:qr:e:c:C:p:kdn:o:i -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -92,10 +92,16 @@ for i; do
        	    shift 2 ;;
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
-	-r) runMode="$2"
+	-r) runMode="$2" # cat bash 
 	    shift 2 ;;
 	-q) runMode=qsub
 	    shift ;;
+	-n) nJobsMax=$2 
+	    shift 2 ;;
+	-b) runMode=background 
+	    shift ;; 
+	--reprocess)
+	    reprocess=true ; shift ;;
 	-s) spectrum=$2
 	    shift ; shift ;;
 	-c) stage4cuts=$2
@@ -136,11 +142,8 @@ for i; do
 	    stage2subDir=stg2_hfit
 	    #suffix="${suffix}_hfit"
 	    shift ;; #stage4cuts="BDT_hfit4cuts.txt"
-	-b) useStage5outputFile="false"
+	-i) useStage5outputFile="false"
 	    shift ;;
-	--reprocess)
-	    reprocess=true ; shift ;;
-	-n) nMax=$2 ; shift 2 ;;
 	--deny)
 	    telCombosToDeny="$2" ; shift 2 ;; 
 	--cutTel)
@@ -195,7 +198,7 @@ for subDir in queue processed log completed rejected results config backup; do
 	fi
     fi # processing directories do not exist 
 done
-subDirs="$stage1subDir $stage2subDir"
+subDirs="$stage1subDir $stage2subDir errors"
 if [ "$runStage4" == "true" ]; then
     subDirs="$subDirs $stage4subDir"
 fi
@@ -204,7 +207,7 @@ if [ "$runStage5" == "true" ]; then
 fi
 for dir in $processDir $logDir; do
     for subDir in $subDirs; do
-	if [ ! -d $dir/$subDir ]; then
+	if [ ! -d $dir/$subDir ] && [ "$dir/$subDir" != "$processDir/errors" ]; then
 	    echo "Must create directory $dir/$subDir"
 	    if [ "$runMode" != "print" ]; then
 		mkdir -p $dir/$subDir
@@ -247,6 +250,8 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
     
     while read -r line
     do
+	test $nJobs -lt $nJobsMax || exit 0
+
 	set -- $line
 	
 	runDate=$1
@@ -288,6 +293,7 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 		
 		laserData="NULL"
 		if [ "$runBool" == "true" ]; then
+		    # change ${n}_laser.root to ${n}.laser.root 
 		    if [ ! -f $laserProcessed/${n}_laser.root -a ! -f $laserQueue/${n}_laser ]; then
 			if [ -f $dataDir/${n}.cvbf ]; then
 			    laserData=$dataDir/${n}.cvbf
@@ -314,13 +320,13 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 				$runMode <<EOF
 $qsubHeader
 #PBS -N ${n}_laser
-#PBS -o $laserLog/qsubLog.txt
+#PBS -o $laserLog/${n}_laser.root
 #PBS -p $priority
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
 				#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
-
+				nJobs=$((nJobs+1))
 			    fi # end qsub for regular laser 
 			    
 			else ### end run normal laser
@@ -374,7 +380,6 @@ mv $logFile $rejectDir/
 else
 cp $logFile $workDir/completed/
 EOF
-			#PBS -o $laserLog/qsubLog.txt
 
 		    fi # end qsub for combined laser 
 		fi # if combined laser root file does not exist
@@ -429,14 +434,13 @@ EOF
 		    
 		    $runMode <<EOF
 $qsubHeader
-#PBS -N ${runNum}.stage12
-#PBS -o $logDir/qsubLog.txt
+#PBS -N ${runNum}.stages12
+#PBS -o $logDir/errors/${runNum}.stages12.txt
 #PBS -p $priority
 
 $subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot $envFlag
 EOF
-		    #PBS -o $logDir/${runNum}.stage12.txt
-
+		    nJobs=$((nJobs+1))
 		fi # end qsub for stage 1 data file
 	    fi # end runBool = true
 	    
@@ -447,8 +451,10 @@ fi # stage 1 or stage 2, or laser
 
 ##### STAGE 4 #####
 if [ "$runStage4" == "true" ]; then
-    while read -r line; do #  && test $n -lt $nMax 
+    while read -r line; do #  && test $n -lt $nJobsMax 
 	set -- $line
+
+	test $nJobs -lt $nJobsMax || exit 0
 	
 	runDate=$1
 	runNum=$2
@@ -540,8 +546,8 @@ $subscript45 "$cmd" $rootName_4 $rootName_2 $stage4subFlags
 echo "$spectrum"
 EOF
 
+		nJobs=$((nJobs+1))
 	    fi # end runmode check
-#	    n=$((n+1))
 	fi # rootName_4 does not exist
     done < $readList  
 fi # runStage4
@@ -550,8 +556,9 @@ fi # runStage4
 
 if [ "$runStage5" == "true" ]; then
     while read -r line; do
-	set -- $line
+	test $nJobs -lt $nJobsMax || exit 0
 	
+	set -- $line
 	runDate=$1
 	runNum=$2
 	rootName_4="${processDir}/${stage4subDir}/${runNum}.stage4.root"
@@ -562,47 +569,49 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    #	    if [ -f $rootName_4 ]; then # || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]
-	    queueName=${queueDir}/${stage5subDir}_${runNum}.stage5
-	    if [ ! -f $queueName ]; then
+	    #test ! -f $rootName_4 || continue;
+	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]; then
 		
-		if [ "$stage5cuts" == "auto" ]; then
-		    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
-		elif [ "$stage5cuts" == "none" ]; then
-		    cutFlags5=""
-		else
-		    cutFlags5="-cuts=$stage5cuts"
-		fi
-		
-		if [ "$useStage5outputFile" == "true" ]; then
-		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
-		else
-		    cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
-		fi
-		
-		if [ "$useBDT" == "true" ]; then
+		queueName=${queueDir}/${stage5subDir}_${runNum}.stage5
+		if [ ! -f $queueName ]; then
 		    
-		    cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
-		    # change to live checking 
-		    if [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
-			echo -e "\e[0;31m$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!\e[0m"
+		    if [ "$stage5cuts" == "auto" ]; then
+			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
+		    elif [ "$stage5cuts" == "none" ]; then
+			cutFlags5=""
+		    else
+			cutFlags5="-cuts=$stage5cuts"
 		    fi
-		fi 
-		
-		if [ "$applyTimeCuts" == "true" ]; then
-		    timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
-		    if [ "$timeCutMask" != "NULL" ]; then 
-			cmd="$cmd -ES_CutTimes=${timeCutMask}"
+		    
+		    if [ "$useStage5outputFile" == "true" ]; then
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+		    else
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
 		    fi
-		fi # apply time cuts
-		
-		echo "$cmd"
-		
-		if [ "$runMode" != print ]; then
 		    
-		    touch $queueName
+		    if [ "$useBDT" == "true" ]; then
+			
+			cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
+			# change to live checking 
+			if [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
+			    echo -e "\e[0;31m$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!\e[0m"
+			fi
+		    fi 
 		    
-		    $runMode <<EOF
+		    if [ "$applyTimeCuts" == "true" ]; then
+			timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`
+			if [ "$timeCutMask" != "NULL" ]; then 
+			    cmd="$cmd -ES_CutTimes=${timeCutMask}"
+			fi
+		    fi # apply time cuts
+		    
+		    echo "$cmd"
+		    
+		    if [ "$runMode" != print ]; then
+			
+			touch $queueName
+			
+			$runMode <<EOF
 $qsubHeader
 #PBS -N ${stage5subDir}${runNum}.stage5
 #PBS -o $runLog
@@ -611,11 +620,11 @@ $qsubHeader
 $subscript45 "$cmd" $rootName_5 $rootName_4 $stage5subFlags #removed $cutsDir/$stage5cuts
 echo "$spectrum"
 EOF
-		    
-		fi # end runmode check
-		#		else # stage 4 file not present to run stage 5 
-		#		    echo "$rootName_4 is not present, skipping $rootName_5 !"
-		#		fi # stage 4 file present
+		    nJobs=$((nJobs+1))
+		    fi # end runmode check
+		else # stage 4 file not present to run stage 5 
+		    echo "$rootName_4 is not present, skipping $rootName_5 !"
+		fi # stage 4 file present
 	    fi # stage 5 not in queue 
 	fi # stage 5 not present yet
     done < $readList
@@ -628,7 +637,7 @@ if [ "$runStage6" == "true" ]; then
 fi
 
 if [ "$runMode" == "qsub" ]; then
-    echo -e "script submitted $n jobs \t on ` date ` \n" | tee ${logDir}/qsubLog.txt
+    echo -e "script submitted $nJobs jobs \t on ` date ` \n" | tee ${logDir}/qsubLog.txt
 fi
 
 exit 0 # success 

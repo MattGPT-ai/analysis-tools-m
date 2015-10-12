@@ -34,19 +34,25 @@ stage4dir=sims_v254_medium
 workDir=$GC
 simFileSourceDir=/veritas/upload/OAWG/stage2/vegas2.5
 scratchDir=/scratch/mbuchove
+bgScriptDir=$HOME/bgScripts
 
 priority=(0)
 nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:n:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise,waitFor:,mem: -- "$@"`
+args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise,waitFor:,mem: -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
 	-q) runMode=qsub ; shift ;; 
 	-r) # the command that runs the herefile
 	    runMode="$2" ; shift 2 ;;
+	-b) createFile() {
+		cat $1 >> $bgScriptDir/${tableFileBase}.txt
+	    }
+	    runMode=createFile
+	    shift ;; 
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
 	-p) 
@@ -100,15 +106,12 @@ fi
 cuts="-SizeLower=0/0 -DistanceUpper=0/${DistanceUpper} -NTubesMin=0/5"
 
 case "$array" in
-    oa) #V4 
+    oa) #V4   #model=MDL8OA ; epoch=V4_OldArray ;;
 	noiseArray=(3.62,4.45,5.13 5.71,6.21 6.66,7.10 7.83,8.66 9.49,10.34) ;; 
-    #model=MDL8OA ; epoch=V4_OldArray ;;
-    na) #V5 
+    na) #V5     #model=MDL15NA epoch=V5_T1Move ;;
 	noiseArray=(4.29,5.28,6.08 6.76,7.37 7.92,8.44 9.32,10.33 11.32,12.33) ;;
-    #model=MDL15NA epoch=V5_T1Move ;;
-    ua) #V6 
-	noiseArray=(4.24,5.21,6 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;  
-    #model=MDL10UA epoch=V6_PMTUpgrade ;;
+    ua) #V6     #model=MDL10UA epoch=V6_PMTUpgrade ;;
+	noiseArray=(4.24,5.21,6 6.68,7.27 7.82,8.33 9.20,10.19 11.17,12.17) ;;
     *) 
 	echo "Array $array not recognized! Choose either oa, na, or ua!!"
 	exit 1
@@ -221,7 +224,7 @@ for zGroup in $zeniths; do
 		flags="-EA_RealSpectralIndex=-2.4" # -2.1
 		flags="$flags -Azimuth=${azimuths}"
 		flags="$flags -Zenith=${zGroup} -Noise=${noiseArray[$noiseIndex]}" # same as lookup table
-		#		flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
+		#flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
 		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
@@ -235,9 +238,10 @@ for zGroup in $zeniths; do
 		echo "$cmd" 
 
 		if [ "$runMode" != print ]; then
+
 		    test $nJobs -lt $nJobsMax || exit 0 
 		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable/ )
-		    
+
 		    $runMode <<EOF 
 
 #PBS -S /bin/bash
@@ -315,12 +319,6 @@ exit 0
 
 EOF
 
-		    #test -f \$1 || bbcp -e -E md5= \$path $scratchDir/
-		    #echo "\$file"
-		    ##path=`find $simFileSourceDir -name \$file`
-		    #echo "\$beforeZ"
-		    #echo "\$path"
-		    
 		    exitCode=$?
 		    nJobs=$((nJobs+1))
 		fi # runMode options

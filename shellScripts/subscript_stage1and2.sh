@@ -50,39 +50,44 @@ queue1=$queueDir/${stage1subDir}_${runNum}.stage1
 queue2=$queueDir/${stage2subDir}_${runNum}.stage2
 queueLaser=$laserDir/queue/$laserName
 
-trap "rm $scratchFile $queue1 $queue2 $rootName_1 $rootName2; echo TRAP > $rejectDir/${runNum}.stages12.txt; exit 130" 1 2 3 4 5 6
+scratchFile=$scratchDir/${runNum}.cvbf
+cleanUp() {
+    for f in $scratchFile $queue1 $queue2; do 
+	test -f $f && rm $f
+    done 
+}
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
+#trap '' ERR # set -e 
+trap cleanUp EXIT
 
 sleep $((RANDOM%10+5))
-
 
 while [[ "`ps cax`" =~ "bbcp" ]]; do
     sleep $((RANDOM%10+10));
 done
-bbCmd="bbcp -e -E md5= $dataFile $scratchDir/"
+bbCmd="bbcp -e -E md5= -V $dataFile $scratchFile"
 
 if [ "$stage1cmd" != "NULL" ]; then
-    if [ -f $logFile1 ]; then
-	mv $logFile1 $trashDir/
-    fi
+    test -f $logFile1 && mv $logFile1 $trashDir/
     echo "$bbCmd" >> $logFile1
-    $bbCmd &>> $logFile1
+    $bbCmd >> $logFile1
+    scratchFileCopied=true
 fi # stage 1 not passed as null
 if [ "$stage2cmd" != "NULL" ]; then
-    if [ -f $logFile2 ]; then
-	mv $logFile2 $trashDir/
-    fi
+    test -f $logFile2 && mv $logFile2 $trashDir/
     echo "$bbCmd" >> $logFile2
-    $bbCmd &>> $logFile2
+    test ! -f $scratchFile || -z "$scratchFileCopied" && $bbCmd >> $logFile2
 fi # stage 2 not passed as null
     
-if [ "$stage1cmd" != "NULL" ]; then
+if [ "$stage1cmd" != "NULL" ]; then 
+    trap "echo TRAP; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $refectDir/; exit 130" $signals
     date > $logFile1
     hostname >> $logFile1 
     root-config --version >> $logFile1
     echo $ROOTSYS >> $logFile1
-    git --git-dir $VEGAS/.git describe --tags
+    git --git-dir $VEGAS/.git describe --tags >> $logFile1
     
-    $stage1cmd $scratchDir/${runNum}.cvbf $rootName_1 &>> $logFile1
+    $stage1cmd $scratchFile $rootName_1 >> $logFile1
     completion=$?
     
     test -f $queue1 && rm $queue1
@@ -94,7 +99,7 @@ if [ "$stage1cmd" != "NULL" ]; then
 	mv $logFile1 $rejectDir/
 	rm $rootName_1
 	rm $queue2
-	rm $scratchDir/${runNum}.cvbf
+	rm $scratchFile
 	exit 1
     else
 	cp $logFile1 $workDir/completed/	
@@ -108,31 +113,33 @@ if [ "$stage1cmd" != "NULL" ]; then
 fi # stage 1 command isn't null 
 
 if [ "$stage2cmd" != "NULL" ]; then 
+    trap "echo TRAP; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $signals
 
     date > $logFile2
     hostname >> $logFile2
     root-config --version >> $logFile2
     echo $ROOTSYS >> $logFile2
-    git --git-dir $VEGAS/.git describe --tags
+    git --git-dir $VEGAS/.git describe --tags >> $logFile2
     
     while [[ "`ps cax`" =~ "bbcp" ]]; do 
 	sleep $((RANDOM%10+10)); 
     done
-    echo "bbcp -e -E md5= $rootName_1 $rootName_2" >> $logFile2
-    bbcp -e -E md5= $rootName_1 $rootName_2 &>> $logFile2
+    bbCmd="bbcp -e -E md5= $rootName_1 $rootName_2"
+    echo "$bbCmd">> $logFile2
+    $bbCmd >> $logFile2
     
     while [ -f $queueLaser ]; do
 	sleep $((RANDOM%10+20))
     done
 
-    $stage2cmd $scratchDir/${runNum}.cvbf $rootName_2 $laserRoot &>> $logFile2 
+    $stage2cmd $scratchFile $rootName_2 $laserRoot &>> $logFile2 
     completion=$?
     
     echo "" >> $logFile2
     echo "$stage2cmd $dataFile $rootName_2 $laserRoot" >> $logFile2
     
     test -f $queue2 && rm $queue2
-    rm $scratchDir/${runNum}.cvbf 
+    rm $scratchFile 
 
     if [ $completion -ne 0 ]; then
 	echo -e "\e[0;31m$rootName_2 not processed successfully!\e[0m"
@@ -150,11 +157,5 @@ if [ "$stage2cmd" != "NULL" ]; then
     fi
 
 fi # stage 2 command isn't null
-
-#rm 12logfile if empty
-#if [ `cat $logDir/${runNum}.stage12.txt | wc -l` -e 0 ]; then 
-#    rm $logDir/${runNum}.stage12.txt
-#fi
-
 
 exit 0 # great success
