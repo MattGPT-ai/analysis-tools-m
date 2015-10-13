@@ -103,9 +103,13 @@ else
     exit 1 # no success
 fi # previous root file exists 
 
+Tstart=`date +%s`
 $cmd 
 completion=$?
+Tend=`date +%s`
 
+echo "Analysis completed in: (hours:minutes:seconds)"
+date -d@$((Tend-Tstart)) -u +%H:%M:%S
 echo -e "\n$cmd" 
 
 if [ $completion -ne 0 ]; then

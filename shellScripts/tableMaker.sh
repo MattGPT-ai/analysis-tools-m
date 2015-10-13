@@ -1,7 +1,7 @@
 #!/bin/bash
 
 runMode=print # doesn't do anything but print command 
-mem=2gb
+mem=3gb
 #DistanceUpper=1.38
 
 array=ua
@@ -41,7 +41,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,options:,allNoise,waitFor:,mem: -- "$@"`
+args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,--reprocess -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -55,6 +55,8 @@ for i; do
 	    shift ;; 
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
+	--reprocess)
+	    reprocess=true
 	-p) 
 	    priority=($2) ; shift 2 ;; 
 	--mem)
@@ -78,8 +80,8 @@ for i; do
 	    stage4dir="$2" ; shift 2 ;;
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--options) # must enter full argument 
-	    options="$options ${2}" ; shift 2 ;; 
+	--xOpts) # must enter full argument 
+	    xOpts="$xOpts ${2}" ; shift 2 ;; # be careful about 
 	--noises) # questionable  
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
@@ -144,9 +146,10 @@ for zGroup in $zeniths; do
 	while (( noiseIndex < noiseNum )); do 
 	    oGroupNoDot=${oGroup//./}
 
+
+	    setCuts
 	    if [ "$table" == ea ]; then 
-		setCuts
-		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
+		tableFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_s${SizeLower}_Z${zGroup//,/-}_std_d${DistanceUpper//./p} #modify zeniths, offsets 
 		#tableFileBase=${table}_${stage4dir}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${oGroupNoDot//,/-}wobb_Z${zGroup//,/-}_std_d${DistanceUpper//./p} 
 		tableFileBase="${tableFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}"
 		test $MaxHeightLower != -100 && tableFileBase="${tableFileBase}_MH${MaxHeightLower//./p}"
@@ -199,8 +202,9 @@ for zGroup in $zeniths; do
 	    logFile=$workDir/log/tables/${tableFileBase}.txt
 	    queueFile=$workDir/queue/$tableFileBase
 
-	    if [ -f $smallTableFile ] || [ -f $queueFile ]; then #[[ "`qstat -f`" =~ "$tableFileBase" ]]
-		noiseIndex=$((noiseIndex+1)) ; continue
+	    if [ -f $smallTableFile ] || [ -f $queueFile ] || [ -f $bgScriptDir/${tableFileBase}.txt ]; then 
+		#[[ "`qstat -f -1`" =~ "$tableFileBase" ]] # ( [ -f $bgScriptDir/${tableFileBase}.txt ] && [ !overwrite ] )
+		test -n "$reprocess" && noiseIndex=$((noiseIndex+1)) ; continue
 	    fi
 
 	    if [[ "$table" =~ "dt" ]]; then # disp table
@@ -229,7 +233,7 @@ for zGroup in $zeniths; do
 		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
 
-		cmd="makeEA $cuts $flags $options $simFileList $smallTableFile" 
+		cmd="makeEA $cuts $flags $xOpts $simFileList $smallTableFile" 
 	    fi # effective area table
 
 	    if [ ! -f $queueFile ]; then

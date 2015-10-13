@@ -87,9 +87,14 @@ if [ "$stage1cmd" != "NULL" ]; then
     echo $ROOTSYS >> $logFile1
     git --git-dir $VEGAS/.git describe --tags >> $logFile1
     
+    Tstart=`date +%s`
     $stage1cmd $scratchFile $rootName_1 >> $logFile1
     completion=$?
-    
+    Tend=`date +%s`
+
+    echo "Analysis completed in: (hours:minutes:seconds)" >> $logFile1
+    date -d@$((Tend-Tstart)) -u +%H:%M:%S >> $logFile1
+       
     test -f $queue1 && rm $queue1
     echo "" >> $logFile1
     echo "$stage1cmd $dataFile $rootName_1" >> $logFile1
@@ -132,10 +137,13 @@ if [ "$stage2cmd" != "NULL" ]; then
 	sleep $((RANDOM%10+20))
     done
 
+    Tstart=`date +%s`
     $stage2cmd $scratchFile $rootName_2 $laserRoot &>> $logFile2 
     completion=$?
+    Tend=`date +%s`
     
-    echo "" >> $logFile2
+    echo "Analysis completed in (hours:minutes:seconds)" >> $logFile2
+    date -d@$((Tend-Tstart)) -u +%H:%M:%S >> $logFile2
     echo "$stage2cmd $dataFile $rootName_2 $laserRoot" >> $logFile2
     
     test -f $queue2 && rm $queue2

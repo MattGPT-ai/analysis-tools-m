@@ -10,7 +10,7 @@ outputDir=results
 loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 
 #common defaults, make more variables? 
-options="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
+s6Opts="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
 suppressRBM=1
 
 source ${0/${0##*/}/}/setCuts.sh
@@ -52,7 +52,7 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    ;;
 	C)
 	    configFile=$OPTARG
-	    options="$options -config=$configFile"
+	    s6Opts="$s6Opts -config=$configFile"
 	    ;;
 	x)
 	    exclusionList=$OPTARG
@@ -61,13 +61,13 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    spectrum=$OPTARG
 	    ;;
 	S)
-	    options="$options -S6A_Spectrum=1"
+	    s6Opts="$s6Opts -S6A_Spectrum=1"
 	    ;;
 	m) # mode to run
 	    echo "$OPTARG"
 	    case $OPTARG in
 		spectrum)
-		    options="$options -S6A_Spectrum=1" ; suppressRBM=1 ;; 
+		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=1 ;; 
 		skymap) 
 		    suppressRBM=0 ;; 
 	    esac ;; 
@@ -90,10 +90,10 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    extension=".stage4.root"
 	    ;;
 	o)
-	    options="$options -OverrideEACheck=1"
+	    s6Opts="$s6Opts -OverrideEACheck=1"
 	    ;; 
 	O)
-	    options="$options -S6A_ObsMode=On/Off"
+	    s6Opts="$s6Opts -S6A_ObsMode=On/Off"
 	    ;; 
 	f) # runlist file 
 	    runFile=$OPTARG
@@ -103,7 +103,7 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    ;;
 	q)
 	    runMode=qsub
-	    options="$options -S6A_Batch=1"
+	    s6Opts="$s6Opts -S6A_Batch=1"
 	    ;;
 	b) # change argument, decide if overwriting runlist, could just backup old before 
 	    regen=false
@@ -112,14 +112,14 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    useTestPosition=true
 	    ;;
 	A)
-	    options="$options -S6A_LoadAcceptance=1 -S6A_AcceptanceLookup=$OPTARG"
+	    s6Opts="$s6Opts -S6A_LoadAcceptance=1 -S6A_AcceptanceLookup=$OPTARG"
 	    test -f "$OPTARG" || echo "Acceptance map $OPTARG does not exist!"
 	    ;;
 	j)
-	    options="$options -RBM_CoordinateMode=\"J2000"\"
+	    s6Opts="$s6Opts -RBM_CoordinateMode=\"J2000"\"
 	    ;;
 	z) # intended for BDT cuts 
-	    options="$options $OPTARG"
+	    s6Opts="$s6Opts $OPTARG"
 	    ;;
 	?) # unrecognized option - show help
 	    echo -e "Option -${BOLD}$OPTARG${NORM} not allowed."
@@ -132,7 +132,7 @@ shift $((OPTIND-1))  #This tells getopts to move on to the next argument.
 source $environment
 finalRootDir=$VEGASWORK/processed/${subDir}
 test -n $loggenFileOR && loggenFile=$loggenFileOR # if loggenFile was selected in options, use this instead of environment variable 
-options="$options -S6A_SuppressRBM=${suppressRBM}"
+s6Opts="$s6Opts -S6A_SuppressRBM=${suppressRBM}"
 
 for variable in $sourceName $loggenFile $spectrum; do 
     if [ ! $variable ]; then
@@ -145,11 +145,11 @@ if [ ! $name ]; then
 fi
 
 if [ "$useTestPosition" == "true" ]; then
-    options="$options $positionFlags"
+    s6Opts="$s6Opts $positionFlags"
 fi
 
 if [ $exclusionList ] && [ "$exclusionList" != none ]; then 
-    options="$options -S6A_UserDefinedExclusionList=$exclusionList"
+    s6Opts="$s6Opts -S6A_UserDefinedExclusionList=$exclusionList"
 fi # could clean up 
 
 # had separate variable for baseDir
@@ -228,7 +228,7 @@ if [ "$runMode" != print ]; then
 
 fi # if runMode is not print only 
 
-cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${sourceName}_${name} $options $readFlag $cutsFlag $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${sourceName}_${name} $s6Opts $readFlag $cutsFlag $runFile " #
 echo "$cmd"
 
 if [ "$runMode" != print ]; then
