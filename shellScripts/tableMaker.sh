@@ -56,7 +56,8 @@ for i; do
 	-n)
 	    nJobsMax=($2) ; shift 2 ;; 
 	--reprocess)
-	    reprocess=true
+	    source $HOME/scripts-macros/shellScripts/queueDel.sh
+	    reprocess=true ;; 
 	-p) 
 	    priority=($2) ; shift 2 ;; 
 	--mem)
@@ -204,7 +205,11 @@ for zGroup in $zeniths; do
 
 	    if [ -f $smallTableFile ] || [ -f $queueFile ] || [ -f $bgScriptDir/${tableFileBase}.txt ]; then 
 		#[[ "`qstat -f -1`" =~ "$tableFileBase" ]] # ( [ -f $bgScriptDir/${tableFileBase}.txt ] && [ !overwrite ] )
-		test -n "$reprocess" && noiseIndex=$((noiseIndex+1)) ; continue
+	        if [ -n "$reprocess" ]; then 
+		    queueDel $tableFileBase
+		else
+		    noiseIndex=$((noiseIndex+1)) ; continue
+		fi
 	    fi
 
 	    if [[ "$table" =~ "dt" ]]; then # disp table
@@ -256,11 +261,13 @@ for zGroup in $zeniths; do
 #PBS -o $logFile
 #PBS -p $priority
 
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
 cleanUp() {
-    mv $logFile $workDir/rejected/
     rm $queueFile
     rm -rf $scratchDir/$tableFileBase
 }
+trap cleanUp EXIT
+    mv $logFile $workDir/rejected/
 
 mkdir -p $scratchDir/$tableFileBase
 hostname
@@ -294,8 +301,7 @@ else
     fi 
 fi # don't need to copy for effective area production, stage 4 files already on userspace 
 
-trap "echo \"cmd trap, SIGTERM\" >> $logFile; rm $smallTableFile; mv $logFile $workDir/rejected/; rm $queueFile; exit 15" SIGTERM 
-
+trap "echo \"cmd TRAP signal caught\"; rm $smallTableFile; mv $logFile $workDir/rejected/; exit 15" $signals
 
 timeStart=\`date +%s\`
 $cmd
@@ -303,9 +309,6 @@ exitCode=\$?
 timeEnd=\`date +%s\`
 echo "Table made in:"
 date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
-
-rm $queueFile
-rm -rf $scratchDir/$tableFileBase
 
 echo "$cmd"
 if [ \$exitCode -ne 0 ]; then
