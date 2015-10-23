@@ -92,11 +92,12 @@ fi # command unsuccessfully completed
 
 if [ `grep -c unzip $logFile` -gt 0 ]; then
     echo -e "\e[0;31m$rootName_new unzip error!\e[0m" 
-    mv $logFile $rejectDir
+    mv $logFile $rejectDir/
     rm $laserRoot
     exit 1
 fi # unzip error, sigh
 
+test -f $rejectDir/${logFile##*/} && trash $rejectDir/${logFile##*/}
 cp $logFile $workDir/completed/ 
 
 exit 0 # great success

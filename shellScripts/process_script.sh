@@ -197,7 +197,7 @@ for subDir in queue processed log completed rejected results config backup; do
 	    mkdir -p $workDir/$subDir
 	fi
     fi # processing directories do not exist 
-done
+done # could make common functions for checking dirs
 subDirs="$stage1subDir $stage2subDir errors"
 if [ "$runStage4" == "true" ]; then
     subDirs="$subDirs $stage4subDir"

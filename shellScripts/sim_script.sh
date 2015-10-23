@@ -49,7 +49,7 @@ qsubHeader="
 #PBS -p 0
 "
 
-args=`getopt -o 45qr:c:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises:,zeniths: -n sim_script.sh -- "$@"`
+args=`getopt -o 45qr:bc:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises:,zeniths: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -58,7 +58,7 @@ for i; do
 	-q) runMode=qsub ; shift ;;
 	-r) runMode="${2}" ; shift 2 ;;
 	-b) createFile() {
-		cat $1 >> $runLog
+		cat $1 >> $bgScriptDir/${runLog##*/}
 	    }
 	    runMode=createFile 
 	    shift ;; 

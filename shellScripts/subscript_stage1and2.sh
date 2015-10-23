@@ -107,6 +107,7 @@ if [ "$stage1cmd" != "NULL" ]; then
 	rm $scratchFile
 	exit 1
     else
+	test -f $rejectDir/${logFile1##*/} && trash $rejectDir/${logFile1##*/}
 	cp $logFile1 $workDir/completed/	
     fi # command unsuccessfully completed
                                           
@@ -155,7 +156,7 @@ if [ "$stage2cmd" != "NULL" ]; then
 	rm $rootName_2
 	exit 1
     else
-	rm $rootName_1
+	rm $rootName_1 # option to save 
 	cp $logFile2 $workDir/completed/ 	
     fi # command unsuccessfully completed
 
@@ -163,7 +164,8 @@ if [ "$stage2cmd" != "NULL" ]; then
 	echo -e "\e[0;31m$rootName_2 UNZIP ERROR!!!\e[0m"
 	mv $logFile2 $rejectDir/	
     fi
-
+    
+    test -f $rejectDir/${logFile2##*/} && trash $rejectDir/${logFile2##*/}
 fi # stage 2 command isn't null
 
 exit 0 # great success

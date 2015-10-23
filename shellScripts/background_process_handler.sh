@@ -18,6 +18,7 @@ while [ `ls $bgScriptDir | wc -l` -ne 0 ]; do
     if (( nodesAvailable > 0 )); then 
 	for file in `ls -tr $bgScriptDir/*`; do 
 	    chmod u+x $file
+	    #touch $queueFile 
 	    qsub $file
 	    trash $file
 	    break

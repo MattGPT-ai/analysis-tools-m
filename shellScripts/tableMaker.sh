@@ -198,33 +198,13 @@ for zGroup in $zeniths; do
 	    logFile=$logDir/${tableFileBase}.txt
 	    queueFile=$workDir/queue/$tableFileBase
 
-	    if [ -f $smallTableFile ] || [ -f $queueFile ] || [ -f $bgScriptDir/${tableFileBase}.txt ]; then 
-		#[[ "`qstat -f -1`" =~ "$tableFileBase" ]] # ( [ -f $bgScriptDir/${tableFileBase}.txt ] && [ !overwrite ] )
-	        if [ -n "$reprocess" ]; then 
-		    queueDel $tableFileBase
-		else
-		    noiseIndex=$((noiseIndex+1)) ; continue
-		fi
-	    fi
-
-	    if [[ "$table" =~ "dt" ]]; then # disp table
-		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
-		flags="$flags -DTM_Noise=${pedVarArray[$noiseIndex]} -DTM_Zenith=$zGroup"
-		#flags="$flags -DTM_AbsoluteOffset=$oGroup"
-		#flags="$flags -G_SimulationMode=1"
-		# don't use
-		cmd="produceDispTables $flags $simFileList $smallTableFile"
-	    fi # disp table
-
-	    if [[ "$table" =~ "lt" ]]; then
+	    if [[ "$table" =~ "lt" ]]; then # lookup table 
 		flags="$cuts $ltFlags -Azimuth=${azimuths}" 
 		flags="$flags -Zenith=${zGroup} -AbsoluteOffset=${oGroup} -Noise=${pedVarArray[$noiseIndex]}"
 		#flags="$flags -G_SimulationMode=1" 
 
 		cmd="produce_lookuptables $flags $simFileList $smallTableFile"
-	    fi # lookup 
-
-	    if [[ "$table" =~ "ea" ]]; then
+	    elif [[ "$table" =~ "ea" ]]; then # effective area table 
 		flags="-EA_RealSpectralIndex=-2.4" # -2.1
 		flags="$flags -Azimuth=${azimuths}"
 		flags="$flags -Zenith=${zGroup} -Noise=${pedVarArray[$noiseIndex]}" # same as lookup table
@@ -234,9 +214,26 @@ for zGroup in $zeniths; do
 		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
 
 		cmd="makeEA $cuts $flags $xOpts $simFileList $smallTableFile" 
+	    elif [[ "$table" =~ "dt" ]]; then # disp table
+		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
+		flags="$flags -DTM_Noise=${pedVarArray[$noiseIndex]} -DTM_Zenith=$zGroup"
+		#flags="$flags -DTM_AbsoluteOffset=$oGroup"
+		#flags="$flags -G_SimulationMode=1"
+		# don't use
+		cmd="produceDispTables $flags $simFileList $smallTableFile"
+		
 	    fi # effective area table
 
-	    if [ ! -f $queueFile ] && [ ! -f $smallTableFile ] && [ ! -f $bgScriptDir/${tableFileBase}.txt ]; then
+
+	    if [ -f $smallTableFile ] || [ -f $queueFile ] || [ -f $bgScriptDir/${tableFileBase}.txt ]; then 
+		#[[ "`qstat -f -1`" =~ "$tableFileBase" ]] # ( [ -f $bgScriptDir/${tableFileBase}.txt ] && [ !overwrite ] )
+	        if [ -n "$reprocess" ]; then 
+		    queueDel $tableFileBase
+		else
+		    noiseIndex=$((noiseIndex+1)) ; continue
+		fi
+
+	    else #[ ! -f $queueFile ] && [ ! -f $smallTableFile ] && [ ! -f $bgScriptDir/${tableFileBase}.txt ]; then
 		# file does not exist and is not queued 
 
 		echo "$cmd" 
@@ -245,7 +242,6 @@ for zGroup in $zeniths; do
 
 		    test $nJobs -lt $nJobsMax || exit 0 
 		    test "$runMode" == qsub && ( touch $queueFile ; test -f $logFile && mv $logFile $workDir/backup/logTable/ )
-
 		    $runMode <<EOF 
 
 #PBS -S /bin/bash
@@ -256,20 +252,24 @@ for zGroup in $zeniths; do
 #PBS -o $logFile
 #PBS -p $priority
 
-cleanUp() {
+# clean up files upon exit, make sure this executes when other trap is triggered 
+cleanUp() { 
     rm $queueFile
     rm -rf $scratchDir/$tableFileBase
 }
-trap cleanUp EXIT
+trap cleanUp EXIT # called upon any exit 
+rejectTable() {
+    echo "exit code: \$exitCode"
+    test -f $smallTableFile && mv $smallTableFile $workDir/backup/tables/
+    mv $logFile $workDir/rejected/
+}
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
+trap 'echo "First trap, Exiting 15"; rejectTable' $signals
 
 mkdir -p $scratchDir/$tableFileBase
 hostname
 
-#setCuts
-#noiseLevels=(100,150,200,250,300,350,400,490,605,730,870)
-
-trap "echo \"First trap, Exiting 15\" >> $logFile; cleanUp; exit 15" SIGTERM
-
+# copy the root files to scratch 
 if [ "$table" != ea ]; then
     while read -r line; do 
 
@@ -298,6 +298,7 @@ fi # don't need to copy for effective area production, stage 4 files already on 
 
 trap "echo \"cmd TRAP signal caught\"; rm $smallTableFile; mv $logFile $workDir/rejected/; exit 15" $signals
 
+# execute command
 timeStart=\`date +%s\`
 $cmd
 exitCode=\$?
@@ -305,32 +306,45 @@ timeEnd=\`date +%s\`
 echo "Table made in:"
 date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
 
-echo "$cmd"
-if [ \$exitCode -ne 0 ]; then
-    echo "exit code: \$exitCode"
+# validate table 
+if [ "$table" == "ea" ]; then 
+    cd $VEGAS/resultsExtractor/macros/
+    root -l -b -q 'validate2.C("$smallTableFile")'
+    sumFile=${smallTableFile/.root/.summary.csv}
+    test -f $sumFile && test \`cat $sumFile | wc -l\` -gt 1 && badDiag=true || rm $sumFile
+else
+    cd $VEGAS/showerReconstruction2/macros/
+    root -l -b -q 'validate.C("$smallTableFile")'
+fi
+# ea files have an additional summary csv file that should not have more than one line 
+diagFile=${finalTableFile/.root/.diag}
+if [ -s $diagFile ] || [ ! -f $diagFile ]; then 
+    echo "SOME MIGHT FAIL!! check .diag files"
+    badDiag=true
+else
+    rm ${finalTableFile/root/diag}
+fi # diag file contains bad tables or wasn't created
 
-    mv $smallTableFile $workDir/backup/tables/
-    mv $logFile $workDir/rejected/
+echo "$cmd"
+if [ \$exitCode -e 0 ] || [ badDiag == "true" ]; then
     exit \$exitCode
+rkDir/rejected/${logFile##*/} # mv $workDir/backup/rejected/    
 else
     cp $logFile $workDir/completed/
-    test -f $workDir/rejected/${logFile##*/} && trash $workDir/rejected/${logFile##*/} # mv $workDir/backup/rejected/
+    test -f $workDir/rejected/${logFile##*/} && trash $wo    #rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
 fi
 
 echo "Exiting successfully!"
 exit 0
 
 EOF
-
 		    exitCode=$?
 		    nJobs=$((nJobs+1))
 		fi # runMode options
 		
 		if (( exitCode != 0 )); then
 		    echo "FAILED!"
-		    if [ -f $logFile ]; then
-			mv $logFile $workDir/rejected/
-		    fi
+		    test -f $logFile && mv $logFile $workDir/rejected/
 		    exit 1
 		fi # was job submitted successfully 
 	    fi # not already in queue

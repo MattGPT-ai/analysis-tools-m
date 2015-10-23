@@ -249,7 +249,7 @@ cd $VEGASWORK
 git --git-dir $VEGAS/.git describe --tags 
 
 if [ "$exclusionList" != none ]; then 
-cat $exclusionList
+    cat $exclusionList
 fi
 
 $cmd
@@ -263,9 +263,10 @@ fi
 test -f todayresult && mv todayresult $VEGASWORK/log/
 
 if [ "\$exitCode" -eq 0 ]; then 
-cp $logFile $VEGASWORK/completed/
+    cp $logFile $VEGASWORK/completed/
+    test -f $VEGASWORK/rejected/${logFile##*/} && trash $VEGASWORK/rejected/${logFile##*/}
 else
-test -f $logFile && mv $logFile $VEGASWORK/rejected/
+    test -f $logFile && mv $logFile $VEGASWORK/rejected/
 fi
 
 $syncCmd

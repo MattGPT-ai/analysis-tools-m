@@ -65,27 +65,17 @@ root -l -b -q 'combo.C("$tableList", "$buildCmd")'
 mv \$firstTable $finalTableFile
 $buildCmd
 
-# doesn't work for some reason
-echo "$tableList" 
-while read -r table; do 
-    if [ -s ${table/root/diag} ]; then
-        echo "${table/root/diag}        
-        echo "$table diag"
-        diag=true
-    else
-        echo "$table rm"
-        rm ${table/root/diag}
-    fi
-done < $tableList
+# decided to check tables after they're made, not before they're combined
 
 root -l -b -q 'validate.C("$finalTableFile")'
-test -s ${finalTableFile/root/diag} && diag=true || rm ${finalTableFile/root/diag}
 
-if [ "$diag" == true ]; then 
+if [ -s ${finalTableFile/root/diag} ] || [ ! -f ${finalTableFile/root/diag} ]; then 
     echo "SOME MIGHT FAIL!! check .diag files"
 else
+    rm ${finalTableFile/root/diag}
     rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
-fi
+fi # diag file contains bad tables or wasn't created
+#( test -s diag || -f diag ) && echo error || rm ${finalTableFile/root/diag} ?&& rsync 
 
 EOF
 
