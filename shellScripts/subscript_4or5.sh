@@ -5,6 +5,7 @@
 # environment stuff:
 scratchDir=/scratch/mbuchove/
 trashDir=$TRASHDIR
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
 
 if [ $3 ]; then
     cmd="$1"
@@ -60,8 +61,8 @@ else
 fi
 
 # cleanup, 
-trap "rm $queueFile" EXIT 
-trap "echo \"TRAP!\"; rm $queueFile $processRoot; mv $logFile $rejectDir/; exit 130" SIGTERM #1 2 3 4 5 6
+trap "test -f $queueFile || rm $queueFile" EXIT 
+trap "echo \"TRAP!\"; rm $queueFile $processRoot; mv $logFile $rejectDir/; exit 130" $signals #SIGTERM
 
 sleep $((RANDOM%10))
 

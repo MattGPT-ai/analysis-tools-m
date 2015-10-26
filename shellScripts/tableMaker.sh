@@ -208,6 +208,7 @@ for zGroup in $zeniths; do
 		flags="-EA_RealSpectralIndex=-2.4" # -2.1
 		flags="$flags -Azimuth=${azimuths}"
 		flags="$flags -Zenith=${zGroup} -Noise=${pedVarArray[$noiseIndex]}" # same as lookup table
+		#flags="$flags -AbsoluteOffset=${oGroup}"
 		#flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
 		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
@@ -217,7 +218,7 @@ for zGroup in $zeniths; do
 	    elif [[ "$table" =~ "dt" ]]; then # disp table
 		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
 		flags="$flags -DTM_Noise=${pedVarArray[$noiseIndex]} -DTM_Zenith=$zGroup"
-		#flags="$flags -DTM_AbsoluteOffset=$oGroup"
+		flags="$flags -DTM_AbsoluteOffset=$oGroup"
 		#flags="$flags -G_SimulationMode=1"
 		# don't use
 		cmd="produceDispTables $flags $simFileList $smallTableFile"
@@ -254,7 +255,7 @@ for zGroup in $zeniths; do
 
 # clean up files upon exit, make sure this executes when other trap is triggered 
 cleanUp() { 
-    rm $queueFile
+    test -f $queueFile && rm $queueFile
     rm -rf $scratchDir/$tableFileBase
 }
 trap cleanUp EXIT # called upon any exit 
@@ -262,6 +263,7 @@ rejectTable() {
     echo "exit code: \$exitCode"
     test -f $smallTableFile && mv $smallTableFile $workDir/backup/tables/
     mv $logFile $workDir/rejected/
+    exit 15 
 }
 signals="1 2 3 4 5 6 7 8 11 13 15 30"
 trap 'echo "First trap, Exiting 15"; rejectTable' $signals
@@ -282,8 +284,7 @@ if [ "$table" != ea ]; then
 	trap "echo \"file trap, exiting SIGTERM \" >> $logFile; cleanUp; exit 15" SIGTERM 
 	test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/$tableFileBase/ 
 
-	test -f $scratchDir/$tableFileBase/\$file || ( cleanUp; exit 6 )
-	#|| ( cleanUp; exit 6 )
+	test -f $scratchDir/$tableFileBase/\$file || ( rejectTable; exit 6 )
 	#test \$PIPESTATUS[1] -e 0 || ( cleanUp; exit 6 )
 	
     done < $simFileList # loop over every sim file in list
@@ -295,8 +296,6 @@ else
         done 
     fi 
 fi # don't need to copy for effective area production, stage 4 files already on userspace 
-
-trap "echo \"cmd TRAP signal caught\"; rm $smallTableFile; mv $logFile $workDir/rejected/; exit 15" $signals
 
 # execute command
 timeStart=\`date +%s\`
@@ -311,7 +310,11 @@ if [ "$table" == "ea" ]; then
     cd $VEGAS/resultsExtractor/macros/
     root -l -b -q 'validate2.C("$smallTableFile")'
     sumFile=${smallTableFile/.root/.summary.csv}
-    test -f $sumFile && test \`cat $sumFile | wc -l\` -gt 1 && badDiag=true || rm $sumFile
+    if [ -f $sumFile ]; then
+        test \`cat $sumFile | wc -l\` -gt 1 && badDiag=true || rm $sumFile
+    else
+        echo "no sumfile!"
+    fi 
 else
     cd $VEGAS/showerReconstruction2/macros/
     root -l -b -q 'validate.C("$smallTableFile")'
@@ -326,12 +329,12 @@ else
 fi # diag file contains bad tables or wasn't created
 
 echo "$cmd"
-if [ \$exitCode -e 0 ] || [ badDiag == "true" ]; then
+if [ "\$exitCode" -e 0 ] || [ badDiag == "true" ]; then
     exit \$exitCode
 rkDir/rejected/${logFile##*/} # mv $workDir/backup/rejected/    
 else
     cp $logFile $workDir/completed/
-    test -f $workDir/rejected/${logFile##*/} && trash $wo    #rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
+    test -f $workDir/rejected/${logFile##*/} && mv $workDir/rejected/${logFile##*/} $workDir/backup/rejected/  #; rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
 fi
 
 echo "Exiting successfully!"

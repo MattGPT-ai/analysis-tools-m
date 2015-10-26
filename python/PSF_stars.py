@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-# written for python2 - python3 will require editing of print statements  
-# e.g. print("text"), -> print("text",end="")
 
-#script that takes an optional argument for the date and target collection and calculates angular separation and elevation of each target from the moon. 
+### Author: Matt Buchovecky 
+# script that takes an optional argument for the date and target collection and calculates angular separation and elevation of each target from the moon. 
+
+# written for python2 - python3 will require editing of print statements
+# e.g. print("text"), -> print("text",end="")
 
 import sys, operator, argparse
 import ephem, subprocess
@@ -94,7 +96,7 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   sourceObj._dec = sourceDEC
   sourceObj.compute(veritas)
 
-  if printDoublets:
+  if args.printDoublets:
     minStarDist = float("inf")
     for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
       if count2 == 0: 
