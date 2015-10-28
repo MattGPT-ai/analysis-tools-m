@@ -77,10 +77,12 @@ for i; do
 	    spectrum="$2" ; shift 2 ;; 
 	--stage4dir)
 	    stage4dir="$2" ; shift 2 ;;
+	--deny)
+	    TelCombosToDeny="$2" ; shift 2 ;; 
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
 	--xOpts) # must enter full argument 
-	    xOpts="$xOpts ${2}" ; shift 2 ;; # be careful about 
+	    xOpts="$xOpts ${2}" ; shift 2 ;; # be careful about
 	--nameExt) 
 	    nameExt="_${2}" ; shift 2 ;; 
 	--noises) # questionable  
@@ -219,6 +221,12 @@ for zGroup in $zeniths; do
 		flags="$cuts $dtFlags $dtWidth $dtLength -DTM_Azimuth=${azimuths}"
 		flags="$flags -DTM_Noise=${pedVarArray[$noiseIndex]} -DTM_Zenith=$zGroup"
 		flags="$flags -DTM_AbsoluteOffset=$oGroup"
+		if [ -n "$TelCombosToDeny" ]; then # if [ $telCombosToDeny ]
+		    flags="$flags -TelCombosToDeny=$telCombosToDeny"
+		elif [ -n "$autoTelCombosToDeny" ]; then # V4
+                    flags="$flags -TelCombosToDeny=$autoTelCombosToDeny"
+		fi
+
 		#flags="$flags -G_SimulationMode=1"
 		# don't use
 		cmd="produceDispTables $flags $simFileList $smallTableFile"
@@ -257,6 +265,7 @@ for zGroup in $zeniths; do
 cleanUp() { 
     test -f $queueFile && rm $queueFile
     rm -rf $scratchDir/$tableFileBase
+    echo -e "\n$cmd"
 }
 trap cleanUp EXIT # called upon any exit 
 rejectTable() {
@@ -305,6 +314,11 @@ timeEnd=\`date +%s\`
 echo "Table made in:"
 date -d @\$((timeEnd-timeStart)) -u +%H:%M:%S
 
+if [ "\$exitCode" -ne 0 ]; then 
+    rejectTable
+    exit \$exitCode
+fi 
+
 # validate table 
 if [ "$table" == "ea" ]; then 
     cd $VEGAS/resultsExtractor/macros/
@@ -321,18 +335,14 @@ else
 fi
 # ea files have an additional summary csv file that should not have more than one line 
 diagFile=${finalTableFile/.root/.diag}
-if [ -s $diagFile ] || [ ! -f $diagFile ]; then 
+if [ -s \$diagFile ] || [ ! -f \$diagFile ]; then 
     echo "SOME MIGHT FAIL!! check .diag files"
     badDiag=true
 else
-    rm ${finalTableFile/root/diag}
+    rm \$diagFile}
 fi # diag file contains bad tables or wasn't created
 
-echo "$cmd"
-if [ "\$exitCode" -e 0 ] || [ badDiag == "true" ]; then
-    exit \$exitCode
-rkDir/rejected/${logFile##*/} # mv $workDir/backup/rejected/    
-else
+if [ \$badDiag != "true" ]; then
     cp $logFile $workDir/completed/
     test -f $workDir/rejected/${logFile##*/} && mv $workDir/rejected/${logFile##*/} $workDir/backup/rejected/  #; rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
 fi

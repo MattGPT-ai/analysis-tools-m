@@ -18,13 +18,15 @@ noiseLevels=100,150,200,250,300,350,400,490,605,730,870
 case "$array" in
     oa | V4)   #model=MDL8OA ; epoch=V4_OldArray 
 	pedVars=3.62,4.45,5.13,5.71,6.21,6.66,7.10,7.83,8.66,9.49,10.34 
-	#telDenyFlag="TelCombosToDeny=T1T4"
+	autoTelCombosToDeny="TelCombosToDeny=T1T4"
 	;;
     na | V5)    #model=MDL15NA epoch=V5_T1Move 
 	pedVars=4.29,5.28,6.08,6.76,7.37,7.92,8.44,9.32,10.33,11.32,12.33
+	autoTelCombosToDeny=""
 	;;
     ua | V6)    #model=MDL10UA epoch=V6_PMTUpgrade 
 	pedVars=4.24,5.21,6,6.68,7.27,7.82,8.33,9.20,10.19,11.17,12.17
+	autoTelCombosToDeny=""
 	;;
 #    *) 
 #	echo "Array $array not recognized! Choose either oa, na, or ua!!"

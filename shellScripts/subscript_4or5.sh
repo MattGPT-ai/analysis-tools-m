@@ -61,8 +61,12 @@ else
 fi
 
 # cleanup, 
-trap "test -f $queueFile || rm $queueFile" EXIT 
-trap "echo \"TRAP!\"; rm $queueFile $processRoot; mv $logFile $rejectDir/; exit 130" $signals #SIGTERM
+cleanUp() {
+test -f $queueFile && rm $queueFile
+echo -e "\n$cmd"
+}
+trap "cleanUp" EXIT 
+trap "cleanUp; echo \"TRAP!\"; rm $processRoot; mv $logFile $rejectDir/; exit 130" $signals #SIGTERM
 
 sleep $((RANDOM%10))
 
@@ -111,7 +115,6 @@ Tend=`date +%s`
 
 echo "Analysis completed in: (hours:minutes:seconds)"
 date -d@$((Tend-Tstart)) -u +%H:%M:%S
-echo -e "\n$cmd" 
 
 if [ $completion -ne 0 ]; then
     echo -e "\e[0;31m$processRoot not processed successfully!\e[0m"
@@ -123,7 +126,7 @@ fi # command unsuccessfully completed
 if [ `grep -c unzip $logFile` -gt 0 ]; then
     echo -e "\e[0;31m$processRoot unzip error!\e[0m"
     echo "UNZIP ERROR!!!" 
-    if [[ "$cmd" =~ "vaStage4.2" ]]; 
+    if [[ "$cmd" =~ "vaStage4.2" ]]; then
 	mv $processRoot $workDir/backup/unzip
 	mv $logFile $rejectDir/unzip_${logFile##*/}
     else

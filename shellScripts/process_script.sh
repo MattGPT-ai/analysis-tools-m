@@ -145,7 +145,7 @@ for i; do
 	-i) useStage5outputFile="false"
 	    shift ;;
 	--deny)
-	    telCombosToDeny="$2" ; shift 2 ;; 
+	    TelCombosToDeny="$2" ; shift 2 ;; 
 	--cutTel)
 	    configFlags4="$configFlags4 -CutTelescope=$2"
 	    shift 2 ;; 
@@ -512,10 +512,10 @@ if [ "$runStage4" == "true" ]; then
                 cutFlags4="-cuts=${stage4cuts}"
             fi
 
-	    if [ -n "$telCombosToDeny" ]; then # if [ $telCombosToDeny ]
+	    if [ -n "$TelCombosToDeny" ]; then # if [ $telCombosToDeny ]
 		denyFlag="-TelCombosToDeny=$telCombosToDeny"
-            elif [ "$array" == "oa" ]; then # V4
-                denyFlag="-TelCombosToDeny=T1T4"
+            elif [ -n "$autoTelCombosToDeny" ]; then # V4
+                denyFlag="-TelCombosToDeny=$autoTelCombosToDeny"
 	    else
 		denyFlag=""
 	    fi
