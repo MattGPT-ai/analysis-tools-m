@@ -45,6 +45,8 @@ parser.add_argument('--targets', default='psf_stars', help="Specifies collection
 parser.add_argument('--print-doublets', dest='printDoublets', action='store_true')
 parser.set_defaults( printDoublets=True )
 
+parser.add_argument('--minStarDist', type=float, default=0.5, help="If a star isn't at least this distance from another bright star, print out a warning")
+
 parser.add_argument('--reverse', dest='reverseSort', type=bool, default=True, help="Reverse the order of your sort, true by default.")
 
 args = parser.parse_args()
@@ -66,7 +68,7 @@ sqlOut = subprocess.Popen(["mysql","-h","%s" %(hostName),"-P","%s" %(portNum),"-
 QUERY, err = sqlOut.communicate()
 if QUERY == "":
   print
-  print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :("
+  print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :'("
 
 # dict for sorting/writing stars and their info 
 moonlightSources = {} 
@@ -106,6 +108,7 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   sourceObj._dec = sourceDEC
   sourceObj.compute(veritas)
 
+  # check for any stars that are too close to another bright star to be distinguished
   if args.printDoublets:
     minStarDist = float("inf")
     for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
@@ -123,8 +126,8 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
       if starCmpName != sourceName:
         if starDist < minStarDist: 
           minStarDist = starDist 
-          if starDist < 0.5: # used to print out bright stars that are too close to each other, less than half a degree apart
-            starDistString = "These stars are very close! "+str(starDist)+" "+sourceName+" "+str(sourceRA)+" "+str(sourceDEC)+" "+starCmpName+" "+str(starCmpRA)+" "+str(starCmpDEC)
+          if starDist < args.minStarDist: # used to print out bright stars that are too close to each other, less than half a degree apart
+            starDistString = "WARNING! These stars are very close! "+sourceName+" and "+starCmpName+" are "+str(starDist)+" degrees from each other!\nRA: "+str(sourceRA)+" DEC: "+str(sourceDEC)+" RA: "+str(starCmpRA)+" DEC: "+str(starCmpDEC)
             print(starDistString)
   
   sourceEl = sourceObj.alt*180./ephem.pi # elevation of source
