@@ -3,7 +3,7 @@
 # VA subscript, for use with larger submission scripts
 
 # environment stuff:
-scratchDir=/scratch/mbuchove/
+#scratchDir=/scratch/mbuchove
 trashDir=$TRASHDIR
 signals="1 2 3 4 5 6 7 8 11 13 15 30"
 
@@ -65,9 +65,10 @@ cleanUp() {
 test -f $queueFile && rm $queueFile
 echo -e "\n$cmd"
 }
-trap "cleanUp" EXIT 
-trap "cleanUp; echo \"TRAP!\"; rm $processRoot; mv $logFile $rejectDir/; exit 130" $signals #SIGTERM
-
+trap "cleanUp" EXIT
+for sig in $signals; do  
+    trap "echo \"TRAP! Signal: $sig\"; rm $processRoot; mv $logFile $rejectDir/; exit $sig" $sig
+done
 sleep $((RANDOM%10))
 
 date

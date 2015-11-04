@@ -41,7 +41,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,--reprocess -- "$@"`
+args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny: -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -272,28 +272,27 @@ rejectTable() {
     echo "exit code: \$exitCode"
     test -f $smallTableFile && mv $smallTableFile $workDir/backup/tables/
     mv $logFile $workDir/rejected/
-    exit 15 
+#    exit 15 
 }
-signals="1 2 3 4 5 6 7 8 11 13 15 30"
-trap 'echo "First trap, Exiting 15"; rejectTable' $signals
 
-mkdir -p $scratchDir/$tableFileBase
+for sig in $signals; do 
+    trap "echo \"TRAP! Signal: \${sig} - Exiting..\"; rejectTable; exit \$sig" \$sig
+done 
+
 hostname
 
 # copy the root files to scratch 
 if [ "$table" != ea ]; then
     while read -r line; do 
 
+        mkdir -p $scratchDir/$tableFileBase
         while [[ "\`ps cax\`" =~ "bbcp" ]]; do sleep \$((RANDOM%10+10)); done
-
-	set -- \$line
+        set -- \$line
 	file=\${1##*/}
 	beforeZ=\${file%deg*} # part of filename preceding Z 
 	zenith=\${beforeZ#*_7samples_}
-	trap "echo \"file trap, exiting SIGTERM \" >> $logFile; cleanUp; exit 15" SIGTERM 
-	test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/$tableFileBase/ 
+	test -f \$1 || bbcp -e -E md5= $simFileSourceDir/$simFileSubDir/\${zenith}_deg/\$file $scratchDir/$tableFileBase/ || ( rejectTable; exit 6 ) # test -f $scratchDir/$tableFileBase 
 
-	test -f $scratchDir/$tableFileBase/\$file || ( rejectTable; exit 6 )
 	#test \$PIPESTATUS[1] -e 0 || ( cleanUp; exit 6 )
 	
     done < $simFileList # loop over every sim file in list
@@ -324,8 +323,8 @@ if [ "$table" == "ea" ]; then
     cd $VEGAS/resultsExtractor/macros/
     root -l -b -q 'validate2.C("$smallTableFile")'
     sumFile=${smallTableFile/.root/.summary.csv}
-    if [ -f $sumFile ]; then
-        test \`cat $sumFile | wc -l\` -gt 1 && badDiag=true || rm $sumFile
+    if [ -f \$sumFile ]; then
+        test \`cat $sumFile | wc -l\` -gt 1 && badDiag=true || rm \$sumFile
     else
         echo "no sumfile!"
     fi 
@@ -334,17 +333,18 @@ else
     root -l -b -q 'validate.C("$smallTableFile")'
 fi
 # ea files have an additional summary csv file that should not have more than one line 
-diagFile=${finalTableFile/.root/.diag}
+diagFile=${smallTableFile/.root/.diag}
 if [ -s \$diagFile ] || [ ! -f \$diagFile ]; then 
     echo "SOME MIGHT FAIL!! check .diag files"
     badDiag=true
 else
-    rm \$diagFile}
+    rm \$diagFile
 fi # diag file contains bad tables or wasn't created
 
-if [ \$badDiag != "true" ]; then
+if [ "\$badDiag" != "true" ]; then
     cp $logFile $workDir/completed/
-    test -f $workDir/rejected/${logFile##*/} && mv $workDir/rejected/${logFile##*/} $workDir/backup/rejected/  #; rsync -uv $finalTableFile $TABLEDIR/${finalTableName}
+    test -f $workDir/rejected/${logFile##*/} && mv $workDir/rejected/${logFile##*/} $workDir/backup/rejected/
+    #rsync -uv $smallTableFile $TABLEDIR/ 
 fi
 
 echo "Exiting successfully!"

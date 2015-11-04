@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### BDT_script.sh processes the files in a logGen format runlist file through the selected stages with the selected options, tailored for Boosted Decision Trees ###
+### process_script.sh processes the files in a logGen format runlist file through the selected stages with the selected options ### 
 
 ##### SET DEFAULTS #####
 
@@ -18,7 +18,7 @@ scratchDir=/scratch/mbuchove
 tableDir=$USERSPACE/tables
 laserDir=$LASERDIR
 weightsDirBase=$BDT/weights
-weightsDir=5-34_defaults
+#weightsDir=5-34_defaults
 trashDir=$HOME/.trash
 
 spectrum=medium
@@ -113,8 +113,8 @@ for i; do
 	-B|--BDT) # useStage5outputFile="true"
 	    configFlags5="$configFlags5 -UseBDT=1"
 	    useBDT="true"
-	    weightsDir="$2" # check that optional argument works 
 	    stage5cuts=none
+	    weightsDirBase="$2" # can append array to end, e.g. _V5
 	    shift 2 ;;
 	--disp) 
 	    stg4method=disp
@@ -591,12 +591,13 @@ if [ "$runStage5" == "true" ]; then
 		    
 		    if [ "$useBDT" == "true" ]; then
 			
-			cmd="$cmd -BDTDirectory=${weightsDirBase}/${weightsDir}_${array}"
-			# change to live checking 
-			if [[ ! -d $weightsDirBase/${weightsDir}_${array} ]]; then
-			    echo -e "\e[0;31m$weightsDirBase/${weightsDir}_${array} does not exist. this may be a problem!\e[0m"
+			weightsDir=${weightsDirBase} #_${array}
+			#  
+			if [[ ! -d $weightsDirBase/${weightsDir} ]]; then
+			    echo -e "\e[0;31m${weightsDir} does not exist. this may be a problem!\e[0m"
 			fi
-		    fi 
+			cmd="$cmd -BDTDirectory=${weightsDir}"
+		    fi # BDT 
 		    
 		    if [ "$applyTimeCuts" == "true" ]; then
 			timeCutMask=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VOFFLINE; SELECT time_cut_mask FROM tblRun_Analysis_Comments WHERE run_id = ${runNum}"`

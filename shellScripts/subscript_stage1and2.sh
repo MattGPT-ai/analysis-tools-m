@@ -80,7 +80,9 @@ if [ "$stage2cmd" != "NULL" ]; then
 fi # stage 2 not passed as null
     
 if [ "$stage1cmd" != "NULL" ]; then 
-    trap "echo TRAP; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $refectDir/; exit 130" $signals
+    for sig in $signals; do 
+	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $refectDir/; exit $sig" $sig
+    done
     date > $logFile1
     hostname >> $logFile1 
     root-config --version >> $logFile1
@@ -119,8 +121,9 @@ if [ "$stage1cmd" != "NULL" ]; then
 fi # stage 1 command isn't null 
 
 if [ "$stage2cmd" != "NULL" ]; then 
-    trap "echo TRAP; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $signals
-
+    for sig in $signals; do 
+	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
+    done
     date > $logFile2
     hostname >> $logFile2
     root-config --version >> $logFile2

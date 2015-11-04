@@ -55,7 +55,9 @@ rm $queueFile
 } # clean up to be done upon exit, regardless of how it exits
 trap cleanUp EXIT 
 signals="1 2 3 4 5 6 7 8 11 13 15 30"
-trap "cleanUp; rm $laserRoot; mv $logFile $rejectDir; exit 130" $signals
+for sig in $signals; do 
+    trap "echo \"TRAP! Signal: $sig\"; rm $laserRoot; mv $logFile $rejectDir; exit $sig" $sig
+done 
 # clean up for specific signals 
 
 hostname # ${redirection/>>/>}
