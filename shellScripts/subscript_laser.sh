@@ -4,7 +4,7 @@
 
 # environment stuff: pass these over
 scratchDir=/scratch/mbuchove/
-# source $environment
+# for env in $environment; do  source $env; done
 
 if [ $3 ]; then
     cmd="$1"

@@ -127,7 +127,7 @@ for i; do
 	    ATM=$2
 	    shift 2 ;; 
 	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
-	    source $environment
+	    for env in $environment; do  source $env; done
 	    envFlag="-e $environment"
 	    stage4subFlags="$stage4subFlags $envFlag"
 	    stage5subFlags="$stage5subFlags $envFlag"

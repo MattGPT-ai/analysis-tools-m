@@ -135,7 +135,7 @@ for i; do
     esac # option cases
 done # loop over options 
 
-source $environment 
+for env in $environment; do  source $env; done 
 workDir=$VEGASWORK
 processDir=$workDir/processed
 logDir=$workDir/log

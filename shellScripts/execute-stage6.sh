@@ -129,7 +129,7 @@ done # getopts loop
 shift $((OPTIND-1))  #This tells getopts to move on to the next argument.    
 
 ### prepare variables and directories after options are read in
-source $environment
+for env in $environment; do  source $env; done
 finalRootDir=$VEGASWORK/processed/${subDir}
 test -n $loggenFileOR && loggenFile=$loggenFileOR # if loggenFile was selected in options, use this instead of environment variable 
 s6Opts="$s6Opts -S6A_SuppressRBM=${suppressRBM}"
@@ -239,7 +239,7 @@ if [ "$runMode" != print ]; then
 #PBS -o $logFile
 #PBS -N stage6_${name}_${sourceName}
 
-source $environment
+for env in $environment; do  source $env; done
 date
 hostname
 root-config --version 
