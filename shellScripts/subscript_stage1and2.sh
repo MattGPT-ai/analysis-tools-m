@@ -14,24 +14,16 @@ if [ $5 ]; then
     runNum=$3
     dataFile=$4
     laserRoot=$5
-    shift 5
 else
     echo -e "\e[0;31mmust specify stage 1 command, stage 2 command, run number, data file, and laser root file!\e[0m"
     exit 1 # failure
 fi
-
-args=`getopt e: $*` #s:
-set -- $args
-
-for i; do                      # loop through options
-    case "$i" in 
-#       -s) subDir=$2
-#           shift ; shift ;;
-        -e) source $2
-            shift ; shift ;; 
-        --) shift; break ;;
-    esac # end case $i in options
-done # loop over command line arguments 
+if [ $6 ]; then
+    environment="$4"
+    for env in $environment; do
+        source $environment
+    done
+fi
 
 workDir=$VEGASWORK
 processDir=$workDir/processed/

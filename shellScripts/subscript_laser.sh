@@ -14,17 +14,12 @@ else
     echo -e "\e[0;31mmust specify stage 1 command, data file, and root filename!\e[0m"
     exit 1 # failure
 fi
-
-args=`getopt e: $*` 
-set -- $args
-
-for i; do      # loop through options
-    case "$i" in 
-        -e) source $2
-            shift ; shift ;; 
-        --) shift; break ;;
-    esac # end case $i in options
-done # loop over command line arguments 
+if [ $4 ]; then 
+    environment="$4"
+    for env in $environment; do 
+	source $environment
+    done
+fi
 
 trashDir=$TRASHDIR
 laserDir=$LASERDIR #needs to match process_script.sh

@@ -11,24 +11,17 @@ if [ $3 ]; then
     cmd="$1"
     processRoot=$2 # run being processed
     previousRoot=$3 # run previous to this process
-    shift ; shift ; shift ;
+    #shift ; shift ; shift ; 
 else
     echo -e "\e[0;31mmust specify a command, root name, previous root file \e[0m"
     exit 1 # failure
 fi
-
-args=`getopt e: $*` #s:
-set -- $args
-
-for i; do                      # loop through options
-    case "$i" in 
-#	-s) subDir=$2
-#	    shift ; shift ;;
-	-e) source $2
-	    shift ; shift ;; 
-	--) shift; break ;;
-    esac # end case $i in options
-done # loop over command line arguments 
+if [ "$4" ]; then
+    environment="$4"
+    for env in $environment; do 
+	source $env
+    done
+fi
 
 workDir=$VEGASWORK
 processBaseDir=processed # these should all match parent script

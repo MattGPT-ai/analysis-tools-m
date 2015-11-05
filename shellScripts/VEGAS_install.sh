@@ -34,6 +34,7 @@ git checkout -b $ROOTver $ROOTver
 #cd build
 #cmake ..
 #cmake --build . 
+#cmake -DCMAKE_INSTALL_PREFIX=$VERITASBASE/ROOT_$ROOTver
 #cmake --build . --target install 
 make || exit 1 #-j 4
 source ./bin/thisroot.sh

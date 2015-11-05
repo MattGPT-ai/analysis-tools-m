@@ -32,7 +32,7 @@ ltVegas=vegasv250rc5
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
-scriptDir=${0/${0##*/}/}
+scriptDir=${0/\/${0##*/}/}
 source $scriptDir/setCuts.sh 
 stage4cuts=auto
 stage5cuts=auto
@@ -126,11 +126,10 @@ for i; do
 	--atm) # use one atmosphere for every run 
 	    ATM=$2
 	    shift 2 ;; 
-	-e) environment=$2 # has problem resetting spectrum if it comes after, should load first 
+	-e) environment="$2" # has problem resetting spectrum if it comes after, should load first 
 	    for env in $environment; do  source $env; done
-	    envFlag="-e $environment"
-	    stage4subFlags="$stage4subFlags $envFlag"
-	    stage5subFlags="$stage5subFlags $envFlag"
+	    #stage4subFlags="$stage4subFlags $envFlag"
+	    #stage5subFlags="$stage5subFlags $envFlag"
 	    shift; shift ;;
 	-p) priority=$2
 	    shift ; shift ;;
@@ -314,8 +313,7 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 			    laserCmd="`which vaStage1` "
 			    echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
 			    if [ "$runMode" != "print" ]; then
-				
-				touch $laserQueue/${n}_laser
+				[ "$runMode" == "qsub" ] && touch $laserQueue/${n}_laser
 				
 				$runMode <<EOF
 $qsubHeader
@@ -352,8 +350,7 @@ laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'
 		    logFile=$laserLog/${combinedLaserName}.txt
 
 		    if [ "$runMode" != print ]; then     
-			
-			touch $queueFile			
+			[ "$runMode" == "qsub" ] && touch $queueFile
 
 			$runMode <<EOF
 $qsubHeader
@@ -429,16 +426,17 @@ EOF
 	    if [ "$runBool" == "true" ]; then
 		if [ "$runMode" != print ]; then
 		    
-		    touch $queueFile_1
-		    touch $queueFile_2
-		    
+		    if [ "$runMode" == "qsub" ]; then
+			touch $queueFile_1
+			touch $queueFile_2
+		    fi
 		    $runMode <<EOF
 $qsubHeader
 #PBS -N ${runNum}.stages12
 #PBS -o $logDir/errors/${runNum}.stages12.txt
 #PBS -p $priority
 
-$subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot $envFlag
+$subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot "$environment"
 EOF
 		    nJobs=$((nJobs+1))
 		fi # end qsub for stage 1 data file
@@ -473,7 +471,6 @@ if [ "$runStage4" == "true" ]; then
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
 	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile ] ) || [ "$reprocess" == true ]; then  
 	    offset=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT offset_distance FROM tblRun_Info WHERE run_id = ${runNum}"`
-	    #echo "$offset"
 	    #zenith=`mysql -h romulus.ucsc.edu -u readonly -s N -e "use ; SELECT FROM WHERE "`
 
 	    setEpoch $runDate
@@ -486,7 +483,6 @@ if [ "$runStage4" == "true" ]; then
 
 		ltFile=$tableDir/${ltName}.root
 	    fi # automatic lookup table 
-#	    test -f $ltFile || echo -e "\e[0;31mLookup table $ltFile does not exist! \e[0m"
 	    tableFlags="-table=${ltFile}"
 
 	    if [ "$stg4method" == disp ]; then
@@ -534,16 +530,16 @@ if [ "$runStage4" == "true" ]; then
 	    fi
 
 	    if [ "$runMode" != print ]; then
-		touch $queueFile
-
+		[ "$runMode" == "qsub" ] && touch $queueFile
+		
 		$runMode <<EOF
 $qsubHeader
-#PBS -N ${stage4subDir}${runNum}.stage4
+#PBS -N ${stage4subDir}_${runNum}.stage4
 #PBS -o $runLog
 #PBS -p $priority
 
-$subscript45 "$cmd" $rootName_4 $rootName_2 $stage4subFlags
-echo "$spectrum"
+echo "spectrum: $spectrum"
+$subscript45 "$cmd" "$rootName_4" "$rootName_2" "$environment"
 EOF
 
 		nJobs=$((nJobs+1))
@@ -569,11 +565,10 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    #test ! -f $rootName_4 || continue;
 	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]; then
 		
-		queueName=${queueDir}/${stage5subDir}_${runNum}.stage5
-		if [ ! -f $queueName ]; then
+		queueFile=${queueDir}/${stage5subDir}_${runNum}.stage5
+		if [ ! -f $queueFile ]; then
 		    
 		    if [ "$stage5cuts" == "auto" ]; then
 			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
@@ -593,7 +588,7 @@ if [ "$runStage5" == "true" ]; then
 			
 			weightsDir=${weightsDirBase} #_${array}
 			#  
-			if [[ ! -d $weightsDirBase/${weightsDir} ]]; then
+			if [[ ! -d ${weightsDir} ]]; then
 			    echo -e "\e[0;31m${weightsDir} does not exist. this may be a problem!\e[0m"
 			fi
 			cmd="$cmd -BDTDirectory=${weightsDir}"
@@ -610,30 +605,31 @@ if [ "$runStage5" == "true" ]; then
 		    
 		    if [ "$runMode" != print ]; then
 			
-			touch $queueName
+			[ "$runMode" == "qsub" ] && touch $queueFile
 			
 			$runMode <<EOF
 $qsubHeader
-#PBS -N ${stage5subDir}${runNum}.stage5
+#PBS -N ${stage5subDir}_${runNum}.stage5
 #PBS -o $runLog
 #PBS -p $priority
 
-$subscript45 "$cmd" $rootName_5 $rootName_4 $stage5subFlags #removed $cutsDir/$stage5cuts
-echo "$spectrum"
+echo "spectrum: $spectrum"
+$subscript45 "$cmd" "$rootName_5" "$rootName_4" "$environment" 
 EOF
 		    nJobs=$((nJobs+1))
 		    fi # end runmode check
-		else # stage 4 file not present to run stage 5 
-		    echo "$rootName_4 is not present, skipping $rootName_5 !"
-		fi # stage 4 file present
-	    fi # stage 5 not in queue 
+#		else # queueFile already exists
+		fi # queueFile5 does not exist 
+	    else
+		echo "$rootName_4 is not present, skipping $rootName_5 !"
+	    fi # stage 4 file exists or is in queue  
 	fi # stage 5 not present yet
     done < $readList
 fi # runStage5
 
 ##### STAGE 6 #####
 if [ "$runStage6" == "true" ]; then
-    cmd="`which execute-stage6.sh` -e $environment -s spectrum -d $subDir -n $name -r $runMode"
+    cmd="`which execute-stage6.sh` -e \"$environment\" -s spectrum -d $subDir -n $name -r $runMode"
     echo "$cmd"
 fi
 
