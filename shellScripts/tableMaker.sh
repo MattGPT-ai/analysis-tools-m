@@ -106,9 +106,9 @@ workDir=$VEGASWORK
 # check dirs!
 # completed rejected processed
 
-logDir=$workDir/tables/log
+logDir=$workDir/tables/tableLog
 if [ ! -d $logDir ]; then
-    echo "Must create table $logDir !!!"
+    echo "Must create directory $logDir !!!"
     #mkdir $logDir
     exit 1
 fi

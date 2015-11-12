@@ -26,14 +26,13 @@ spectrum=medium
 
 cutMode4=auto
 cutMode5=auto
-scriptDir=${0/${0##*/}/}
+scriptDir=${0/\/${0##*/}/}
 source $scriptDir/setCuts.sh
 
 configFlags4="-G_SimulationMode=1"
 configFlags5="-G_SimulationMode=1 -Method=VACombinedEventSelection"
 
 environment=$HOME/environments/SgrA_source.sh 
-envFlag="-e $environment"
 subscript45=$scriptDir/subscript_4or5.sh
 
 ltMode=auto
@@ -49,12 +48,16 @@ qsubHeader="
 #PBS -p 0
 "
 
-args=`getopt -o 45qr:bc:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT,disp:,cutTel:,override,offsets:,array:,atm:,stage4dir:,noises:,zeniths: -n sim_script.sh -- "$@"`
+args=`getopt -o 4:5:qr:bc:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,noises:,zeniths: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
-	-4) runStage4=true ; shift ;; 
-	-5) runStage5=true ; shift ;; 
+	-4) runStage4=true 
+	    stage4subDir=$2
+	    shift 2 ;; 
+	-5) runStage5=true
+	    stage5subDir=$2
+	    shift 2 ;; 
 	-q) runMode=qsub ; shift ;;
 	-r) runMode="${2}" ; shift 2 ;;
 	-b) createFile() {
@@ -84,9 +87,6 @@ for i; do
 		    cutFlags5="-cuts=${2}" ;; 
 	    esac 
 	    shift 2 ;; 
-	-d) subDir=$2 ; shift 2 ;; # directory name should not contain spaces 
-	--stage4dir) 
-	    stage4dir=$2 ; shift 2 ;; 
 	-z|--zeniths) zeniths="$2" ; shift 2 ;;
 	-o|--offsets) offsets="$2" ; shift 2 ;; 
 	--noises) noises="$2" ; shift 2 ;;
@@ -107,8 +107,8 @@ for i; do
 	    esac
 	    shift 2 ;; 
 	-w) workDir=$2 ; shift 2 ;; 
-	-e) environment=$2  
-	    envFlag="-e $environment" ; shift 2 ;;
+	-e) environment="$2" 
+	    shift 2 ;;
 	--disp) 
 	    stg4method=disp 
 	    dispMethod=${2}
@@ -121,10 +121,16 @@ for i; do
 	--cutTel)
 	    configFlags4="$configFlags4 -CutTelescope=${2}/1"
 	    shift 2 ;; 
-  	-B|--BDT) 
-	    useBDT=true
+  	-B) # only makes stage 5 BDT training ready, doesn't apply BDTs
+	    prepareBDT=true
 	    cutMode5=none # not necessary 
-	    cutFlags5="" ; shift ;; 
+	    cutFlags5="" 
+	    shift ;; 
+	--BDT) # actually applies BDTs, requires weights file
+	    configFlags5="$configFlags5 -UseBDT=1"
+	    configFlags5="$configFlags5 -BDTDirectory=${2}"
+	    test -d $2 || ( echo -e "Weights directory does not exist!"; exit 1 ) 
+	    shift 2 ;; 
 	-D) DistanceUpper=${2} ; shift 2 ;; 
 	--override) 
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
@@ -141,17 +147,15 @@ processDir=$workDir/processed
 logDir=$workDir/log
 queueDir=$workDir/queue
 
-if [ -z "$stage4dir" ]; then
-    stage4dir=$processDir/$subDir
-    #subDir=${stage4dir##*/}
-fi
 for dir in $processDir $logDir; do 
-    if [ ! -d $dir/$subDir ]; then
-	echo "must create $dir/$subDir"
-	if [ "$runMode" != "print" ]; then
-	    mkdir $dir/$subDir
-	fi 
-    fi
+    for subDir in $stage4subDir $stage5subDir; do 
+	if [ ! -d $dir/$subDir ]; then
+	    echo "must create $dir/$subDir"
+	    if [ "$runMode" != "print" ]; then
+		mkdir $dir/$subDir
+	    fi 
+	fi
+    done # 
 done  # check dirs exist 
 
 nJobs=(0) 
@@ -176,13 +180,13 @@ for array in $arrays; do
 			simFile=$dataDir/Oct2012_${array}_ATM${atm}_HFit/${simFileBase}.root
 		    fi # set name of simfile 
 
-		    rootName_4="$stage4dir/${simFileBase}.stage4.root"
-		    queueName_4=$queueDir/${subDir}_${simFileBase}.stage4${extension}
+		    rootName_4="$processDir/${stage4subDir}/${simFileBase}.stage4.root"
+		    queueName_4=$queueDir/${stage4subDir}_${simFileBase}.stage4${extension}
 
 		    ##### STAGE 4 #####
 
 		    if [ "$runStage4" == "true" ]; then
-			runLog="$logDir/$subDir/${simFileBase}.stage4.txt"
+			runLog="$logDir/$stage4subDir/${simFileBase}.stage4.txt"
 			if [ ! -f $rootName_4 ] && [ ! -f $queueName_4 ]; then
 			    if [ -f $simFile ]; then
 
@@ -224,11 +228,11 @@ for array in $arrays; do
 						    
 				    $runMode <<EOF  
 $qsubHeader  
-#PBS -N ${subDir}_${simFileBase}.stage4
+#PBS -N ${stage4subDir}_${simFileBase}.stage4
 #PBS -o $runLog
 
 # cat cuts file 
-$subscript45 "$stage4cmd" $rootName_4 $simFile $envFlag # should be able to remove cuts
+$subscript45 "$stage4cmd" $rootName_4 $simFile $environment # should be able to remove cuts
 
 exit 0 
 EOF
@@ -244,18 +248,18 @@ EOF
 		    ##### STAGE 5 #####
 		    if [ $runStage5 == "true" ]; then
 
-			if [ "$useBDT" == true ]; then
-			    stage5Dir=$processDir/$subDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb
+			if [ "$prepareBDT" == true ]; then
+			    stage5Dir=$processDir/$stage5subDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${z}deg_${offset//./}wobb
 			    test -d $stage5Dir || mkdir $stage5Dir;
 			else
-			    stage5Dir=$processDir/$subDir
+			    stage5Dir=$processDir/$stage5subDir
 			fi
 			rootName_5=$stage5Dir/${simFileBase}.stage5.root
-			queueName_5=$queueDir/${subDir}_${simFileBase}.stage5${extension}
+			queueName_5=$queueDir/${stage5subDir}_${simFileBase}.stage5${extension}
 
 			if [ ! -f $rootName_5 ] && [ ! -f $queueName_5 ]; then 
 			    if [ -f $rootName_4 ] || [ -f $queueName_4 ] || [ "$runMode" == print ]; then 
-				runLog="$logDir/$subDir/${simFileBase}.stage5${extension}.txt"
+				runLog="$logDir/$stage5subDir/${simFileBase}.stage5${extension}.txt"
 				#sims organized into directories for training 
 				
 				if [ "$cutMode5" == auto ]; then
@@ -263,6 +267,8 @@ EOF
 				    cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
 				    cutFlags5="$cutFlags5 -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
 				    test "$MaxHeightLower" -ne -100 && cutFlags5="$cutFlags5 -MaxHeightLower=$MaxHeightLower"
+				#elif [ "$cutMode5" != none ]; then 
+				    #cutFlags5=
 				fi # automatic cuts for stage 5 based on array 
 				
 				stage5cmd="`which vaStage5` $configFlags5 $cutFlags5 $extraFlags -inputFile=$rootName_4 -outputFile=$rootName_5"
@@ -274,12 +280,13 @@ EOF
 				    $runMode $redirection <<EOF  
   
 $qsubHeader   
-#PBS -N ${subDir}_${simFileBase}.stage5${extension}
+#PBS -N ${stage5subDir}_${simFileBase}.stage5${extension}
 #PBS -o $runLog
  
 # deal with cuts file 
-$subscript45 "$stage5cmd" $rootName_5 $rootName_4 $envFlag 
-#test -z "$useBDT" || mv $rootName_5 $stage5Dir
+$subscript45 "$stage5cmd" $rootName_5 $rootName_4 $environment 
+
+#test -z "$prepareBDT" || mv $rootName_5 $stage5Dir
 
 exit 0
 EOF

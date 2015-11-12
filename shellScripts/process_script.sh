@@ -71,7 +71,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahB:s:qr:e:c:C:p:kdn:o:i -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:i -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -95,7 +95,11 @@ for i; do
 	-r) runMode="$2" # cat bash 
 	    shift 2 ;;
 	-q) runMode=qsub
+	    queue=batch
 	    shift ;;
+	-Q) runMode=qsub
+	    queue=express
+	    shift ;; 
 	-n) nJobsMax=$2 
 	    shift 2 ;;
 	-b) runMode=background 

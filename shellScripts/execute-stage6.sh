@@ -31,8 +31,10 @@ syncCmd="sync_script.sh > /dev/null" #>> /home/mbuchove/log/syncLog.txt"
 runMode=print
 regen=false # for remaking runlist, currently not used, though there is an option 
 
+BOLD=`tput bold`
+NORM=`tput sgr0`
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:q4oOtjz:A:m: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -64,16 +66,12 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    s6Opts="$s6Opts -S6A_Spectrum=1"
 	    ;;
 	m) # mode to run
-	    echo "$OPTARG"
 	    case $OPTARG in
 		spectrum)
 		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=1 ;; 
 		skymap) 
 		    suppressRBM=0 ;; 
 	    esac ;; 
-	R)
-	    suppressRBM=0
-	    ;;
 	d) 
 	    subDir=$OPTARG
 	    ;;
@@ -105,9 +103,6 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    runMode=qsub
 	    s6Opts="$s6Opts -S6A_Batch=1"
 	    ;;
-	b) # change argument, decide if overwriting runlist, could just backup old before 
-	    regen=false
-	    ;;
 	t)
 	    useTestPosition=true
 	    ;;
@@ -122,7 +117,7 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qb4oOtjz:A:Rm: FLAG; do
 	    s6Opts="$s6Opts $OPTARG"
 	    ;;
 	?) # unrecognized option - show help
-	    echo -e "Option -${BOLD}$OPTARG${NORM} not allowed."
+	    echo -e "${BOLD}Option -${FLAG} -${OPTARG} not allowed.${NORM} "
 	    ;;
     esac # option cases
 done # getopts loop
@@ -141,7 +136,7 @@ for variable in $sourceName $loggenFile $spectrum; do
     fi
 done # check that necessary variables are set
 if [ ! $name ]; then
-    name=${subDir} #${spectrum}${mode}
+    name=${sourceName}_${subDir} #${spectrum}${mode}
 fi
 
 if [ "$useTestPosition" == "true" ]; then
@@ -178,7 +173,7 @@ else
 fi 
 
 # check to see if root file or logfile already exists, and back up
-logFile=$logDir/${name}_${sourceName}_stage6.txt
+logFile=$logDir/${name}_stage6.txt
 test "$runMode" != print  && logOption="| tee $logFile"
 outputFile=$VEGASWORK/results/stage6_${name}_${sourceName}_s6.root
 for file in $logFile $outputFile; do
@@ -205,7 +200,7 @@ if [ "$runMode" != print ]; then
 	fi
     fi # check file already exists
     
-    if [ ! $runFile ]; then 
+    if [ ! $runFile ]; then # || regen == "true"
 
 	runFile=$HOME/work/${sourceName}_${name}_runlist.txt
 	### create runfile using python script if it doesn't exist ###
@@ -228,8 +223,10 @@ if [ "$runMode" != print ]; then
 
 fi # if runMode is not print only 
 
-cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${sourceName}_${name} $s6Opts $readFlag $cutsFlag $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${name} $s6Opts $readFlag $cutsFlag $runFile " #
 echo "$cmd"
+
+echo $runMode 
 
 if [ "$runMode" != print ]; then
     $runMode <<EOF
@@ -253,11 +250,12 @@ if [ "$exclusionList" != none ]; then
 fi
 
 $cmd
+
 exitCode=\$?
 echo "$cmd" 
 
 if [ $cutsFile ]; then
-cat $cutsFile
+    cat $cutsFile
 fi
 
 test -f todayresult && mv todayresult $VEGASWORK/log/
