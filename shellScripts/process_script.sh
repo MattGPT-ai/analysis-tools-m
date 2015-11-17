@@ -85,7 +85,8 @@ for i; do
 	-4) runStage4="true" 
 	    stage4subDir="$2"
 	    shift 2 ;;
-	-d) stage4subDir=$2
+	-d) stage1subDir=$2
+	    stage2subDir=$2
 	    shift 2 ;; 
 	-5) runStage5="true"
 	    stage5subDir="$2"
@@ -139,12 +140,14 @@ for i; do
 	    shift ; shift ;;
 	-k) simulation=KASCADE
 	    shift ;; 
-	-h) configFlags4="$configFlags4 -HillasBranchName=HFit"
+	-h) method=hfit
+	    configFlags2="$configFlags2 -HillasFitAlgorithum=2DEllipticalGaussian"
+	    #stage2subDir=stg2_hfit
+	    configFlags4="$configFlags4 -HillasBranchName=HFit"
+	    #stage4cuts="BDT_hfit4cuts.txt"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
-	    method=hfit
-	    stage2subDir=stg2_hfit
 	    #suffix="${suffix}_hfit"
-	    shift ;; #stage4cuts="BDT_hfit4cuts.txt"
+	    shift ;; 
 	-i) useStage5outputFile="false"
 	    shift ;;
 	--deny)
@@ -423,7 +426,7 @@ EOF
   		    
 		    runBool="true"
 		    stage2cmd="`which vaStage2` "
-		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
+		    echo "$stage2cmd $configFlags2 $dataFile $rootName_2 $laserRoot" 
 		    
 		else # data file doesn't exist
 		    echo -e "\e[0;31mData file ${dataFile} does not exist! check directory\e[0m"
@@ -437,13 +440,14 @@ EOF
 			touch $queueFile_1
 			touch $queueFile_2
 		    fi
+
 		    $runMode <<EOF
 $qsubHeader
 #PBS -N ${runNum}.stages12
 #PBS -o $logDir/errors/${runNum}.stages12.txt
 #PBS -p $priority
 
-$subscript12 "$stage1cmd" "$stage2cmd" $runNum $dataFile $laserRoot "$environment"
+$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
 EOF
 		    nJobs=$((nJobs+1))
 		fi # end qsub for stage 1 data file

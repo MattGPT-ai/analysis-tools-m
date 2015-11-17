@@ -240,7 +240,7 @@ $qsubHeader
 #PBS -o $runLog
 
 # cat cuts file 
-$subscript45 "$stage4cmd" $rootName_4 $simFile $environment # should be able to remove cuts
+$subscript45 "$stage4cmd" $rootName_4 $simFile "$environment" # should be able to remove cuts
 
 exit 0 
 EOF

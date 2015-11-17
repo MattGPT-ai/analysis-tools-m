@@ -5,35 +5,39 @@
 # environment stuff:
 scratchDir=/scratch/mbuchove
 trashDir=$TRASHDIR
-stage1subDir=stg1 #needs to match process_script.sh
-stage2subDir=stg2 #also must match
 
-if [ $5 ]; then
+if [ $8 ]; then
     stage1cmd="$1"
-    stage2cmd="$2"
-    runNum=$3
-    dataFile=$4
-    laserRoot=$5
+    rootName_1="$2"
+    runStage1="$3"
+    stage2cmd="$4"
+    rootName_2="$5"
+    runNum="$6"
+    dataFile="$7"
+    laserRoot="$8"
 else
     echo -e "\e[0;31mmust specify stage 1 command, stage 2 command, run number, data file, and laser root file!\e[0m"
     exit 1 # failure
 fi
-if [ $6 ]; then
-    environment="$4"
+if [ $9 ]; then
+    environment="$9"
     for env in $environment; do
         source $environment
     done
 fi
 
 workDir=$VEGASWORK
-processDir=$workDir/processed/
+processDir=$workDir/processed
 laserDir=$LASERDIR
-logDir=$workDir/log/
-rejectDir=$workDir/rejected/
-queueDir=$workDir/queue/
+logDir=$workDir/log
+rejectDir=$workDir/rejected
+queueDir=$workDir/queue
 
-rootName_1=$processDir/${stage1subDir}/${runNum}.stage1.root
-rootName_2=$processDir/${stage2subDir}/${runNum}.stage2.root
+stage1dir=${rootName_1%\/*}
+stage2dir=${rootName_2%\/*}
+stage1subDir=${stage1dir##*\/}
+stage2subDir=${stage2dir##*\/}
+
 logFile1=$logDir/${stage1subDir}/${runNum}.stage1.txt
 logFile2=$logDir/${stage2subDir}/${runNum}.stage2.txt
 base=${laserRoot##*/}
@@ -68,12 +72,12 @@ fi # stage 1 not passed as null
 if [ "$stage2cmd" != "NULL" ]; then
     test -f $logFile2 && mv $logFile2 $trashDir/
     echo "$bbCmd" >> $logFile2
-    test ! -f $scratchFile || -z "$scratchFileCopied" && $bbCmd >> $logFile2
+    test ! -f $scratchFile || test -z "$scratchFileCopied" && $bbCmd >> $logFile2
 fi # stage 2 not passed as null
     
 if [ "$stage1cmd" != "NULL" ]; then 
     for sig in $signals; do 
-	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $refectDir/; exit $sig" $sig
+	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $rejectDir/; exit $sig" $sig
     done
     date > $logFile1
     hostname >> $logFile1 
@@ -151,7 +155,7 @@ if [ "$stage2cmd" != "NULL" ]; then
 	rm $rootName_2
 	exit 1
     else
-	rm $rootName_1 # option to save 
+	test "$runStage1" == true || rm $rootName_1 
 	cp $logFile2 $workDir/completed/ 	
     fi # command unsuccessfully completed
 
