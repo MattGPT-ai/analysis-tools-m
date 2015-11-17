@@ -22,13 +22,15 @@ runMode=print
 
 zeniths="10 20 30 40"
 
-args=`getopt -o b:qr:t:d:s:a:V: -l atm:,array: -- "$@"` # zeniths:
+args=`getopt -o b:qQr:t:d:s:a:V: -l atm:,array: -- "$@"` # zeniths:
 eval set -- ${args//\'/} # not sure why i have to do this, single quotes are being added around option arguments for some reason 
 #echo ${args//\'/}
 for i; do
     case "$i" in 
-	-q) runMode=qsub
-	    shift ;;       
+	-q) runMode=qsub ; queue=batch
+	    shift ;;    
+	-Q) runMode=qsub ; queue=batch
+	    shift ;; 
 	-r) runMode="$2"
 	    shift 2 ;;
 	-b) bgDir=$2
@@ -135,6 +137,7 @@ for z in $zeniths; do
 #PBS -j oe
 #PBS -o $logFile
 #PBS -N $fileNameBase
+#PBS -q $queue
 
 date
 hostname

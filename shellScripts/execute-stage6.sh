@@ -34,7 +34,7 @@ regen=false # for remaking runlist, currently not used, though there is an optio
 BOLD=`tput bold`
 NORM=`tput sgr0`
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:q4oOtjz:A:m: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjz:A:m: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -99,9 +99,11 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:q4oOtjz:A:m: FLAG; do
 	r) # command used to run the generated script, e.g. bash, qsub, condor, etc. 
 	    runMode=$OPTARG
 	    ;;
-	q)
+	q|Q)
 	    runMode=qsub
 	    s6Opts="$s6Opts -S6A_Batch=1"
+	    [[ $FLAG == 'q' ]] && queue=batch
+	    [[ $FLAG == 'Q' ]] && queue=express
 	    ;;
 	t)
 	    useTestPosition=true
@@ -232,6 +234,7 @@ if [ "$runMode" != print ]; then
     $runMode <<EOF
 #PBS -S /bin/bash
 #PBS -l nodes=1,mem=2gb
+#PBS -q $queue 
 #PBS -j oe
 #PBS -o $logFile
 #PBS -N stage6_${name}_${sourceName}

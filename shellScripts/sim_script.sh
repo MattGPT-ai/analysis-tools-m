@@ -40,14 +40,6 @@ bgScriptDir=$HOME/bgScripts
 runMode=print
 nJobsMax=(1000) 
 
-qsubHeader="
-#!/bin/bash -f
-#PBS -l nodes=1,mem=2gb,walltime=48:00:00
-#PBS -j oe
-#PBS -V 
-#PBS -p 0
-"
-
 args=`getopt -o 4:5:qr:bc:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,noises:,zeniths: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
@@ -58,7 +50,14 @@ for i; do
 	-5) runStage5=true
 	    stage5subDir=$2
 	    shift 2 ;; 
-	-q) runMode=qsub ; shift ;;
+	-q) runMode=qsub 
+	    qsubHeader="$qsubHeader
+#PBS -q batch"
+	    shift ;;
+	-Q) runMode=qsub
+	    qsubHeader="$qsubHeader
+#PBS -q express"
+	    shift ;; 
 	-r) runMode="${2}" ; shift 2 ;;
 	-b) createFile() {
 		cat $1 >> $bgScriptDir/${runLog##*/}
@@ -146,6 +145,15 @@ workDir=$VEGASWORK
 processDir=$workDir/processed
 logDir=$workDir/log
 queueDir=$workDir/queue
+
+#!/bin/bash -f
+qsubHeader="
+#PBS -S /bin/bash 
+#PBS -l nodes=1,mem=2gb,walltime=48:00:00
+#PBS -j oe
+#PBS -V 
+#PBS -p 0
+#PBS -q $queue "
 
 for dir in $processDir $logDir; do 
     for subDir in $stage4subDir $stage5subDir; do 

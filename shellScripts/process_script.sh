@@ -160,6 +160,9 @@ for i; do
     esac # end case $i in options
 done # loop over command line arguments 
 
+qsubHeader="$qsubHeader
+#PBS -q $queue"
+
 workDir=$VEGASWORK
 processDir=$workDir/processed
 logDir=$workDir/log

@@ -41,11 +41,14 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny: -- "$@"`
+args=`getopt -o qQr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny: -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
-	-q) runMode=qsub ; shift ;; 
+	-q) runMode=qsub 
+	    queue=batch ; shift ;; 
+	-Q) runMode=qsub
+	    queue=express ; shift ;; 
 	-r) # the command that runs the herefile
 	    runMode="$2" ; shift 2 ;;
 	-b) createFile() {
@@ -112,7 +115,6 @@ if [ ! -d $logDir ]; then
     #mkdir $logDir
     exit 1
 fi
-
 
 setCuts
 cuts="-SizeLower=${SizeLower} -DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin}"
@@ -260,6 +262,7 @@ for zGroup in $zeniths; do
 #PBS -N $tableFileBase
 #PBS -o $logFile
 #PBS -p $priority
+#PBS -q $queue
 
 # clean up files upon exit, make sure this executes when other trap is triggered 
 cleanUp() { 
