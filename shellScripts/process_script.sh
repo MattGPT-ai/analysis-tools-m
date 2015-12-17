@@ -425,8 +425,8 @@ EOF
 		if [ -f $dataFile ]; then
   		    
 		    runBool="true"
-		    stage2cmd="`which vaStage2` "
-		    echo "$stage2cmd $configFlags2 $dataFile $rootName_2 $laserRoot" 
+		    stage2cmd="`which vaStage2` $configFlags2"
+		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
 		    
 		else # data file doesn't exist
 		    echo -e "\e[0;31mData file ${dataFile} does not exist! check directory\e[0m"

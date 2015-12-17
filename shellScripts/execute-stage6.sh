@@ -71,6 +71,8 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjz:A:m: FLAG; do
 		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=1 ;; 
 		skymap) 
 		    suppressRBM=0 ;; 
+		both)
+		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=0 ;; 
 	    esac ;; 
 	d) 
 	    subDir=$OPTARG
@@ -227,8 +229,6 @@ fi # if runMode is not print only
 
 cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${name} $s6Opts $readFlag $cutsFlag $runFile " #
 echo "$cmd"
-
-echo $runMode 
 
 if [ "$runMode" != print ]; then
     $runMode <<EOF

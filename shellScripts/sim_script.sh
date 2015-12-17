@@ -153,7 +153,7 @@ qsubHeader="
 #PBS -j oe
 #PBS -V 
 #PBS -p 0
-#PBS -q $queue "
+"
 
 for dir in $processDir $logDir; do 
     for subDir in $stage4subDir $stage5subDir; do 

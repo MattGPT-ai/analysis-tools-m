@@ -41,7 +41,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qQr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny: -- "$@"`
+args=`getopt -o qQr:bn:p: -l array:,atm:,zeniths:,offsets:,noises:,spectrum:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny:,suppress -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -87,11 +87,13 @@ for i; do
 	--xOpts) # must enter full argument 
 	    xOpts="$xOpts ${2}" ; shift 2 ;; # be careful about
 	--nameExt) 
-	    nameExt="_${2}" ; shift 2 ;; 
+	    nameExt="${nameExt}_${2}" ; shift 2 ;; 
 	--noises) # questionable  
 	    noises="$2" ; shift 2 ;; 
 	--allNoise)
 	    allNoise=true ; shift ;; 
+	--suppress)
+	    suppress=true ; shift ;; 
 	--waitFor) # do not start if pattern shows up in current processes 
 	    waitString="$2" ; shift 2 ;; 
 	--) 
@@ -135,7 +137,8 @@ noiseNum=${#noiseArray[@]}
 simFileSubDir=Oct2012_${array}_ATM${atm}
 
 if [ "$table" == ea ]; then
-    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}.txt    
+    # tweak offsets 
+    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}_${offsets//./}wobb${nameExt}.txt    
 else
     tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
 fi
@@ -395,7 +398,9 @@ if [ "$runMode" != print ]; then
     fi
 fi # write table list file if it's changed 
 
+#if [ "$suppress" != true ]; then 
 echo "$tableList"
-echo "$buildCmd"
+[ "$suppress" != "true" ] && echo "$buildCmd"
+#fi 
 
 exit 0 # great job 
