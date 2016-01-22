@@ -10,7 +10,7 @@ outputDir=results
 loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 
 #common defaults, make more variables? 
-s6Opts="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=3" #-S6A_Spectrum=1
+s6Opts="-S6A_ExcludeSource=1 -S6A_DrawExclusionRegions=2" #-S6A_Spectrum=1
 suppressRBM=1
 
 source ${0/${0##*/}/}/setCuts.sh
@@ -34,7 +34,7 @@ regen=false # for remaking runlist, currently not used, though there is an optio
 BOLD=`tput bold`
 NORM=`tput sgr0`
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjz:A:m: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -117,8 +117,11 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjz:A:m: FLAG; do
 	j)
 	    s6Opts="$s6Opts -RBM_CoordinateMode=\"J2000"\"
 	    ;;
+	u)
+	    s6Opts="$s6Opts -S6A_UpperLimit=1"
+	    ;;
 	z) # intended for BDT cuts 
-	    s6Opts="$s6Opts $OPTARG"
+	    s6OptsExtra="$OPTARG"
 	    ;;
 	?) # unrecognized option - show help
 	    echo -e "${BOLD}Option -${FLAG} -${OPTARG} not allowed.${NORM} "
@@ -145,6 +148,11 @@ fi
 
 if [ "$useTestPosition" == "true" ]; then
     s6Opts="$s6Opts $positionFlags"
+fi
+if [[ "$s6Opts" =~ "S6A_UpperLimit" ]]; then
+    if [ $UL_Gamma1 ]; then s6Opts="-UL_Gamma1=$UL_Gamma1 $s6Opts"; fi
+    if [ $UL_Gamma2 ]; then s6Opts="-UL_Gamma2=$UL_Gamma2 $s6Opts"; fi
+    if [ $UL_Gamma3 ]; then s6Opts="-UL_Gamma3=$UL_Gamma3 $s6Opts"; fi
 fi
 
 if [ $exclusionList ] && [ "$exclusionList" != none ]; then 
@@ -227,7 +235,7 @@ if [ "$runMode" != print ]; then
 
 fi # if runMode is not print only 
 
-cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${name} $s6Opts $readFlag $cutsFlag $runFile " #
+cmd="`which vaStage6` -S6A_ConfigDir=${outputDir} -S6A_OutputFileName=${name} $readFlag $cutsFlag $s6Opts $s6OptsExtra $runFile " #
 echo "$cmd"
 
 if [ "$runMode" != print ]; then
@@ -237,7 +245,7 @@ if [ "$runMode" != print ]; then
 #PBS -q $queue 
 #PBS -j oe
 #PBS -o $logFile
-#PBS -N stage6_${name}_${sourceName}
+#PBS -N stage6_${name} 
 
 for env in $environment; do  source $env; done
 date
