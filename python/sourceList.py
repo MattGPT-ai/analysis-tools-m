@@ -25,6 +25,8 @@ veritas.elevation = 1268
 
 minElevation = 20 # the lowest elevation stars to look at
 
+#def main()
+
 #argument parser
 parser = argparse.ArgumentParser(description="Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each star. For a more general look at elevation and moon distance, see moonDist.py..")
 
@@ -208,6 +210,9 @@ print("The Moon is %0.2f%% illuminated" % illum)
 print(TheMoon.dec) 
 
 sys.exit(0) # great job 
+
+#if __name__ == '__main__':
+  #main()
 
 # some unused code for finding available functions 
 #fbdy = ephem.FixedBody()

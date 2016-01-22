@@ -30,7 +30,7 @@ class ListGen(object):
     self.UA_date = "2012-09-01"
 
     #Database information
-    self.hostName = "lucifer1.spa.umn.edu"
+    self.hostName = "romulus.ucsc.edu"
     self.portNum = 33060
     
     #define months for ATM21/ATM22 distinction
