@@ -1,6 +1,7 @@
 queueDel() { # 
 
     key=$1
+
     while read -r line; do 
 	if [[ "$line" =~ "Job_Name" ]] && [[ "$line" =~ "$key" ]]; then 
 	    if [[ "$previousLine" =~ "Job Id:" ]]; then

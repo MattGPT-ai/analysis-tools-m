@@ -29,7 +29,7 @@ cd $VERITASBASE/ #src/
 git clone http://root.cern.ch/git/root.git ROOT_$ROOTver
 cd ROOT_$ROOTver
 git checkout -b $ROOTver $ROOTver
-./configure --enable-minuit2 --enable-mysql # --enable-roofit
+./configure --enable-minuit2 --enable-mysql --enable-fitsio # --enable-roofit
 #./configure --enable-minuit2 linuxx8664gcc --prefix=$VERITASBASE
 #cd build
 #cmake ..
