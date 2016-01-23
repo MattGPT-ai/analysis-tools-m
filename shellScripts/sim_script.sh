@@ -40,7 +40,7 @@ bgScriptDir=$HOME/bgScripts
 runMode=print
 nJobsMax=(1000) 
 
-args=`getopt -o 4:5:qr:bc:C:d:z:o:n:s:h:l:w:BD:e:x: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,noises:,zeniths: -n sim_script.sh -- "$@"`
+args=`getopt -o 4:5:qQr:bc:C:d:z:o:n:s:h:l:w:BD:e:x:L: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,noises:,zeniths: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -135,7 +135,9 @@ for i; do
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
 	-x) extraFlags="$2"
-	    shift ;; 
+	    shift 2 ;; 
+	-L) logDir="$2"
+	    shift 2 ;; 
 	--) shift ;;
     esac # option cases
 done # loop over options 
@@ -143,8 +145,8 @@ done # loop over options
 for env in $environment; do  source $env; done 
 workDir=$VEGASWORK
 processDir=$workDir/processed
-logDir=$workDir/log
 queueDir=$workDir/queue
+test -z "$logDir" && logDir=$workDir/log
 
 #!/bin/bash -f
 qsubHeader="
