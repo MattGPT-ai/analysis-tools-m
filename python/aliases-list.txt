@@ -1,0 +1,3 @@
+alias moondist='python ~/SourceList/sourceList.py --targets moonlight_targets --minMoonDist 10 --minElevation 20'
+alias psfStars='python ~/SourceList/sourceList.py --targets psf_stars --minMoonDist 30 --maxMoonDist 150'
+alias reflectivityStars='python ~/SourceList/sourceList.py --minElevation 50 --maxElevation 80 --mag 3.0 --minMoonDist 45 --maxMoonDist 135'

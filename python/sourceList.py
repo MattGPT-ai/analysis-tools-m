@@ -6,7 +6,6 @@
 # written for python2 - python3 will require editing of print statements 
 # e.g. print("text"), -> print("text",end="")
 
-
 import sys, operator, argparse
 import ephem, subprocess
 from math import ceil 
@@ -23,18 +22,24 @@ veritas.lat = '31:40.51'
 veritas.lon = '-110:57.132'
 veritas.elevation = 1268
 
-minElevation = 20 # the lowest elevation stars to look at
+minElevation = 20 # the lowest elevation sources to look at
 
 #def main()
+def is_number(s):
+    try: 
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 #argument parser
-parser = argparse.ArgumentParser(description="Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf stars to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each star. For a more general look at elevation and moon distance, see moonDist.py..")
+parser = argparse.ArgumentParser(description="Takes optional arguments to specify date and source collection, and min / max moon distances. If no arguments are specified, will choose from all psf sources to make an ordered list appropriate for taking a PSF measurement, as well as suggested exposure times for each source. For a more general look at elevation and moon distance, see moonDist.py..")
 
 parser.add_argument('--date', default=veritas.date, help="Specify DATE (in UT) in the format \"YYYY/MM/DD HH:MM:SS\"   don\'t forget the quotation marks. The default value is today's date.")
 
-parser.add_argument('--minMoonDist', default=30, type=float, help="The minimum distance in degrees that a star should be from the moon to include it in the list. The default value is 30 degrees.") 
+parser.add_argument('--minMoonDist', default=30, type=float, help="The minimum distance in degrees that a source should be from the moon to include it in the list. The default value is 30 degrees.") 
 
-parser.add_argument('--maxMoonDist', default=90, type=float, help="The maximum distance in degrees that a star should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
+parser.add_argument('--maxMoonDist', default=90, type=float, help="The maximum distance in degrees that a source should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
 
 parser.add_argument('--minElevation', default=20, type=float, help="The minimum elevation in degrees you would like to look at. The default is 20 degrees")
 
@@ -47,11 +52,11 @@ parser.add_argument('--targets', default='psf_stars', help="Specifies collection
 parser.add_argument('--print-doublets', dest='printDoublets', action='store_true')
 parser.set_defaults( printDoublets=True )
 
-parser.add_argument('--minStarDist', type=float, default=0.5, help="If a star isn't at least this distance from another bright star, print out a warning")
-
 parser.add_argument('--reverse', dest='reverseSort', type=bool, default=True, help="Reverse the order of your sort, true by default.")
 
 parser.add_argument('--nocuts',help = 'displays results for all targets in the list, even if they fail the moon distance and elevation cuts', action = "store_true")
+
+parser.add_argument('--checkProximity', type=float, default=-0.1, help="Prints out a warning if another source is closer than this value in degrees. Not very useful when using all target lists")
 
 args = parser.parse_args()
 
@@ -60,8 +65,9 @@ veritas.date = args.date
 # letting user know the date and target collection used.
 print
 print "Date and time used (in UT): %s" %veritas.date
-print "Will select stars between %s and %s degrees from the moon.." %(args.minMoonDist,args.maxMoonDist)
-print "Generating an ordered list of stars to use for a PSF measurement using targets in %s collection..." %args.targets
+print "Will select sources between %s and %s degrees from the moon and above %s degrees elevation.." %(args.minMoonDist, args.maxMoonDist, args.minElevation)
+print "Generating an ordered list of sources to use for specified measurement using targets in %s collection..." %args.targets
+print "Exposure time listed is the recommended time for PSF measurements based on brightness"
 
 # MySQL command, runs on command line through subprocess
 targetList = args.targets.split(",")
@@ -80,6 +86,7 @@ QUERY, err = sqlOut.communicate()
 if QUERY == "":
   print
   print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :'("
+  exit(1)
 
 # dict for sorting/writing stars and their info 
 moonlightSources = {} 
@@ -92,11 +99,15 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
     continue
   # parsing through query results
   sourceName = source.split("\t")[0]
-  sourceRA = float( source.split("\t")[1] )
-  sourceDEC = float ( source.split("\t")[2] )
+  sourceRA = float( source.split("\t")[1] ) # if is_number(sourceRA) else sourceRA = '-'
+  sourceDEC = float ( source.split("\t")[2] ) 
   sourceEpoch = source.split("\t")[3]
-  magnitude =  float( sourceName.split()[1] )
-
+  splitName = sourceName.split()
+  if len(splitName) > 2 and is_number(splitName[1]) == True:
+    magnitude =  float( splitName[1] ) 
+  else:
+    magnitude = '-'
+ 
   if len(sourceName) > maxNameLength:
     maxNameLength = float(len(sourceName))
 
@@ -119,47 +130,45 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   sourceObj._dec = sourceDEC
   sourceObj.compute(veritas)
 
-  # check for any stars that are too close to another bright star to be distinguished
+  # check for any sources that are too close to another bright source to be distinguished
   if args.printDoublets:
-    minStarDist = float("inf")
+    minSourceDist = float("inf")
     for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
       if count2 == 0: 
         continue
-      starCmpName = sourceComp.split("\t")[0]    
-      starCmpRA = float( sourceComp.split("\t")[1] )
-      starCmpDEC = float( sourceComp.split("\t")[2] )
-      starCmpEpoch = sourceComp.split("\t")[3]
-      starCmpObjCmp = ephem.FixedBody()
-      starCmpObjCmp._ra = starCmpRA
-      starCmpObjCmp._dec = starCmpDEC
-      starCmpObjCmp.compute(veritas)
-      starDist = 180./ephem.pi * ephem.separation((sourceRA,sourceDEC),(starCmpRA,starCmpDEC))
-      if starCmpName != sourceName:
-        if starDist < minStarDist: 
-          minStarDist = starDist 
-          if starDist < args.minStarDist: # used to print out bright stars that are too close to each other, less than half a degree apart
-            starDistString = "WARNING! These stars are very close! "+sourceName+" and "+starCmpName+" are "+str(starDist)+" degrees from each other!\nRA: "+str(sourceRA)+" DEC: "+str(sourceDEC)+" RA: "+str(starCmpRA)+" DEC: "+str(starCmpDEC)
-            print(starDistString)
+      sourceCmpName = sourceComp.split("\t")[0]    
+      sourceCmpRA = float( sourceComp.split("\t")[1] )
+      sourceCmpDEC = float( sourceComp.split("\t")[2] )
+      sourceCmpEpoch = sourceComp.split("\t")[3]
+      sourceCmpObjCmp = ephem.FixedBody()
+      sourceCmpObjCmp._ra = sourceCmpRA
+      sourceCmpObjCmp._dec = sourceCmpDEC
+      sourceCmpObjCmp.compute(veritas)
+      sourceDist = 180./ephem.pi * ephem.separation((sourceRA,sourceDEC),(sourceCmpRA,sourceCmpDEC))
+      if sourceCmpName != sourceName:
+        if sourceDist < minSourceDist: 
+          minSourceDist = sourceDist 
+          if sourceDist < args.checkProximity: # used to print out bright sources that are too close to each other, less than half a degree apart
+            sourceDistString = "WARNING! These sources are very close! "+sourceName+" and "+sourceCmpName+" are "+str(sourceDist)+" degrees from each other!\nRA: "+str(sourceRA)+" DEC: "+str(sourceDEC)+" RA: "+str(sourceCmpRA)+" DEC: "+str(sourceCmpDEC)
+            print(sourceDistString)
   
   sourceEl = sourceObj.alt*180./ephem.pi # elevation of source
   sourceAz = sourceObj.az*180./ephem.pi # azimuth of source 
 
-  #moonlightSources[sourceName]=[(sourceEl, sourceAz, degFromMoon, magnitude)]
   moonlightSources[sourceName]=(sourceEl, sourceAz, degFromMoon, magnitude)
+  #moonlightSources[sourceName]=[(sourceEl, sourceAz, degFromMoon, magnitude)]
 
 # end of for loop
 
 
-sortChoiceDict = {'elevation': 0, 'azimuth': 1, 'moonDist': 2, 'magnitude': 3}
-#sortChoiceDict = {'elevation': 1, 'azimuth': 2, 'moonDist': 3, 'magnitude': 4}
-sortIndex = int ( sortChoiceDict.get(args.sortBy) )
-if not sortIndex:
-  print ( "sortBy argument %s not recognized, sorting by elevation!" % args.sortBy )
-  sortIndex = sortChoiceDict.get('elevation')
-
 # sort the sources by selected criteria 
+sortChoiceDict = {None: 0, 'elevation': 1, 'azimuth': 2, 'moonDist': 3, 'magnitude': 4}
+sortIndex = int ( sortChoiceDict.get(args.sortBy, 0) )
 sorted_sources = moonlightSources.items()
-sorted_sources.sort( key = lambda x:x[1][sortIndex], reverse=args.reverseSort ) 
+if sortIndex:
+  sorted_sources.sort( key = lambda x:x[1][sortIndex], reverse=args.reverseSort ) 
+else:
+  print ( "sortBy argument %s not recognized, not sorting!" % args.sortBy )
 
 # the dictionary could be directly sorted, or 
 #sorted_sources = sorted(moonlightSources.iteritems(), key=operator.itemgetter(1), reverse=args.reverseSort)
@@ -186,10 +195,12 @@ for source in sorted_sources:
   dist = source[1][2] # elevation 
   magnitude =  source[1][3]
 
-  # check that star meets parameters 
-  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and magnitude < args.mag or args.nocuts == true:
-    # recommend time for exposure based on star magnitude 
-    if magnitude > 4.:
+  # check that source meets parameters 
+  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and magnitude < args.mag or args.nocuts == True:
+    # recommend time for exposure based on source magnitude 
+    if type(magnitude) is not float:
+      exposure = '-'
+    elif magnitude > 4.:
       exposure = 2.0 
     elif magnitude > 3.:
       exposure = 1.5
@@ -197,7 +208,7 @@ for source in sorted_sources:
       exposure = 1.0
     else:
       exposure = 0.5
-
+    
     length = len(name)
     numTabs = int( ceil( (columnLength-length-1)/8. ) ) 
     print(name),
