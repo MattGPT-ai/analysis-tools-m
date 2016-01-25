@@ -54,7 +54,7 @@ parser.set_defaults( printDoublets=True )
 
 parser.add_argument('--reverse', dest='reverseSort', type=bool, default=True, help="Reverse the order of your sort, true by default.")
 
-parser.add_argument('--nocuts',help = 'displays results for all targets in the list, even if they fail the moon distance and elevation cuts', action = "store_true")
+parser.add_argument('--noCuts',help = 'displays results for all targets in the list, even if they fail the moon distance and elevation cuts', action = "store_true")
 
 parser.add_argument('--checkProximity', type=float, default=-0.1, help="Prints out a warning if another source is closer than this value in degrees. Not very useful when using all target lists")
 
@@ -155,18 +155,18 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
   sourceEl = sourceObj.alt*180./ephem.pi # elevation of source
   sourceAz = sourceObj.az*180./ephem.pi # azimuth of source 
 
-  moonlightSources[sourceName]=(sourceEl, sourceAz, degFromMoon, magnitude)
+  moonlightSources[sourceName]=(sourceEl, sourceAz, degFromMoon, magnitude, minSourceDist)
   #moonlightSources[sourceName]=[(sourceEl, sourceAz, degFromMoon, magnitude)]
 
 # end of for loop
 
 
 # sort the sources by selected criteria 
-sortChoiceDict = {None: 0, 'elevation': 1, 'azimuth': 2, 'moonDist': 3, 'magnitude': 4}
-sortIndex = int ( sortChoiceDict.get(args.sortBy, 0) )
+sortChoiceDict = {'elevation': 0, 'azimuth': 1, 'moonDist': 2, 'magnitude': 3}
+sortIndex = sortChoiceDict.get(args.sortBy, None)
 sorted_sources = moonlightSources.items()
-if sortIndex:
-  sorted_sources.sort( key = lambda x:x[1][sortIndex], reverse=args.reverseSort ) 
+if sortIndex != None:
+  sorted_sources.sort( key = lambda x:x[1][int(sortIndex)], reverse=args.reverseSort ) 
 else:
   print ( "sortBy argument %s not recognized, not sorting!" % args.sortBy )
 
@@ -196,7 +196,7 @@ for source in sorted_sources:
   magnitude =  source[1][3]
 
   # check that source meets parameters 
-  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and magnitude < args.mag or args.nocuts == True:
+  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and ( magnitude == '-' or magnitude < args.mag ) or args.noCuts == True:
     # recommend time for exposure based on source magnitude 
     if type(magnitude) is not float:
       exposure = '-'
@@ -214,7 +214,7 @@ for source in sorted_sources:
     print(name),
     for i in range (0, numTabs):
       print("\t"),
-    print("%0.3f\t\t%0.3f\t\t%0.3f\t\t%0.1f" %(el, az, dist, exposure))
+    print("%0.3f\t\t%0.3f\t\t%0.3f\t\t%s" %(el, az, dist, exposure))
 
 print("----------------------------------------------------------------------------------------")
 print("The Moon is %0.2f%% illuminated" % illum)
