@@ -38,8 +38,10 @@ stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
-configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
+configFlags5="-CMC_RemoveCutEvents=1 -Method=AStereoEventSelection"
+#configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
+#read2from4=
 useStage5outputFile=true
 useBDT=false
 
@@ -88,6 +90,7 @@ for i; do
 	-d) stage1subDir=$2
 	    stage2subDir=$2
 	    shift 2 ;; 
+	#-D) use copy stage4 instead of stage2 to save having stage2 copies
 	-5) runStage5="true"
 	    stage5subDir="$2"
        	    shift 2 ;;
@@ -527,6 +530,7 @@ if [ "$runStage4" == "true" ]; then
 		denyFlag=""
 	    fi
 
+	    # not sure if should use cutTelFlags
             cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$cmd"
 
