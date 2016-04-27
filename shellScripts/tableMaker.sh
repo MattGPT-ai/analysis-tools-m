@@ -185,6 +185,7 @@ for zGroup in $zeniths; do
 	    simFileList=${simFileList}_${array}_ATM${atm}_Z${zGroup//,/-}_${oGroupNoDot//,/-}wobb_${noiseSpec}${nameExt}.txt 
 
 	    tempSimFileList=`mktemp` || ( echo "temp file creation failed! " 1>&2 ; exit 1 ) 
+	    fail=false
 	    for z in ${zGroup//,/ }; do 
 		for o in ${oGroup//,/ }; do 
 		    noiseGroup=${noiseArray[$noiseIndex]} 
@@ -197,14 +198,17 @@ for zGroup in $zeniths; do
 			fi
 			if [ -f $simFileScratch ] || [ "$validate" != true ]; then 
 			    echo "$simFileScratch" >> $tempSimFileList
-			elif [ "$validate" == true ] && [ ! -f $simFileScratch ]; then  
+			else   
 			    test -n "$suppress" || echo "$simFileScratch does not exist!"
+			    fail=true
 			    break 3 
 			fi 
 
 		    done # individual noises
 		done # individual offsets
 	    done # individual zeniths
+	    #[ "$fail" != "true" ] || continue
+	    
 	    if [ "$runMode" != print ]; then 
 		if [ ! -f $simFileList ]; then
 		    cat $tempSimFileList > $simFileList
@@ -278,7 +282,7 @@ for zGroup in $zeniths; do
 		    $runMode <<EOF 
 
 #PBS -S /bin/bash
-#PBS -l nodes=1,mem=${mem},walltime=48:00:00
+#PBS -l nodes=1,mem=${mem},walltime=96:00:00
 #PBS -j oe
 #PBS -V 
 #PBS -N $tableFileBase
