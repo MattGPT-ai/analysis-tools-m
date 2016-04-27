@@ -39,7 +39,7 @@ parser.add_argument('--date', default=veritas.date, help="Specify DATE (in UT) i
 
 parser.add_argument('--minMoonDist', default=30, type=float, help="The minimum distance in degrees that a source should be from the moon to include it in the list. The default value is 30 degrees.") 
 
-parser.add_argument('--maxMoonDist', default=90, type=float, help="The maximum distance in degrees that a source should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
+parser.add_argument('--maxMoonDist', default=180, type=float, help="The maximum distance in degrees that a source should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
 
 parser.add_argument('--minElevation', default=20, type=float, help="The minimum elevation in degrees you would like to look at. The default is 20 degrees")
 
@@ -67,7 +67,7 @@ print
 print "Date and time used (in UT): %s" %veritas.date
 print "Will select sources between %s and %s degrees from the moon and above %s degrees elevation.." %(args.minMoonDist, args.maxMoonDist, args.minElevation)
 print "Generating an ordered list of sources to use for specified measurement using targets in %s collection..." %args.targets
-print "Exposure time listed is the recommended time for PSF measurements based on brightness"
+print "All parameters listed in degrees except for the exposure (recommended time in seconds, for PSF measurement)"
 
 # MySQL command, runs on command line through subprocess
 targetList = args.targets.split(",")
@@ -185,8 +185,8 @@ print("")
 print(columnTitle),
 for x in range(0, columnTabs):
   print('\t'),
-print("Elevation\tAzimuth\t\tMoonDist\tExposure")
-print("----------------------------------------------------------------------------------------")
+print("Elevation\tAzimuth\t\tMoonDist\tExp.\tSdist")
+print("--------------------------------------------------------------------------------------------------------")
 #print sorted_sources
 for source in sorted_sources:
   name = source[0] 
@@ -194,6 +194,7 @@ for source in sorted_sources:
   az = source[1][1] # azimuth 
   dist = source[1][2] # elevation 
   magnitude =  source[1][3]
+  sourceDist = source[1][4]
 
   # check that source meets parameters 
   if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and ( magnitude == '-' or magnitude < args.mag ) or args.noCuts == True:
@@ -214,9 +215,9 @@ for source in sorted_sources:
     print(name),
     for i in range (0, numTabs):
       print("\t"),
-    print("%0.3f\t\t%0.3f\t\t%0.3f\t\t%s" %(el, az, dist, exposure))
+    print("%0.2f\t\t%0.2f\t\t%0.2f\t\t%s\t%0.2f" %(el, az, dist, exposure, sourceDist))
 
-print("----------------------------------------------------------------------------------------")
+print("--------------------------------------------------------------------------------------------------------")
 print("The Moon is %0.2f%% illuminated" % illum)
 print(TheMoon.dec) 
 
