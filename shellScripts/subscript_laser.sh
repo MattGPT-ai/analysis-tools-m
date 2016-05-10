@@ -59,7 +59,7 @@ hostname # ${redirection/>>/>}
 root-config --version 
 echo $ROOTSYS 
 git --git-dir $VEGAS/.git describe --tags
-
+echo $VEGAS
 sleep $((RANDOM%10+10));
 while [[ "`ps cax`" =~ " bbcp" ]]; do
     sleep $((RANDOM%10+10));
