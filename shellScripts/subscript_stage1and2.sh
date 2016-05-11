@@ -84,7 +84,6 @@ if [ "$stage1cmd" != "NULL" ]; then
     root-config --version >> $logFile1
     echo $ROOTSYS >> $logFile1
     git --git-dir $VEGAS/.git describe --tags >> $logFile1
-    echo $VEGAS
     
     Tstart=`date +%s`
     $stage1cmd $scratchFile $rootName_1 >> $logFile1

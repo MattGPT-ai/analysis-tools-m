@@ -15,7 +15,7 @@ azimuths="0,45,90,135,180,225,270,315"
 #zeniths="50,55 60,65" # 00,20 30,35 40,45
 zeniths="00,20 30,35 40,45 50,55 60,65"
 #offsets="0.00,0.50,0.75"
-offsets="0.00,0.50,0.75 0.25,1.00 1.25,1.50 1.75,2.00"
+offsets="0.00,0.25,0.50 0.75,1.00 1.25,1.50 1.75,2.00"
 
 allNoise=false
 
@@ -146,7 +146,10 @@ simFileSubDir=Oct2012_${array}_ATM${atm}
 
 if [ "$table" == ea ]; then
     # tweak offsets 
-    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}_${offsets//./}wobb${nameExt}.txt    
+    offsetprint=${offsets// /,}
+    offsetprint=${offsetprint//./}
+    offsetprint=${offsetprint//,/-}
+    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}_${offsetprint}wobb${nameExt}.txt    
 else
     tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
 fi
