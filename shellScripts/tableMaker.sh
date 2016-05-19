@@ -16,6 +16,7 @@ azimuths="0,45,90,135,180,225,270,315"
 zeniths="00,20 30,35 40,45 50,55 60,65"
 #offsets="0.00,0.50,0.75"
 offsets="0.00,0.25,0.50 0.75,1.00 1.25,1.50 1.75,2.00"
+multiOffs=true
 
 allNoise=false
 
@@ -146,10 +147,10 @@ simFileSubDir=Oct2012_${array}_ATM${atm}
 
 if [ "$table" == ea ]; then
     # tweak offsets 
-    offsetprint=${offsets// /,}
-    offsetprint=${offsetprint//./}
-    offsetprint=${offsetprint//,/-}
-    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}_${offsetprint}wobb${nameExt}.txt    
+    offsets_nospace=${offsets// /,}
+    offsets_print=${offset_nospace//./}
+    offsetprint=${offsets_print//,/-}
+    tableList=$workDir/config/tableList_${table}_${stage4dir}_${array}_ATM${atm}_${spectrum}_${offsets_print}wobb${nameExt}.txt    
 else
     tableList=$workDir/config/tableList_${table}_${array}_ATM${atm}.txt
 fi
@@ -243,7 +244,7 @@ for zGroup in $zeniths; do
 		elif [ -n "$autoTelCombosToDeny" ]; then # V4
                     flags="$flags -TelCombosToDeny=$autoTelCombosToDeny"
 		fi		
-		#flags="$flags -AbsoluteOffset=${oGroup}"
+		test -n "$multiOffs" && flags="$flags -AbsoluteOffset=${oGroup}"
 		#flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
 		
 		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
@@ -408,10 +409,12 @@ case $table in
     dt)
 	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths} -DTM_Zenith=${zeniths} -DTM_Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;;
     lt) 
-	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets} -Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;; 
+	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets_nospace} -Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;; 
     ea) 
 	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
-	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}${nameExt}.root" ;; # $cuts 
+	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${pedVars} -AbsoluteOffset=${offsets_nospace} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}${nameExt}.root" # $cuts 
+	
+
 esac # build commands based on table type 
 
 if [ "$runMode" != print ]; then
