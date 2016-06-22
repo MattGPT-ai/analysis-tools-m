@@ -22,8 +22,6 @@ veritas.lat = '31:40.51'
 veritas.lon = '-110:57.132'
 veritas.elevation = 1268
 
-minElevation = 20 # the lowest elevation sources to look at
-
 #def main()
 def is_number(s):
     try: 
@@ -37,20 +35,25 @@ parser = argparse.ArgumentParser(description="Takes optional arguments to specif
 
 parser.add_argument('--date', default=veritas.date, help="Specify DATE (in UT) in the format \"YYYY/MM/DD HH:MM:SS\"   don\'t forget the quotation marks. The default value is today's date.")
 
-parser.add_argument('--minMoonDist', default=30, type=float, help="The minimum distance in degrees that a source should be from the moon to include it in the list. The default value is 30 degrees.") 
+parser.add_argument('--minMoonDist', default=0., type=float, help="The minimum distance in degrees that a source should be from the moon to include it in the list. The default value is 30 degrees.") 
 
-parser.add_argument('--maxMoonDist', default=180, type=float, help="The maximum distance in degrees that a source should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
+parser.add_argument('--maxMoonDist', default=180., type=float, help="The maximum distance in degrees that a source should be from the moon, to prevent backlighting and arm shadows. The default value is 90 degrees.")
 
-parser.add_argument('--minElevation', default=20, type=float, help="The minimum elevation in degrees you would like to look at. The default is 20 degrees")
+parser.add_argument('--minElevation', default=20., type=float, help="The minimum elevation in degrees you would like to look at. The default is 20 degrees")
+
+parser.add_argument('--maxElevation', default=90., type=float, help="The minimum elevation in degrees you would like to look at. The default is 90 degrees")
 
 parser.add_argument('--sortBy',default='elevation', help="The parameter by which to sort. The allowable values are elevation (default), moonDist, magnitude, azimuth")
 
 parser.add_argument('--mag',default=5.0, type=float, help="The minimum desired brightness, default magnitude of 5.0")
 
-parser.add_argument('--targets', default='psf_stars', help="Specifies collection of targets in the database. Allowed values for TARGETS: psf_stars (default), yale_bright_star, yale_bright_stars_5.0 -- or any valid VERITAS source collection\nOther collections: moonlight_targets, moonlight_bright, primary_targets, secondary_targets, blazar_filler_targetsGRB, filler_targets, blank_sky, next_day_analysis, lat_highe, reduced_HV_targets, snapshot_targets, survey_crab, survey_cygnus, UV_filter_targets, all")
+parser.add_argument('--targets', default='primary_targets', help="Specifies collection of targets in the database. Allowed values for TARGETS (or any list of multiple lists separated by commas): psf_stars (default), yale_bright_star, yale_bright_stars_5.0 -- or any valid VERITAS source collection\nOther collections: moonlight_targets, moonlight_bright, primary_targets, secondary_targets, blazar_filler_targetsGRB, filler_targets, blank_sky, next_day_analysis, lat_highe, reduced_HV_targets, snapshot_targets, survey_crab, survey_cygnus, UV_filter_targets, all")
 
-parser.add_argument('--print-doublets', dest='printDoublets', action='store_true')
-parser.set_defaults( printDoublets=True )
+parser.add_argument('--print-doublets', dest='printDoublets', action='store_true', help="print occurrences of doublet stars")
+parser.set_defaults( printDoublets = True )
+
+parser.add_argument('--suppress', dest='suppress', action='store_true', help="suppress additional messages and columns")
+parser.set_defaults( suppress = False )
 
 parser.add_argument('--reverse', dest='reverseSort', type=bool, default=True, help="Reverse the order of your sort, true by default.")
 
@@ -65,9 +68,10 @@ veritas.date = args.date
 # letting user know the date and target collection used.
 print
 print "Date and time used (in UT): %s" %veritas.date
-print "Will select sources between %s and %s degrees from the moon and above %s degrees elevation.." %(args.minMoonDist, args.maxMoonDist, args.minElevation)
-print "Generating an ordered list of sources to use for specified measurement using targets in %s collection..." %args.targets
-print "All parameters listed in degrees except for the exposure (recommended time in seconds, for PSF measurement)"
+if not args.suppress:
+    print "Will select sources between %s and %s degrees from the moon and above %s degrees elevation.." %(args.minMoonDist, args.maxMoonDist, args.minElevation)
+    print "Generating an ordered list of sources to use for specified measurement using targets in %s collection..." %args.targets
+    print "All parameters listed in degrees except for the exposure (recommended time in seconds, for PSF measurement)"
 
 # MySQL command, runs on command line through subprocess
 targetList = args.targets.split(",")
@@ -84,9 +88,9 @@ sqlOut = subprocess.Popen(["mysql","-h","%s" %(hostName),"-P","%s" %(portNum),"-
 # stores query results
 QUERY, err = sqlOut.communicate()
 if QUERY == "":
-  print
-  print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :'("
-  exit(1)
+    print
+    print "Query result is empty. Make sure date and target collection provided are valid. Going to crash now :'("
+    exit(1)
 
 # dict for sorting/writing stars and their info 
 moonlightSources = {} 
@@ -94,22 +98,22 @@ maxNameLength = 0
 # loop through all objects in the bright moonlight list
 # calculating and printing out angular separation from moon
 for count,source in enumerate(QUERY.rstrip().split("\n")):
-  # skip header in query results
-  if count == 0:
-    continue
-  # parsing through query results
-  sourceName = source.split("\t")[0]
-  sourceRA = float( source.split("\t")[1] ) # if is_number(sourceRA) else sourceRA = '-'
-  sourceDEC = float ( source.split("\t")[2] ) 
-  sourceEpoch = source.split("\t")[3]
-  splitName = sourceName.split()
-  if len(splitName) > 2 and is_number(splitName[1]) == True:
-    magnitude =  float( splitName[1] ) 
-  else:
-    magnitude = '-'
- 
+    # skip header in query results
+    if count == 0:
+        continue
+        # parsing through query results
+        sourceName = source.split("\t")[0]
+        sourceRA = float( source.split("\t")[1] ) # if is_number(sourceRA) else sourceRA = '-'
+        sourceDEC = float ( source.split("\t")[2] ) 
+        sourceEpoch = source.split("\t")[3]
+        splitName = sourceName.split()
+        if len(splitName) > 2 and is_number(splitName[1]) == True:
+            magnitude =  float( splitName[1] ) 
+        else:
+            magnitude = '-'
+            
   if len(sourceName) > maxNameLength:
-    maxNameLength = float(len(sourceName))
+      maxNameLength = float(len(sourceName))
 
   # makes sure same epoch is used
   veritas.epoch = float(sourceEpoch)
@@ -132,26 +136,26 @@ for count,source in enumerate(QUERY.rstrip().split("\n")):
 
   # check for any sources that are too close to another bright source to be distinguished
   if args.printDoublets:
-    minSourceDist = float("inf")
-    for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
-      if count2 == 0: 
-        continue
-      sourceCmpName = sourceComp.split("\t")[0]    
-      sourceCmpRA = float( sourceComp.split("\t")[1] )
-      sourceCmpDEC = float( sourceComp.split("\t")[2] )
-      sourceCmpEpoch = sourceComp.split("\t")[3]
-      sourceCmpObjCmp = ephem.FixedBody()
-      sourceCmpObjCmp._ra = sourceCmpRA
-      sourceCmpObjCmp._dec = sourceCmpDEC
-      sourceCmpObjCmp.compute(veritas)
-      sourceDist = 180./ephem.pi * ephem.separation((sourceRA,sourceDEC),(sourceCmpRA,sourceCmpDEC))
-      if sourceCmpName != sourceName:
-        if sourceDist < minSourceDist: 
-          minSourceDist = sourceDist 
-          if sourceDist < args.checkProximity: # used to print out bright sources that are too close to each other, less than half a degree apart
-            sourceDistString = "WARNING! These sources are very close! "+sourceName+" and "+sourceCmpName+" are "+str(sourceDist)+" degrees from each other!\nRA: "+str(sourceRA)+" DEC: "+str(sourceDEC)+" RA: "+str(sourceCmpRA)+" DEC: "+str(sourceCmpDEC)
-            print(sourceDistString)
-  
+      minSourceDist = float("inf")
+      for count2,sourceComp in enumerate(QUERY.rstrip().split("\n")):
+          if count2 == 0: 
+              continue
+              sourceCmpName = sourceComp.split("\t")[0]    
+              sourceCmpRA = float( sourceComp.split("\t")[1] )
+              sourceCmpDEC = float( sourceComp.split("\t")[2] )
+              sourceCmpEpoch = sourceComp.split("\t")[3]
+              sourceCmpObjCmp = ephem.FixedBody()
+              sourceCmpObjCmp._ra = sourceCmpRA
+              sourceCmpObjCmp._dec = sourceCmpDEC
+              sourceCmpObjCmp.compute(veritas)
+              sourceDist = 180./ephem.pi * ephem.separation((sourceRA,sourceDEC),(sourceCmpRA,sourceCmpDEC))
+              if sourceCmpName != sourceName:
+                  if sourceDist < minSourceDist: 
+                      minSourceDist = sourceDist 
+                      if sourceDist < args.checkProximity: # used to print out bright sources that are too close to each other, less than half a degree apart
+                          sourceDistString = "WARNING! These sources are very close! "+sourceName+" and "+sourceCmpName+" are "+str(sourceDist)+" degrees from each other!\nRA: "+str(sourceRA)+" DEC: "+str(sourceDEC)+" RA: "+str(sourceCmpRA)+" DEC: "+str(sourceCmpDEC)
+                          print(sourceDistString)
+                          
   sourceEl = sourceObj.alt*180./ephem.pi # elevation of source
   sourceAz = sourceObj.az*180./ephem.pi # azimuth of source 
 
@@ -166,9 +170,10 @@ sortChoiceDict = {'elevation': 0, 'azimuth': 1, 'moonDist': 2, 'magnitude': 3}
 sortIndex = sortChoiceDict.get(args.sortBy, None)
 sorted_sources = moonlightSources.items()
 if sortIndex != None:
-  sorted_sources.sort( key = lambda x:x[1][int(sortIndex)], reverse=args.reverseSort ) 
+    sorted_sources.sort( key = lambda x:x[1][int(sortIndex)], reverse=args.reverseSort ) 
 else:
-  print ( "sortBy argument %s not recognized, not sorting!" % args.sortBy )
+    else:
+        print ( "sortBy argument %s not recognized, not sorting!" % args.sortBy )
 
 # the dictionary could be directly sorted, or 
 #sorted_sources = sorted(moonlightSources.iteritems(), key=operator.itemgetter(1), reverse=args.reverseSort)
@@ -184,47 +189,53 @@ print("")
 #sys.stdout.write( columnTitle )
 print(columnTitle),
 for x in range(0, columnTabs):
-  print('\t'),
-print("Elevation\tAzimuth\t\tMoonDist\tExp.\tSdist")
-print("--------------------------------------------------------------------------------------------------------")
-#print sorted_sources
-for source in sorted_sources:
-  name = source[0] 
-  el = source[1][0] # distance from moon 
-  az = source[1][1] # azimuth 
-  dist = source[1][2] # elevation 
-  magnitude =  source[1][3]
-  sourceDist = source[1][4]
+    print('\t'),
+    col_string = "Elevation\tAzimuth\t\tMoonDist"
+    if not args.suppress:
+        col_string = col_string + "\tExp.\tSdist"
+        print(col_string)
+        print("-----------------------------------------------------------------")
+        #print sorted_sources
+        for source in sorted_sources:
+            name = source[0] 
+            el = source[1][0] # distance from moon 
+            az = source[1][1] # azimuth 
+            dist = source[1][2] # elevation 
+            magnitude =  source[1][3]
+            sourceDist = source[1][4]
 
-  # check that source meets parameters 
-  if el > minElevation  and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and ( magnitude == '-' or magnitude < args.mag ) or args.noCuts == True:
+# check that source meets parameters 
+if el > args.minElevation and el < args.maxElevation and dist > float(args.minMoonDist) and dist < float(args.maxMoonDist) and ( magnitude == '-' or magnitude < args.mag ) or args.noCuts == True:
     # recommend time for exposure based on source magnitude 
     if type(magnitude) is not float:
-      exposure = '-'
+        exposure = '-'
     elif magnitude > 4.:
-      exposure = 2.0 
+        exposure = 2.0 
     elif magnitude > 3.:
-      exposure = 1.5
+        exposure = 1.5
     elif magnitude > 2.:
-      exposure = 1.0
+        exposure = 1.0
     else:
-      exposure = 0.5
-    
+        exposure = 0.5
+        
     length = len(name)
     numTabs = int( ceil( (columnLength-length-1)/8. ) ) 
     print(name),
     for i in range (0, numTabs):
-      print("\t"),
-    print("%0.2f\t\t%0.2f\t\t%0.2f\t\t%s\t%0.2f" %(el, az, dist, exposure, sourceDist))
+        print("\t"),
+        row_string = "%0.2f\t\t%0.2f\t\t%0.2f" %(el, az, dist)
+        if not args.suppress:
+            row_string = row_string + "\t\t%s\t%0.2f" %(exposure, sourceDist)
+            print(row_string)
 
-print("--------------------------------------------------------------------------------------------------------")
+print("-----------------------------------------------------------------")
 print("The Moon is %0.2f%% illuminated" % illum)
 print(TheMoon.dec) 
 
 sys.exit(0) # great job 
 
 #if __name__ == '__main__':
-  #main()
+#main()
 
 # some unused code for finding available functions 
 #fbdy = ephem.FixedBody()
