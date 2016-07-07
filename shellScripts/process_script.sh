@@ -580,7 +580,7 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]; then
+	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ] || [ "$runMode" == print ]; then
 		
 		queueFile=${queueDir}/${stage5subDir}_${runNum}.stage5
 		if [ ! -f $queueFile ]; then
