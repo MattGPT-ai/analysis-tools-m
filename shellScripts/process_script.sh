@@ -38,8 +38,8 @@ stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
-configFlags5="-CMC_RemoveCutEvents=1 -Method=VAStereoEventSelection"
-#configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
+#configFlags5="-CMC_RemoveCutEvents=1 -Method=VAStereoEventSelection"
+configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
 useStage5outputFile=true
