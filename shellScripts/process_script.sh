@@ -44,6 +44,7 @@ suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
 useStage5outputFile=true
 useBDT=false
+autoCutTel4=false
 
 reprocess=false
 runMode=print # 
@@ -474,12 +475,14 @@ if [ "$runStage4" == "true" ]; then
 	rootName_4="$processDir/${stage4subDir}/${runNum}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}.stage4.txt"
 
-	laserNum=(1)
-	cutTelFlags=""
-	for laser in $3 $4 $5 $6; do 
-	    test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
-	    laserNum=$((laserNum+1))
-	done
+	if [ "$autoCutTels4" == "true" ]; then 
+	    laserNum=(1)
+	    cutTelFlags=""
+	    for laser in $3 $4 $5 $6; do 
+		test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
+		laserNum=$((laserNum+1))
+	    done
+	fi
 
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
