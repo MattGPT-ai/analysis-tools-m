@@ -4,6 +4,8 @@
 # sourceName baseDir options spectrum
 # use environment option first if you want to override other variables
 
+test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -q"
+
 environment=$HOME/environments/SgrA_source.sh
 outputDir=results
 

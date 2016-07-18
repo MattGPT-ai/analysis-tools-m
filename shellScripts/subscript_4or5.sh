@@ -109,6 +109,8 @@ Tend=`date +%s`
 
 echo "Analysis completed in: (hours:minutes:seconds)"
 date -d@$((Tend-Tstart)) -u +%H:%M:%S
+echo "$cmd"
+
 
 if [ $completion -ne 0 ]; then
     echo -e "\e[0;31m$processRoot not processed successfully!\e[0m"

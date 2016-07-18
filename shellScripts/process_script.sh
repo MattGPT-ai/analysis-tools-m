@@ -74,7 +74,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:i -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:ix:X: -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -162,6 +162,8 @@ for i; do
 	-o)
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
+	-x) configFlags4="$configFlags4 $2" ; shift 2 ;; 
+	-X) configFlags5="$configFlags5 $2" ; shift 2 ;; 
 	--) shift; break ;;
 	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
