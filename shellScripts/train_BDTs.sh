@@ -1,8 +1,8 @@
 #!/bin/bash
 
-bgDir=$BDT/processed/bg_medium_V5 #subdirectory for background files, under processDir
-subDir=5-16_medium_V5 #subdirectory for weights, under weightsDir
-simDir=$BDT/processed/sims_medium
+bgFileBase=$BDT/runlists/bg_ua_Zen_list.txt # basename for list of files, Zen gets replaces with Z##
+simFileBase=$BDT/runlists/simlist_ua_Zen_050wobb.txt # should make these names align 
+subDir=5-16_medium_V5 # subdirectory for weights, under weightsDir
 
 processDir=$BDT/processed
 trainMacro=$VEGAS/BDT/VegasBDTClassification.C # to be copied if macro doesn't exist in weights folder
@@ -33,11 +33,11 @@ for i; do
 	    shift ;; 
 	-r) runMode="$2"
 	    shift 2 ;;
-	-b) bgDir=$2
+	-b) bgFileBase=$2
 	    shift 2 ;;
 	-d) subDir=$2
 	    shift 2 ;;
-	-s) simDir=$2
+	-s) simFileBase=$2
 	    shift 2 ;;
 	--array) array=$2
 	    shift ; shift ;;
@@ -79,9 +79,12 @@ done
 
 for z in $zeniths; do
     
-    if [ ! -d $bgDir ]; then
-	echo "directory: $bgDir with background files does not exist!"
-	exit 1
+    bgFile=${bgFileBase/Zen/Z${z}}
+    simFile=${simFileBase/Zen/Z${z}}
+
+    if [ ! -f $bgFile ]; then
+	echo "file: $bgFile with background files does not exist!"
+	continue
     fi
 
     simZ=$z
@@ -90,14 +93,14 @@ for z in $zeniths; do
     case $z in 
 	10) 
 	    simZ=00 ;; 
-	20|30) ;;
+	20 | 30) ;;
 	40) 
 	    arrayLow=( 0 500 1000 )
 	    arrayHigh=( 560 1120 30000 ) 
 	    ;; 
-	60) 
-	    arrayLow=( 0 )
-	    arrayHigh=( 30000 )
+	55 | 60 | 65) 
+	    arrayLow=( 0 4000 10000 )
+	    arrayHigh=( 4000 10000 100000 )
 	    ;;
     esac # zenith cases
     numBinsE=${#arrayLow[@]}
@@ -112,7 +115,7 @@ for z in $zeniths; do
 	if [ ! -f $trainDir/${fileNameBase}.weights.xml ]
 	then
 
-	    cmd="root -l -b -q 'VegasBDTClassification.C(\"$bgDir\",\"$simDir/Oct2012_${array}_ATM${atm}_vegasv250rc5_7samples_${simZ}deg_${wobble}wobb\",\"${eLow}\",\"${eHigh}\",\"${z}\")'"  
+	    cmd="root -l -b -q 'VegasBDTClassification.C(\"$bgFile\", \"$simFile\", \"${eLow}\", \"${eHigh}\", \"${z}\")'"  
 	
 	    echo $cmd
 	    

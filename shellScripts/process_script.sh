@@ -38,12 +38,13 @@ stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
-configFlags5="-CMC_RemoveCutEvents=1 -Method=VAStereoEventSelection"
-#configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
+#configFlags5="-CMC_RemoveCutEvents=1 -Method=VAStereoEventSelection"
+configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
 useStage5outputFile=true
 useBDT=false
+autoCutTel4=false
 
 reprocess=false
 runMode=print # 
@@ -73,7 +74,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:i -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:ix:X: -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -161,6 +162,8 @@ for i; do
 	-o)
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
+	-x) configFlags4="$configFlags4 $2" ; shift 2 ;; 
+	-X) configFlags5="$configFlags5 $2" ; shift 2 ;; 
 	--) shift; break ;;
 	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
@@ -474,12 +477,14 @@ if [ "$runStage4" == "true" ]; then
 	rootName_4="$processDir/${stage4subDir}/${runNum}.stage4.root"
 	runLog="$logDir/${stage4subDir}/${runNum}.stage4.txt"
 
-	laserNum=(1)
-	cutTelFlags=""
-	for laser in $3 $4 $5 $6; do 
-	    test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
-	    laserNum=$((laserNum+1))
-	done
+	if [ "$autoCutTels4" == "true" ]; then 
+	    laserNum=(1)
+	    cutTelFlags=""
+	    for laser in $3 $4 $5 $6; do 
+		test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
+		laserNum=$((laserNum+1))
+	    done
+	fi
 
         queueFile=$queueDir/${stage4subDir}_${runNum}.stage4
         #if [ ! -f $rootName_4 -a ! -f $queueFile ] || [ "$reprocess" == true ]; then 
@@ -580,7 +585,7 @@ if [ "$runStage5" == "true" ]; then
 	setCuts
 
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ]; then
+	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ] || [ "$runMode" == print ]; then
 		
 		queueFile=${queueDir}/${stage5subDir}_${runNum}.stage5
 		if [ ! -f $queueFile ]; then
