@@ -9,13 +9,14 @@ export spectrum=medium # default spectrum
 ### workdir ### 
 
 export SHIFTER=docker:registry.services.nersc.gov/0dc266c2474d:latest
-export VEGASWORK=/project/projectdirs/m1304/mbuchove/$sourceName
+export VEGASWORK=/external_output #/$sourceName 
+#project/projectdirs/m1304/mbuchove/$sourceName
 
 ##### VERITAS #####
 
-export VERITASBASE=/project/projectdirs/m1304/mbuchove/veritas/
-export VEGAS=$VERITASBASE/src/vegas-v2_5_4/
-source $VERITASBASE/src/root-v5-34/bin/thisroot.sh
+#export VERITASBASE=/project/projectdirs/m1304/mbuchove/veritas/
+#export VEGAS=$VERITASBASE/src/vegas-v2_5_4/
+#source $VERITASBASE/src/root-v5-34/bin/thisroot.sh
 
 #export LD_LIBRARY_PATH=$VERITASBASE/lib/:${LD_LIBRARY_PATH}
 #export PKG_CONFIG_PATH=$VERITASBASE/lib/pkgconfig/:${PKG_CONFIG_PATH}

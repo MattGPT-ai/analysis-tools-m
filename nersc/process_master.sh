@@ -19,15 +19,21 @@ baseDataDir=/veritas/data
 tableDir=$workDir/tables
 laserDir=$workDir/lasers
 trashDir=$HOME/.trash
+VEGAS=/software/vegas
 
-sbatchHeader="
-#!/bin/bash
-#SBATCH -l nodes=1,mem=2gb
-#SBATCH -j oe
-#SBATCH -V 
+sbatchHeader="#!/bin/bash
 #SBATCH --volume=\"$scratchDir:/external_data\"
 #SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
-#SBATCH --partition=shared "
+#SBATCH --partition=shared 
+#SBATCH --nodes=1
+#SBATCH --mem=2gb"
+#SBATCH --time=01:00:00 
+#SBATCH -l nodes=1,mem=2gb
+#SBATCH -j oe
+#SBATCH -v 
+##bin/sh -f
+#SBATCH -S /bin/bash 
+#SBATCH -A mgb000
 
 spectrum=medium
 simulation=GrISUDet # CORSIKA
@@ -65,10 +71,6 @@ subscript12=$scriptDir/subscript_stage1and2.sh
 subscript45=$scriptDir/subscript_4or5.sh
 
 applyTimeCuts="true"
-
-##bin/sh -f
-#SBATCH -S /bin/bash 
-#SBATCH -A mgb000
 
 nJobs=(0) # number of submits 
 nJobsMax=(1000) 
@@ -341,16 +343,21 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 
 			#if [ "$laserData" != "NULL" ]; then
 			    ### run normal laser			    
-			laserCmd="`which vaStage1` "
+			laserCmd=vaStage1
 			echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
 			if [ "$runMode" != "print" ]; then
 			    [ "$runMode" == "sbatch" ] && touch $laserQueue/${n}_laser
 			    
 			    $runMode <<EOF
 $sbatchHeader
-#SBATCH -N ${n}_laser
+#SBATCH -J ${n}_laser
 #SBATCH -o $laserLog/${n}_laser.root
-#SBATCH -p $priority
+#SBATCH --time=01:30:00 
+#SBATCH --nice=$priority
+
+
+cd \$VEGAS/validation/processing_scripts
+git pull
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
@@ -385,9 +392,10 @@ laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'
 
 			$runMode <<EOF
 $sbatchHeader
-#SBATCH -N ${combinedLaserName}
+#SBATCH -J ${combinedLaserName}
 #SBATCH -o $logFile
-#SBATCH -p $priority
+#SBATCH --time=00:15:00 
+#SBATCH --nice=$priority
 
 cd $VEGAS/macros/ # so you can process macros
 pwd 
@@ -403,10 +411,10 @@ rm $queueFile
 echo "$cmd"
 
 if [ \$exitCode -ne 0 ]; then
-rm $combinedLaserRoot
-mv $logFile $rejectDir/
+    rm $combinedLaserRoot
+    mv $logFile $rejectDir/
 else
-cp $logFile $workDir/completed/
+    cp $logFile $workDir/completed/
 EOF
 
 		    fi # end sbatch for combined laser 
@@ -435,7 +443,7 @@ EOF
 		#if [ -f $dataFile ]; then
 		if [ 0 -eq 0 ]; then 
 		    runBool="true"
-		    stage1cmd="`which vaStage1` -Stage1_RunMode=data "
+		    stage1cmd="vaStage1 -Stage1_RunMode=data"
 		    echo "$stage1cmd $dataFile $rootName_1" 
 		else
 		    echo "Data file $dataFile does not exits!"
@@ -447,7 +455,7 @@ EOF
 		#if [ -f $dataFile ]; then
   		if [ 0 -eq 0 ]; then     
 		    runBool="true"
-		    stage2cmd="`which vaStage2` $configFlags2"
+		    stage2cmd="vaStage2 $configFlags2"
 		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
 		    
 		else # data file doesn't exist
@@ -464,13 +472,13 @@ EOF
 		    fi
 
 		    echo "$sbatchHeader"
-		    sbatch -N ${runNum}.stages12 -o $logDir/errors/${runNum}.stages12.txt $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
+		    sbatch -J ${runNum}.stages12 -o $logDir/errors/${runNum}.stages12.txt $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
 #		    $runMode <<EOF
 #!/bin/bash
 #$sbatchHeader
-#SBATCH -N ${runNum}.stages12
+#SBATCH -J ${runNum}.stages12
 #SBATCH -o $logDir/errors/${runNum}.stages12.txt
-#SBATCH -p $priority
+#SBATCH --nice=$priority
 
 #$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
 #EOF
@@ -555,7 +563,7 @@ if [ "$runStage4" == "true" ]; then
 	    fi
 
 	    # not sure if should use cutTelFlags
-            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
+            cmd="vaStage4.2 $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$cmd"
 
 	    # condense 
@@ -573,9 +581,10 @@ if [ "$runStage4" == "true" ]; then
 		
 		$runMode <<EOF
 $sbatchHeader
-#SBATCH -N ${stage4subDir}_${runNum}.stage4
+#SBATCH -J ${stage4subDir}_${runNum}.stage4
 #SBATCH -o $runLog
-#SBATCH -p $priority
+#SBATCH --time=02:00:00 
+#SBATCH --nice=$priority
 
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_4" "$rootName_2" "$environment"
@@ -618,9 +627,9 @@ if [ "$runStage5" == "true" ]; then
 		    fi
 		    
 		    if [ "$useStage5outputFile" == "true" ]; then
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+			cmd="vaStage5 $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 		    else
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
+			cmd="vaStage5 $configFlags5 $cutFlags5 -inputFile=$rootName_5"
 		    fi
 		    
 		    if [ "$useBDT" == "true" ]; then
@@ -648,9 +657,10 @@ if [ "$runStage5" == "true" ]; then
 			
 			$runMode <<EOF
 $sbatchHeader
-#SBATCH -N ${stage5subDir}_${runNum}.stage5
+#SBATCH -J ${stage5subDir}_${runNum}.stage5
 #SBATCH -o $runLog
-#SBATCH -p $priority
+#SBATCH --time=00:30:00
+#SBATCH --nice=$priority
 
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_5" "$rootName_4" "$environment" 
