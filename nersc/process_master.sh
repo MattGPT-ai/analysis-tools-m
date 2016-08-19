@@ -20,6 +20,15 @@ tableDir=$workDir/tables
 laserDir=$workDir/lasers
 trashDir=$HOME/.trash
 
+sbatchHeader="
+#!/bin/bash
+#SBATCH -l nodes=1,mem=2gb
+#SBATCH -j oe
+#SBATCH -V 
+#SBATCH --volume=\"$scratchDir:/external_data\"
+#SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
+#SBATCH --partition=shared "
+
 spectrum=medium
 simulation=GrISUDet # CORSIKA
 model=Oct2012  
@@ -58,12 +67,7 @@ subscript45=$scriptDir/subscript_4or5.sh
 applyTimeCuts="true"
 
 ##bin/sh -f
-sbatchHeader="
 #SBATCH -S /bin/bash 
-#SBATCH -l nodes=1,mem=2gb
-#SBATCH -j oe
-#SBATCH -V 
-"
 #SBATCH -A mgb000
 
 nJobs=(0) # number of submits 
@@ -177,8 +181,7 @@ for i; do
     esac # end case $i in options
 done # loop over command line arguments 
 
-sbatchHeader="$sbatchHeader
-#SBATCH -q $queue"
+sbatchHeader="$sbatchHeader#SBATCH -q $queue"
 
 workDir=$VEGASWORK
 processDir=$workDir/processed
@@ -429,7 +432,8 @@ EOF
 
 	    ##### STAGE 1 #####
 	    if ( [ ! -f $rootName_1 ] && [ ! -f $queueFile_1 ] ) && ( ( [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ] ) || [ "$runStage1" == "true" ] ); then
-		if [ -f $dataFile ]; then
+		#if [ -f $dataFile ]; then
+		if [ 0 -eq 0 ]; then 
 		    runBool="true"
 		    stage1cmd="`which vaStage1` -Stage1_RunMode=data "
 		    echo "$stage1cmd $dataFile $rootName_1" 
@@ -440,8 +444,8 @@ EOF
 	    
 	    ##### STAGE 2 #####
 	    if [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ]; then
-		if [ -f $dataFile ]; then
-  		    
+		#if [ -f $dataFile ]; then
+  		if [ 0 -eq 0 ]; then     
 		    runBool="true"
 		    stage2cmd="`which vaStage2` $configFlags2"
 		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
@@ -459,14 +463,17 @@ EOF
 			touch $queueFile_2
 		    fi
 
-		    $runMode <<EOF
-$sbatchHeader
+		    echo "$sbatchHeader"
+		    sbatch -N ${runNum}.stages12 -o $logDir/errors/${runNum}.stages12.txt $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
+#		    $runMode <<EOF
+#!/bin/bash
+#$sbatchHeader
 #SBATCH -N ${runNum}.stages12
 #SBATCH -o $logDir/errors/${runNum}.stages12.txt
 #SBATCH -p $priority
 
-$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
-EOF
+#$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
+#EOF
 		    nJobs=$((nJobs+1))
 		fi # end sbatch for stage 1 data file
 	    fi # end runBool = true

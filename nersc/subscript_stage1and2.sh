@@ -1,5 +1,4 @@
 #!/bin/bash 
-
 # VA subscript, for use with larger submission scripts
 
 # environment stuff:
@@ -57,7 +56,7 @@ signals="1 2 3 4 5 6 7 8 11 13 15 30"
 trap cleanUp EXIT
 
 sleep $((RANDOM%10))
-#while [[ "`ps cax`" =~ "bbcp" ]]; do
+#while [[ "`ps cax`" =~ "bbftp" ]]; do
 #    sleep $((RANDOM%10+10));
 #done
 

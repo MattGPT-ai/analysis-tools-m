@@ -70,10 +70,19 @@ echo "$bbCmd"
 #$bbCmd 
 bbftp -u bbftp -m -p 12 -S -V -e "get $dataFile $scratchDir/" gamma1.astro.ucla.edu
 
+
+module load shifter
+#SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest
+#SBATCH --partition=shared
+#SBATCH --volume="/scratch1/scratchdirs/mbuchove:/external_data"
+##SBATCH --volume="$SCRATCH:/external_data"
+##SBATCH --output=$HOME/log/shifter_log.txt
+
 Tstart=`date +%s`
-$cmd $scratchFile $laserRoot 
+shifter --volume="$laserDir:external_output" $cmd ${scratchFile/$scratchDir/\/external_data} $laserRoot 
 completion=$?
 Tend=`date +%s`
+
 
 test -f $queueDir/$runName && rm $queueDir/$runName
 echo "Analysis completed in: (hours:minutes:seconds)"

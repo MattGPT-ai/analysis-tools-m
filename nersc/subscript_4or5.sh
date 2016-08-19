@@ -1,4 +1,8 @@
 #!/bin/bash 
+#SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
+#SBATCH --partition=shared 
+#SBATCH --volume="$SCRATCH:/external_data"  
+##SBATCH --output=$HOME/log/shifter_log.txt 
 
 # VA subscript, for use with larger submission scripts
 
