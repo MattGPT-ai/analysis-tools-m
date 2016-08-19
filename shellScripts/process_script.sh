@@ -38,7 +38,8 @@ stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
-#configFlags5="-CMC_RemoveCutEvents=1 -Method=VAStereoEventSelection"
+# make an option for setting this 
+#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
@@ -74,7 +75,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:ix:X: -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:ix:X:bL -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -107,7 +108,8 @@ for i; do
 	    shift ;; 
 	-n) nJobsMax=$2 
 	    shift 2 ;;
-	-b) runMode=background 
+	-L) mode=lightcurve # | --lc
+	    configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 	    shift ;; 
 	--reprocess)
 	    reprocess=true ; shift ;;
@@ -119,11 +121,16 @@ for i; do
 	-C) stage5cuts=$2
 	    # same as for stage 4
 	    shift ; shift ;;
-	-B|--BDT) # useStage5outputFile="true"
-	    configFlags5="$configFlags5 -UseBDT=1"
+	-b) mode=background # | --background # for BDT background 
+	    configFlags5="-Method=VACombinedEventSelection"  
+	    shift ;;
+	-B|--BDT) # mode options should be used first, before other things that modify stage5 config 
+	    configFlags5="-Method=VACombinedEventSelection -UseBDT=1"
 	    useBDT="true"
 	    stage5cuts=none
 	    weightsDirBase="$2" # can append array to end, e.g. _V5
+	    echo "BDT mode enabled. The argument is the weights directory, if the name contains the string EPOCH that will be replaced by e.g. V5"
+	    # useStage5outputFile="true"
 	    shift 2 ;;
 	--disp) 
 	    stg4method=disp
@@ -250,11 +257,14 @@ setEpoch() { # try to move into common file with setCuts
 
     # determine array for stage 4   
     if (( date < 20090900 )); then
-        array=oa #V4, MDL8OA_V4_OldArray
+        array=oa 
+	epoch=V4 # MDL8OA_V4_OldArray 
     elif (( date > 20120900 )); then
-        array=ua #V6, MDL10UA_V6_PMTUpgrade
+        array=ua 
+	epoch=V6 # MDL10UA_V6_PMTUpgrade 
     else
-        array=na #V5, MDL15NA_V5_T1Move
+        array=na 
+	epoch=V5 # MDL15NA_V5_T1Move
     fi
     
 } # end setEpoch 
@@ -606,7 +616,7 @@ if [ "$runStage5" == "true" ]; then
 		    
 		    if [ "$useBDT" == "true" ]; then
 			
-			weightsDir=${weightsDirBase} #_${array}
+			weightsDir=${weightsDirBase/EPOCH/$epoch} 
 			#  
 			if [[ ! -d ${weightsDir} ]]; then
 			    echo -e "\e[0;31m${weightsDir} does not exist. this may be a problem!\e[0m"

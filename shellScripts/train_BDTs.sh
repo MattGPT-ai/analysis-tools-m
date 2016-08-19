@@ -99,8 +99,10 @@ for z in $zeniths; do
 	    arrayHigh=( 560 1120 30000 ) 
 	    ;; 
 	55 | 60 | 65) 
-	    arrayLow=( 0 4000 10000 )
-	    arrayHigh=( 4000 10000 100000 )
+	    arrayLow=( 0 )
+	    arrayHigh=( 100000 ) 
+	    #arrayLow=( 0 4000 10000 )
+	    #arrayHigh=( 4000 10000 100000 )
 	    ;;
     esac # zenith cases
     numBinsE=${#arrayLow[@]}
@@ -146,6 +148,7 @@ date
 hostname
 cd $trainDir
 pwd
+root-config --version 
 #cp $trainMacro .
 
 $cmd

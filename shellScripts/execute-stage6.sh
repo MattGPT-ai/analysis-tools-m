@@ -8,6 +8,7 @@ test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepat
 
 environment=$HOME/environments/SgrA_source.sh
 outputDir=results
+tableDir=$TABLEDIR
 
 loggenFile=$HOME/runlists/SgrA_wobble_4tels.txt
 
@@ -64,8 +65,8 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 	s)
 	    spectrum=$OPTARG
 	    ;;
-	S)
-	    s6Opts="$s6Opts -S6A_Spectrum=1"
+	S) # stereo 
+	    readFlag=""
 	    ;;
 	m) # mode to run
 	    case $OPTARG in
@@ -226,7 +227,7 @@ if [ "$runMode" != print ]; then
 		echo "$finalRootDir/${2}${extension}" >> $tempRunlist
 	    done < $loggenFile
 
-	    python $runlistGen --EAmatch --EAdir $TABLEDIR/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
+	    python $runlistGen --EAmatch --EAdir $tableDir/ --cuts $pyCuts $tempRunlist $runFile # -- | $logOption
 	fi # runfile doesn't exist so must be created
     fi # if runFile isn't already specified  
     
@@ -278,6 +279,7 @@ if [ "\$exitCode" -eq 0 ]; then
     test -f $VEGASWORK/rejected/${logFile##*/} && trash $VEGASWORK/rejected/${logFile##*/}
 else
     test -f $logFile && mv $logFile $VEGASWORK/rejected/
+    rm $outputDir/${name}*
 fi
 
 $syncCmd
