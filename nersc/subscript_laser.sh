@@ -2,7 +2,7 @@
 
 # VA subscript, for use with larger submission scripts
 scratchDir=/scratch1/scratchdirs/mbuchove
-workDir=/project/projectdirs/m1304/mbuchove
+workDir=/global/project/projectdirs/m1304/mbuchove
 
 if [ $3 ]; then
     cmd="$1"
@@ -68,7 +68,7 @@ sleep $((RANDOM%10));
 bbCmd="bbftp -u bbftp -m -p 12 -S -V -e \"get $dataFile $scratchDir/\" gamma1.astro.ucla.edu"
 echo "$bbCmd" 
 #$bbCmd 
-bbftp -u bbftp -m -p 12 -S -V -e "get $dataFile $scratchDir/" gamma1.astro.ucla.edu
+#bbftp -u bbftp -m -p 12 -S -V -e "get $dataFile $scratchDir/" gamma1.astro.ucla.edu
 
 
 module load shifter
@@ -78,7 +78,8 @@ module load shifter
 ##SBATCH --output=$HOME/log/shifter_log.txt
 
 Tstart=`date +%s`
-shifter --volume="$scratchDir:/external_output" $cmd ${scratchFile/$scratchDir/\/external_output} /external_output/${laserRoot##*/} 
+#shifter --volume="$scratchDir:/external_output" $cmd ${scratchFile/$scratchDir/\/external_output} /external_output/${laserRoot##*/} 
+shifter --volume="/global/project/projectdirs/m1304/mbuchove/:/external_output" ls /external_output #
 completion=$?
 Tend=`date +%s`
 

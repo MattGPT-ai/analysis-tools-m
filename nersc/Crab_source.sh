@@ -9,8 +9,9 @@ export spectrum=medium # default spectrum
 ### workdir ### 
 
 export SHIFTER=docker:registry.services.nersc.gov/0dc266c2474d:latest
-export VEGASWORK=/external_output #/$sourceName 
-#project/projectdirs/m1304/mbuchove/$sourceName
+export VEGAS=/software/vegas 
+export VEGASWORK=/project/projectdirs/m1304/mbuchove/$sourceName
+#export VEGASWORK=/external_output #/$sourceName 
 
 ##### VERITAS #####
 

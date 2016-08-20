@@ -4,8 +4,6 @@
 
 ##### SET DEFAULTS #####
 
-priority=0
-
 runLaser="false"
 runStage1="false"
 runStage2="false"
@@ -13,16 +11,22 @@ runStage4="false"
 runStage5="false"
 runStage6="false"
 
-scratchDir=/scratch1/scratchdirs/mbuchove
-workDir=/project/projectdirs/m1304/mbuchove
-baseDataDir=/veritas/data
-tableDir=$workDir/tables
-laserDir=$workDir/lasers
-trashDir=$HOME/.trash
-VEGAS=/software/vegas
+scratchNersc=/scratch1/scratchdirs/mbuchove # NERSC scratch directory 
+scratchDir=/external_data # scratch directory mounted in container volume 
+mountDir=/global/project/projectdirs/m1304/mbuchove # the external directory volume mounts to 
+containerDir=/external_output # volume directory within container 
+baseDataDir=/veritas/data # directory with data on the UCLA archive 
 
+tableDir=$mountDir/tables # directory where tables are stored externally 
+laserDir=$mountDir/lasers # working directory for processing laser files 
+trashDir=$HOME/.trash # trash directory for replaced log files 
+VEGAS=/software/vegas # VEGAS directory within container, set in Dockerfile  
+
+priority=0
+
+#SBATCH --volume=\"$mountDir:$containerDir\"
+#SBATCH --volume=\"$scratchNersc:$scratchDir\"
 sbatchHeader="#!/bin/bash
-#SBATCH --volume=\"$scratchDir:/external_data\"
 #SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
 #SBATCH --partition=shared 
 #SBATCH --nodes=1
@@ -58,10 +62,10 @@ configFlags4=""
 configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
 #configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 suffix='' # only applied to stages 4 and 5 by default
-#read2from4=
 useStage5outputFile=true
 useBDT=false
 autoCutTel4=false
+#read2from4=
 
 reprocess=false
 runMode=print # 
@@ -183,9 +187,7 @@ for i; do
     esac # end case $i in options
 done # loop over command line arguments 
 
-sbatchHeader="$sbatchHeader#SBATCH -q $queue"
-
-workDir=$VEGASWORK
+test -n "$VEGASWORK" && workDir=$VEGASWORK || workDir=/global/project/projectdirs/m1304/mbuchove/Crab 
 processDir=$workDir/processed
 logDir=$workDir/log
 rejectDir=$workDir/rejected
@@ -344,7 +346,8 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 			#if [ "$laserData" != "NULL" ]; then
 			    ### run normal laser			    
 			laserCmd=vaStage1
-			echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
+			fullCmd="$laserSubscript \"$laserCmd\" $laserData $laserProcessed/${n}_laser.root" 
+			echo "$fullCmd"
 			if [ "$runMode" != "print" ]; then
 			    [ "$runMode" == "sbatch" ] && touch $laserQueue/${n}_laser
 			    
@@ -355,9 +358,11 @@ $sbatchHeader
 #SBATCH --time=01:30:00 
 #SBATCH --nice=$priority
 
+module load shifter
+echo "ext"
+shifter --volume="/global/project/projectdirs/m1304/mbuchove/:/external_output" ls /external_output
+#shifter ls /external_data/
 
-cd \$VEGAS/validation/processing_scripts
-git pull
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
