@@ -55,10 +55,13 @@ for sig in $signals; do
 done 
 # clean up for specific signals 
 
-hostname # ${redirection/>>/>}
+# ${redirection/>>/>}
+date
+echo -n "hostname: " hostname  
+echo -n "ROOT: $ROOTSYS " 
 root-config --version 
-echo $ROOTSYS 
-git --git-dir $VEGAS/.git describe --tags
+echo -n "VEGAS git hash: "
+git --git-dir $VEGAS/.git describe --always
 
 sleep $((RANDOM%10+10));
 while [[ "`ps cax`" =~ " bbcp" ]]; do

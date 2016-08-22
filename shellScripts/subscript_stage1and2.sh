@@ -80,10 +80,13 @@ if [ "$stage1cmd" != "NULL" ]; then
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $rejectDir/; exit $sig" $sig
     done
     date > $logFile1
-    hostname >> $logFile1 
+    echo -n "hostname: " >> $logFile1
+    hostname >> $logFile1  
+    echo -n "ROOT: $ROOTSYS " >> $logFile1 
     root-config --version >> $logFile1
-    echo $ROOTSYS >> $logFile1
-    git --git-dir $VEGAS/.git describe --tags >> $logFile1
+    echo -n "VEGAS git hash: " >> $logFile1 
+    git --git-dir $VEGAS/.git describe --always >> $logFile1 
+
     
     Tstart=`date +%s`
     $stage1cmd $scratchFile $rootName_1 >> $logFile1
@@ -121,10 +124,11 @@ if [ "$stage2cmd" != "NULL" ]; then
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
     done
     date > $logFile2
+    echo -n "hostname: " >> $logFile2
     hostname >> $logFile2
+    echo -n "ROOT: $ROOTSYS " >> $logFile2
     root-config --version >> $logFile2
-    echo $ROOTSYS >> $logFile2
-    git --git-dir $VEGAS/.git describe --tags >> $logFile2
+    git --git-dir $VEGAS/.git describe --always >> $logFile2
     
     while [[ "`ps cax`" =~ "bbcp" ]]; do 
 	sleep $((RANDOM%10+10)); 
@@ -159,7 +163,7 @@ if [ "$stage2cmd" != "NULL" ]; then
 	cp $logFile2 $workDir/completed/ 	
     fi # command unsuccessfully completed
 
-    if [ `grep -c unzip $logFile` -gt 0 ]; then
+    if [ `grep -c unzip $logFile2` -gt 0 ]; then
 	echo -e "\e[0;31m$rootName_2 UNZIP ERROR!!!\e[0m"
 	mv $logFile2 $rejectDir/	
     fi

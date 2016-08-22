@@ -11,7 +11,6 @@ if [ $3 ]; then
     cmd="$1"
     processRoot=$2 # run being processed
     previousRoot=$3 # run previous to this process
-    #shift ; shift ; shift ; 
 else
     echo -e "\e[0;31mmust specify a command, root name, previous root file \e[0m"
     exit 1 # failure
@@ -65,10 +64,9 @@ done
 sleep $((RANDOM%10))
 
 date
-hostname  # first entry
-root-config --version 
-echo $ROOTSYS 
-git --git-dir $VEGAS/.git describe --tags
+echo -n "hostname: " hostname  
+echo -n "ROOT: $ROOTSYS "; root-config --version 
+echo -n "VEGAS git hash: "; git --git-dir $VEGAS/.git describe --always
 if [[ "$cmd" =~ "-cuts" ]]; then
     afterCuts=${cmd#*-cuts=}
     set -- $afterCuts

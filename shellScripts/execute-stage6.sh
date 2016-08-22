@@ -257,7 +257,7 @@ root-config --version
 echo "$ROOTSYS"
 cd $VEGASWORK
 #git --git-dir $VEGAS/.git rev-parse HEAD
-git --git-dir $VEGAS/.git describe --tags 
+git --git-dir $VEGAS/.git describe --always 
 
 if [ "$exclusionList" != none ]; then 
     cat $exclusionList

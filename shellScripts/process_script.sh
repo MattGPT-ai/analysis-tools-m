@@ -349,6 +349,8 @@ $qsubHeader
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
+				completion=$? 
+				# test "$completion" -eq 0 && 
 				#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
 				nJobs=$((nJobs+1))
 			    fi # end qsub for regular laser 
@@ -398,12 +400,13 @@ rm $queueFile
 echo "$cmd"
 
 if [ \$exitCode -ne 0 ]; then
-rm $combinedLaserRoot
-mv $logFile $rejectDir/
+    rm $combinedLaserRoot
+    mv $logFile $rejectDir/
 else
-cp $logFile $workDir/completed/
+    cp $logFile $workDir/completed/
 EOF
-
+			completion=$? 
+			# test "$completion" -eq 0 && 
 		    fi # end qsub for combined laser 
 		fi # if combined laser root file does not exist
 	    fi # if queue file doesn't exist
@@ -465,6 +468,8 @@ $qsubHeader
 
 $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
 EOF
+		    completion=$? 
+		    # test "$completion" -eq 0 && 
 		    nJobs=$((nJobs+1))
 		fi # end qsub for stage 1 data file
 	    fi # end runBool = true
@@ -571,7 +576,8 @@ $qsubHeader
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_4" "$rootName_2" "$environment"
 EOF
-
+		completion=$? 
+		# test "$completion" -eq 0 && 
 		nJobs=$((nJobs+1))
 	    fi # end runmode check
 	fi # rootName_4 does not exist
@@ -646,7 +652,9 @@ $qsubHeader
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_5" "$rootName_4" "$environment" 
 EOF
-		    nJobs=$((nJobs+1))
+			completion=$? 
+			# test "$completion" -eq 0 && 
+			nJobs=$((nJobs+1))
 		    fi # end runmode check
 #		else # queueFile already exists
 		fi # queueFile5 does not exist 
