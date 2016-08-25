@@ -1,16 +1,23 @@
 #!/bin/bash 
+#SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
+#SBATCH --partition=shared 
+#SBATCH --volume="$SCRATCH:/external_data"  
+##SBATCH --output=$HOME/log/shifter_log.txt 
 
 # VA subscript, for use with larger submission scripts
 
 # environment stuff:
-#scratchDir=/scratch/mbuchove
-trashDir=$TRASHDIR
+scratchDir=/scratch1/scratchdirs/mbuchove
+trashDir=$HOME/.trash
+workDir=$VEGASWORK
+
 signals="1 2 3 4 5 6 7 8 11 13 15 30"
 
 if [ $3 ]; then
     cmd="$1"
     processRoot=$2 # run being processed
     previousRoot=$3 # run previous to this process
+    #shift ; shift ; shift ; 
 else
     echo -e "\e[0;31mmust specify a command, root name, previous root file \e[0m"
     exit 1 # failure
@@ -22,7 +29,6 @@ if [ "$4" ]; then
     done
 fi
 
-workDir=$VEGASWORK
 processBaseDir=processed # these should all match parent script
 processDir=$workDir/$processBaseDir
 rejectDir=$workDir/rejected
@@ -64,9 +70,10 @@ done
 sleep $((RANDOM%10))
 
 date
-echo -n "hostname: " hostname  
-echo -n "ROOT: $ROOTSYS "; root-config --version 
-echo -n "VEGAS git hash: "; git --git-dir $VEGAS/.git describe --always
+hostname  # first entry
+root-config --version 
+echo $ROOTSYS 
+git --git-dir $VEGAS/.git describe --tags
 if [[ "$cmd" =~ "-cuts" ]]; then
     afterCuts=${cmd#*-cuts=}
     set -- $afterCuts
@@ -84,9 +91,9 @@ if [ -f $previousRoot ]; then
 
     if [[ ! "$cmd" =~ "-outputFile" ]]; then
 
-	while [[ "`ps cax`" =~ "bbcp" ]]; do
-	    sleep $((RANDOM%10+10));
-	done
+	#while [[ "`ps cax`" =~ "bbcp" ]]; do
+	    #sleep $((RANDOM%10+10));
+	#done
 	bbCmd="bbcp -e -E md5= $previousRoot $processRoot"
 	echo "$bbCmd" 
 	$bbCmd 

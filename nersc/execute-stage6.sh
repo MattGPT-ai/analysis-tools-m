@@ -6,7 +6,7 @@
 
 test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -q"
 
-environment=$HOME/environments/SgrA_source.sh
+environment=$HOME/environments/Crab_source.sh
 outputDir=results
 tableDir=$TABLEDIR
 
@@ -257,7 +257,7 @@ root-config --version
 echo "$ROOTSYS"
 cd $VEGASWORK
 #git --git-dir $VEGAS/.git rev-parse HEAD
-git --git-dir $VEGAS/.git describe --always 
+git --git-dir $VEGAS/.git describe --tags 
 
 if [ "$exclusionList" != none ]; then 
     cat $exclusionList

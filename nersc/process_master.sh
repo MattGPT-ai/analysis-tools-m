@@ -4,8 +4,6 @@
 
 ##### SET DEFAULTS #####
 
-priority=0
-
 runLaser="false"
 runStage1="false"
 runStage2="false"
@@ -13,13 +11,33 @@ runStage4="false"
 runStage5="false"
 runStage6="false"
 
-baseDataDir=/veritas/data
-scratchDir=/scratch/mbuchove
-tableDir=$USERSPACE/tables
-laserDir=$LASERDIR
-weightsDirBase=$BDT/weights
-#weightsDir=5-34_defaults
-trashDir=$HOME/.trash
+scratchNersc=/scratch1/scratchdirs/mbuchove # NERSC scratch directory 
+scratchDir=/external_data # scratch directory mounted in container volume 
+mountDir=/global/project/projectdirs/m1304/mbuchove # the external directory volume mounts to 
+containerDir=/external_output # volume directory within container 
+baseDataDir=/veritas/data # directory with data on the UCLA archive 
+
+tableDir=$mountDir/tables # directory where tables are stored externally 
+laserDir=$mountDir/lasers # working directory for processing laser files 
+trashDir=$HOME/.trash # trash directory for replaced log files 
+VEGAS=/software/vegas # VEGAS directory within container, set in Dockerfile  
+
+priority=0
+
+#SBATCH --volume=\"$mountDir:$containerDir\"
+#SBATCH --volume=\"$scratchNersc:$scratchDir\"
+sbatchHeader="#!/bin/bash
+#SBATCH --image=docker:registry.services.nersc.gov/0dc266c2474d:latest 
+#SBATCH --partition=shared 
+#SBATCH --nodes=1
+#SBATCH --mem=2gb"
+#SBATCH --time=01:00:00 
+#SBATCH -l nodes=1,mem=2gb
+#SBATCH -j oe
+#SBATCH -v 
+##bin/sh -f
+#SBATCH -S /bin/bash 
+#SBATCH -A mgb000
 
 spectrum=medium
 simulation=GrISUDet # CORSIKA
@@ -32,20 +50,22 @@ ltVegas=vegasv250rc5
 offset=allOffsets # should find a way to manage this 
 zenith=LZA
 
-scriptDir=${0/\/${0##*/}/}
+#scriptDir=${0/\/${0##*/}/}
+scriptName=${0##*/}
+scriptDir=${0/$scriptName}
 source $scriptDir/setCuts.sh 
 stage4cuts=auto
 stage5cuts=auto
 
 configFlags4=""
 # make an option for setting this 
-#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
-suffix="" # only applied to stages 4 and 5 by default
-#read2from4=
+#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
+suffix='' # only applied to stages 4 and 5 by default
 useStage5outputFile=true
 useBDT=false
 autoCutTel4=false
+#read2from4=
 
 reprocess=false
 runMode=print # 
@@ -55,15 +75,6 @@ subscript12=$scriptDir/subscript_stage1and2.sh
 subscript45=$scriptDir/subscript_4or5.sh
 
 applyTimeCuts="true"
-
-##bin/sh -f
-qsubHeader="
-#PBS -S /bin/bash 
-#PBS -l nodes=1,mem=2gb
-#PBS -j oe
-#PBS -A mgb000
-#PBS -V 
-"
 
 nJobs=(0) # number of submits 
 nJobsMax=(1000) 
@@ -100,10 +111,10 @@ for i; do
 	    shift ;;
 	-r) runMode="$2" # cat bash 
 	    shift 2 ;;
-	-q) runMode=qsub
+	-q) runMode=sbatch
 	    queue=batch
 	    shift ;;
-	-Q) runMode=qsub
+	-Q) runMode=sbatch
 	    queue=express
 	    shift ;; 
 	-n) nJobsMax=$2 
@@ -176,10 +187,7 @@ for i; do
     esac # end case $i in options
 done # loop over command line arguments 
 
-qsubHeader="$qsubHeader
-#PBS -q $queue"
-
-workDir=$VEGASWORK
+test -n "$VEGASWORK" && workDir=$VEGASWORK || workDir=/global/project/projectdirs/m1304/mbuchove/Crab 
 processDir=$workDir/processed
 logDir=$workDir/log
 rejectDir=$workDir/rejected
@@ -195,7 +203,7 @@ else #complete this
     echo -e "\t-h \tenable HFit"
     echo -e "\t-s dir\t process stage5 into directory"
     echo -e "\t-o \t run stage5 optimization instead of training"
-    echo -e "\t-q \tsubmit jobs to qsub"
+    echo -e "\t-q \tsubmit jobs to sbatch"
     echo -e "Be sure to have environment variables set!"
     echo -e "\t\$VEGASWORK - working directory with subdirs log, processed, queue, rejected"
     exit 1
@@ -320,7 +328,8 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 		if [ "$runBool" == "true" ]; then
 		    # change ${n}_laser.root to ${n}.laser.root 
 		    if [ ! -f $laserProcessed/${n}_laser.root -a ! -f $laserQueue/${n}_laser ]; then
-			if [ -f $dataDir/${n}.cvbf ]; then
+			if [ true ]; then 
+			#if [ -f $dataDir/${n}.cvbf ]; then
 			    laserData=$dataDir/${n}.cvbf
 			else
 			    laserDate=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT data_end_time FROM tblRun_Info WHERE run_id=${n}"`
@@ -334,30 +343,36 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 			    fi
 			fi # find data file for laser
 
-			if [ "$laserData" != "NULL" ]; then
+			#if [ "$laserData" != "NULL" ]; then
 			    ### run normal laser			    
-			    laserCmd="`which vaStage1` "
-			    echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
-			    if [ "$runMode" != "print" ]; then
-				[ "$runMode" == "qsub" ] && touch $laserQueue/${n}_laser
-				
-				$runMode <<EOF
-$qsubHeader
-#PBS -N ${n}_laser
-#PBS -o $laserLog/${n}_laser.root
-#PBS -p $priority
+			laserCmd=vaStage1
+			fullCmd="$laserSubscript \"$laserCmd\" $laserData $laserProcessed/${n}_laser.root" 
+			echo "$fullCmd"
+			if [ "$runMode" != "print" ]; then
+			    [ "$runMode" == "sbatch" ] && touch $laserQueue/${n}_laser
+			    
+			    $runMode <<EOF
+$sbatchHeader
+#SBATCH -J ${n}_laser
+#SBATCH -o $laserLog/${n}_laser.root
+#SBATCH --time=01:30:00 
+#SBATCH --nice=$priority
+
+module load shifter
+echo "ext"
+shifter --volume="/global/project/projectdirs/m1304/mbuchove/:/external_output" ls /external_output
+#shifter ls /external_data/
+
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
 EOF
-				completion=$? 
-				# test "$completion" -eq 0 && 
-				#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
-				nJobs=$((nJobs+1))
-			    fi # end qsub for regular laser 
+				#echo "VEGAS job \$SBATCH_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/sbatchLog.txt
+			    nJobs=$((nJobs+1))
+			fi # end sbatch for regular laser 
 			    
-			else ### end run normal laser
-			    echo -e "\e[0;31mLaser data file ${dataDir}/${n}.cvbf does not exist! check directory\e[0m"
-			fi # data file found
+			#else ### end run normal laser
+			    #echo -e "\e[0;31mLaser data file ${dataDir}/${n}.cvbf does not exist! check directory\e[0m"
+			#fi # data file found
 		    fi # laser file does not yet exist
 		fi # run bool is true		
 	    fi # laser isn't --
@@ -378,13 +393,14 @@ laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'
 		    logFile=$laserLog/${combinedLaserName}.txt
 
 		    if [ "$runMode" != print ]; then     
-			[ "$runMode" == "qsub" ] && touch $queueFile
+			[ "$runMode" == "sbatch" ] && touch $queueFile
 
 			$runMode <<EOF
-$qsubHeader
-#PBS -N ${combinedLaserName}
-#PBS -o $logFile
-#PBS -p $priority
+$sbatchHeader
+#SBATCH -J ${combinedLaserName}
+#SBATCH -o $logFile
+#SBATCH --time=00:15:00 
+#SBATCH --nice=$priority
 
 cd $VEGAS/macros/ # so you can process macros
 pwd 
@@ -405,9 +421,8 @@ if [ \$exitCode -ne 0 ]; then
 else
     cp $logFile $workDir/completed/
 EOF
-			completion=$? 
-			# test "$completion" -eq 0 && 
-		    fi # end qsub for combined laser 
+
+		    fi # end sbatch for combined laser 
 		fi # if combined laser root file does not exist
 	    fi # if queue file doesn't exist
 	fi # check if laser is normal or combined
@@ -430,9 +445,10 @@ EOF
 
 	    ##### STAGE 1 #####
 	    if ( [ ! -f $rootName_1 ] && [ ! -f $queueFile_1 ] ) && ( ( [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ] ) || [ "$runStage1" == "true" ] ); then
-		if [ -f $dataFile ]; then
+		#if [ -f $dataFile ]; then
+		if [ 0 -eq 0 ]; then 
 		    runBool="true"
-		    stage1cmd="`which vaStage1` -Stage1_RunMode=data "
+		    stage1cmd="vaStage1 -Stage1_RunMode=data"
 		    echo "$stage1cmd $dataFile $rootName_1" 
 		else
 		    echo "Data file $dataFile does not exits!"
@@ -441,10 +457,10 @@ EOF
 	    
 	    ##### STAGE 2 #####
 	    if [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ]; then
-		if [ -f $dataFile ]; then
-  		    
+		#if [ -f $dataFile ]; then
+  		if [ 0 -eq 0 ]; then     
 		    runBool="true"
-		    stage2cmd="`which vaStage2` $configFlags2"
+		    stage2cmd="vaStage2 $configFlags2"
 		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
 		    
 		else # data file doesn't exist
@@ -455,23 +471,24 @@ EOF
 	    if [ "$runBool" == "true" ]; then
 		if [ "$runMode" != print ]; then
 		    
-		    if [ "$runMode" == "qsub" ]; then
+		    if [ "$runMode" == "sbatch" ]; then
 			touch $queueFile_1
 			touch $queueFile_2
 		    fi
 
-		    $runMode <<EOF
-$qsubHeader
-#PBS -N ${runNum}.stages12
-#PBS -o $logDir/errors/${runNum}.stages12.txt
-#PBS -p $priority
+		    echo "$sbatchHeader"
+		    sbatch -J ${runNum}.stages12 -o $logDir/errors/${runNum}.stages12.txt $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
+#		    $runMode <<EOF
+#!/bin/bash
+#$sbatchHeader
+#SBATCH -J ${runNum}.stages12
+#SBATCH -o $logDir/errors/${runNum}.stages12.txt
+#SBATCH --nice=$priority
 
-$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
-EOF
-		    completion=$? 
-		    # test "$completion" -eq 0 && 
+#$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
+#EOF
 		    nJobs=$((nJobs+1))
-		fi # end qsub for stage 1 data file
+		fi # end sbatch for stage 1 data file
 	    fi # end runBool = true
 	    
 	fi # run stage 1 or stage 2
@@ -551,7 +568,7 @@ if [ "$runStage4" == "true" ]; then
 	    fi
 
 	    # not sure if should use cutTelFlags
-            cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
+            cmd="vaStage4.2 $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$cmd"
 
 	    # condense 
@@ -565,19 +582,19 @@ if [ "$runStage4" == "true" ]; then
 	    fi
 
 	    if [ "$runMode" != print ]; then
-		[ "$runMode" == "qsub" ] && touch $queueFile
+		[ "$runMode" == "sbatch" ] && touch $queueFile
 		
 		$runMode <<EOF
-$qsubHeader
-#PBS -N ${stage4subDir}_${runNum}.stage4
-#PBS -o $runLog
-#PBS -p $priority
+$sbatchHeader
+#SBATCH -J ${stage4subDir}_${runNum}.stage4
+#SBATCH -o $runLog
+#SBATCH --time=02:00:00 
+#SBATCH --nice=$priority
 
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_4" "$rootName_2" "$environment"
 EOF
-		completion=$? 
-		# test "$completion" -eq 0 && 
+
 		nJobs=$((nJobs+1))
 	    fi # end runmode check
 	fi # rootName_4 does not exist
@@ -615,9 +632,9 @@ if [ "$runStage5" == "true" ]; then
 		    fi
 		    
 		    if [ "$useStage5outputFile" == "true" ]; then
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+			cmd="vaStage5 $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 		    else
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
+			cmd="vaStage5 $configFlags5 $cutFlags5 -inputFile=$rootName_5"
 		    fi
 		    
 		    if [ "$useBDT" == "true" ]; then
@@ -641,20 +658,19 @@ if [ "$runStage5" == "true" ]; then
 		    
 		    if [ "$runMode" != print ]; then
 			
-			[ "$runMode" == "qsub" ] && touch $queueFile
+			[ "$runMode" == "sbatch" ] && touch $queueFile
 			
 			$runMode <<EOF
-$qsubHeader
-#PBS -N ${stage5subDir}_${runNum}.stage5
-#PBS -o $runLog
-#PBS -p $priority
+$sbatchHeader
+#SBATCH -J ${stage5subDir}_${runNum}.stage5
+#SBATCH -o $runLog
+#SBATCH --time=00:30:00
+#SBATCH --nice=$priority
 
 echo "spectrum: $spectrum"
 $subscript45 "$cmd" "$rootName_5" "$rootName_4" "$environment" 
 EOF
-			completion=$? 
-			# test "$completion" -eq 0 && 
-			nJobs=$((nJobs+1))
+		    nJobs=$((nJobs+1))
 		    fi # end runmode check
 #		else # queueFile already exists
 		fi # queueFile5 does not exist 
@@ -671,8 +687,8 @@ if [ "$runStage6" == "true" ]; then
     echo "$cmd"
 fi
 
-if [ "$runMode" == "qsub" ]; then
-    echo -e "script submitted $nJobs jobs \t on ` date ` \n" | tee ${logDir}/qsubLog.txt
+if [ "$runMode" == "sbatch" ]; then
+    echo -e "script submitted $nJobs jobs \t on ` date ` \n" | tee ${logDir}/sbatchLog.txt
 fi
 
 exit 0 # success 

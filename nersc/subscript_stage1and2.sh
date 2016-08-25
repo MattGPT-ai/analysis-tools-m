@@ -1,10 +1,10 @@
 #!/bin/bash 
-
 # VA subscript, for use with larger submission scripts
 
 # environment stuff:
-scratchDir=/scratch/mbuchove
-trashDir=$TRASHDIR
+scratchDir=/scratch1/scratchdirs/mbuchove
+trashDir=$HOME/.trash
+workDir=$VEGASWORK
 
 if [ $8 ]; then
     stage1cmd="$1"
@@ -26,7 +26,6 @@ if [ $9 ]; then
     done
 fi
 
-workDir=$VEGASWORK
 processDir=$workDir/processed
 laserDir=$LASERDIR
 logDir=$workDir/log
@@ -56,12 +55,15 @@ signals="1 2 3 4 5 6 7 8 11 13 15 30"
 #trap '' ERR # set -e 
 trap cleanUp EXIT
 
-sleep $((RANDOM%10+5))
+sleep $((RANDOM%10))
+#while [[ "`ps cax`" =~ "bbftp" ]]; do
+#    sleep $((RANDOM%10+10));
+#done
 
-while [[ "`ps cax`" =~ "bbcp" ]]; do
-    sleep $((RANDOM%10+10));
-done
-bbCmd="bbcp -e -E md5= -V $dataFile $scratchFile"
+bbCmd="bbftp -u bbftp -m -p 12 -S -V -e \"get $dataFile $scratchDir/\" gamma1.astro.ucla.edu"
+echo "$bbCmd"
+#$bbCmd
+bbftp -u bbftp -m -p 12 -S -V -e "get $dataFile $scratchDir/" gamma1.astro.ucla.edu
 
 if [ "$stage1cmd" != "NULL" ]; then
     test -f $logFile1 && mv $logFile1 $trashDir/
@@ -80,13 +82,10 @@ if [ "$stage1cmd" != "NULL" ]; then
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $rejectDir/; exit $sig" $sig
     done
     date > $logFile1
-    echo -n "hostname: " >> $logFile1
-    hostname >> $logFile1  
-    echo -n "ROOT: $ROOTSYS " >> $logFile1 
+    hostname >> $logFile1 
     root-config --version >> $logFile1
-    echo -n "VEGAS git hash: " >> $logFile1 
-    git --git-dir $VEGAS/.git describe --always >> $logFile1 
-
+    echo $ROOTSYS >> $logFile1
+    git --git-dir $VEGAS/.git describe --tags >> $logFile1
     
     Tstart=`date +%s`
     $stage1cmd $scratchFile $rootName_1 >> $logFile1
@@ -124,15 +123,14 @@ if [ "$stage2cmd" != "NULL" ]; then
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
     done
     date > $logFile2
-    echo -n "hostname: " >> $logFile2
     hostname >> $logFile2
-    echo -n "ROOT: $ROOTSYS " >> $logFile2
     root-config --version >> $logFile2
-    git --git-dir $VEGAS/.git describe --always >> $logFile2
+    echo $ROOTSYS >> $logFile2
+    git --git-dir $VEGAS/.git describe --tags >> $logFile2
     
-    while [[ "`ps cax`" =~ "bbcp" ]]; do 
-	sleep $((RANDOM%10+10)); 
-    done
+    #while [[ "`ps cax`" =~ "bbcp" ]]; do 
+	#sleep $((RANDOM%10+10)); 
+    #done
     bbCmd="bbcp -e -E md5= $rootName_1 $rootName_2"
     echo "$bbCmd">> $logFile2
     $bbCmd >> $logFile2
@@ -163,7 +161,7 @@ if [ "$stage2cmd" != "NULL" ]; then
 	cp $logFile2 $workDir/completed/ 	
     fi # command unsuccessfully completed
 
-    if [ `grep -c unzip $logFile2` -gt 0 ]; then
+    if [ `grep -c unzip $logFile` -gt 0 ]; then
 	echo -e "\e[0;31m$rootName_2 UNZIP ERROR!!!\e[0m"
 	mv $logFile2 $rejectDir/	
     fi
