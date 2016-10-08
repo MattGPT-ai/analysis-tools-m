@@ -340,7 +340,7 @@ if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]
 
 			if [ "$laserData" != "NULL" ]; then
 			    ### run normal laser			    
-			    laserCmd="`which vaStage1` "
+			    laserCmd="`which vaStage1` $customFlags1"
 			    echo "$laserCmd $laserData $laserProcessed/${n}_laser.root" 
 			    if [ "$runMode" != "print" ]; then
 				[ "$runMode" == "qsub" ] && touch $laserQueue/${n}_laser
@@ -436,7 +436,7 @@ EOF
 	    if ( [ ! -f $rootName_1 ] && [ ! -f $queueFile_1 ] ) && ( ( [ ! -f $rootName_2 ] && [ ! -f $queueFile_2 ] && [ "$runStage2" == "true" ] ) || [ "$runStage1" == "true" ] ); then
 		if [ -f $dataFile ]; then
 		    runBool="true"
-		    stage1cmd="`which vaStage1` -Stage1_RunMode=data "
+		    stage1cmd="`which vaStage1` -Stage1_RunMode=data $customFlags1"
 		    echo "$stage1cmd $dataFile $rootName_1" 
 		else
 		    echo "Data file $dataFile does not exits!"
@@ -448,7 +448,7 @@ EOF
 		if [ -f $dataFile ]; then
   		    
 		    runBool="true"
-		    stage2cmd="`which vaStage2` $configFlags2"
+		    stage2cmd="`which vaStage2` $configFlags2 $customFlags2"
 		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
 		    
 		else # data file doesn't exist
