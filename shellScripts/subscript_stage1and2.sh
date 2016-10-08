@@ -117,6 +117,7 @@ if [ "$stage1cmd" != "NULL" ]; then
 	mv $logFile1 $rejectDir/
     fi
 
+    test -f $rejectDir/${logFile1##*/} && trash $rejectDir/${logFile1##*/}
 fi # stage 1 command isn't null 
 
 if [ "$stage2cmd" != "NULL" ]; then 

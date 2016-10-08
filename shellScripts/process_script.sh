@@ -39,8 +39,9 @@ stage5cuts=auto
 
 configFlags4=""
 # make an option for setting this 
-#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
+#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
+#configFlags5="-Method=VACombinedEventSelection"
 suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
 useStage5outputFile=true
@@ -75,7 +76,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:ahB:s:qQr:e:c:C:p:kdn:o:ix:X:bL -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:D:ahB:s:qQr:e:c:C:p:kdn:o:ix:X:y:Y:bL -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -90,9 +91,10 @@ for i; do
 	    stage4subDir="$2"
 	    shift 2 ;;
 	-d) stage1subDir=$2
-	    stage2subDir=$2
 	    shift 2 ;; 
-	#-D) use copy stage4 instead of stage2 to save having stage2 copies
+	-D) stage2subDir=$2
+	    shift 2 ;; 
+	#-F) use copy stage4 instead of stage2 to save having stage2 copies
 	-5) runStage5="true"
 	    stage5subDir="$2"
        	    shift 2 ;;
@@ -109,7 +111,7 @@ for i; do
 	-n) nJobsMax=$2 
 	    shift 2 ;;
 	-L) mode=lightcurve # | --lc
-	    configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
+	    configFlags5="$conf-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 	    shift ;; 
 	--reprocess)
 	    reprocess=true ; shift ;;
@@ -169,8 +171,10 @@ for i; do
 	-o)
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
-	-x) configFlags4="$configFlags4 $2" ; shift 2 ;; 
-	-X) configFlags5="$configFlags5 $2" ; shift 2 ;; 
+	-x) customFlags4="$customFlags4 $2" ; shift 2 ;; 
+	-X) customFlags5="$customFlags5 $2" ; shift 2 ;; 
+	-y) customFlags1="$customFlags1 $2" ; shift 2 ;; 
+	-Y) customFlags2="$customFlags2 $2" ; shift 2 ;; 
 	--) shift; break ;;
 	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
@@ -615,9 +619,9 @@ if [ "$runStage5" == "true" ]; then
 		    fi
 		    
 		    if [ "$useStage5outputFile" == "true" ]; then
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 $customFlags5 -inputFile=$rootName_4 -outputFile=$rootName_5"
 		    else
-			cmd="`which vaStage5` $configFlags5 $cutFlags5 -inputFile=$rootName_5"
+			cmd="`which vaStage5` $configFlags5 $cutFlags5 $customFlags5 -inputFile=$rootName_5"
 		    fi
 		    
 		    if [ "$useBDT" == "true" ]; then

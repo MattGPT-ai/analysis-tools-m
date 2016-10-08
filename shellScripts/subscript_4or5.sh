@@ -47,7 +47,7 @@ queueFile=${queueDir}/${subDir}_${runName}
 if [ -d $logDir ]; then
     logFile=$logDir/${runName}.txt
     echo "" > $logFile 
-    #test ! -f $logFile || mv $logFile $trashDir 
+    #test -f $logFile || mv $logFile $trashDir/ 
 else
     echo -e "\e[0;31m Log directory $logDir does not exist!  \e[0m"
 fi
@@ -120,12 +120,9 @@ fi # command unsuccessfully completed
 if [ `grep -c unzip $logFile` -gt 0 ]; then
     echo -e "\e[0;31m$processRoot unzip error!\e[0m"
     echo "UNZIP ERROR!!!" 
-    if [[ "$cmd" =~ "vaStage4.2" ]]; then
-	mv $processRoot $workDir/backup/unzip
-	mv $logFile $rejectDir/unzip_${logFile##*/}
-    else
-	cp $logFile $rejectDir/unzip_${logFile##*/}
-    fi
+    #if [[ "$cmd" =~ "vaStage4.2" ]]; then
+    mv $processRoot $workDir/backup/unzip/
+    mv $logFile $rejectDir/unzip_${logFile##*/}
     exit 1
 fi # unzip error, sigh
 
