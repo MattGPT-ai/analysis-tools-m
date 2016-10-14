@@ -76,7 +76,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:D:ahB:s:qQr:e:c:C:p:kdn:o:ix:X:y:Y:bL -l disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:d:D:ahB:s:qQr:e:c:C:p:kdn:o:ibL -l x1:,x2:,x4:,x5:,disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -171,10 +171,10 @@ for i; do
 	-o)
 	    configFlags4="$configFlags4 -OverrideLTCheck=1"
 	    shift ;; 
-	-x) customFlags4="$customFlags4 $2" ; shift 2 ;; 
-	-X) customFlags5="$customFlags5 $2" ; shift 2 ;; 
-	-y) customFlags1="$customFlags1 $2" ; shift 2 ;; 
-	-Y) customFlags2="$customFlags2 $2" ; shift 2 ;; 
+	--x1) customFlags1="$customFlags1 $2" ; shift 2 ;; 
+	--x2) customFlags2="$customFlags2 $2" ; shift 2 ;; 
+	--x4) customFlags4="$customFlags4 $2" ; shift 2 ;; 
+	--x5) customFlags5="$customFlags5 $2" ; shift 2 ;; 
 	--) shift; break ;;
 	#	*) echo "option $i unknown!" ; exit 1 ;; # may not be necessary, getopt rejects unknowns 
     esac # end case $i in options
