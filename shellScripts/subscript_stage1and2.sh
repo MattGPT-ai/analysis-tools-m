@@ -137,7 +137,7 @@ if [ "$stage2cmd" != "NULL" ]; then
     bbCmd="bbcp -e -E md5= $rootName_1 $rootName_2"
     echo "$bbCmd">> $logFile2
     $bbCmd >> $logFile2
-    
+
     while [ -f $queueLaser ]; do
 	sleep $((RANDOM%10+20))
     done

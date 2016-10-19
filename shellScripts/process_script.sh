@@ -460,7 +460,7 @@ EOF
 		if [ "$runMode" != print ]; then
 		    
 		    if [ "$runMode" == "qsub" ]; then
-			touch $queueFile_1
+			test -f $rootName_1 || touch $queueFile_1
 			touch $queueFile_2
 		    fi
 
@@ -470,6 +470,7 @@ $qsubHeader
 #PBS -o $logDir/errors/${runNum}.stages12.txt
 #PBS -p $priority
 
+date
 $subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment"
 EOF
 		    completion=$? 
