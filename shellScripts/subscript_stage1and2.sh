@@ -63,19 +63,19 @@ while [[ "`ps cax`" =~ "bbcp" ]]; do
 done
 bbCmd="bbcp -e -E md5= -V $dataFile $scratchFile"
 
-if [ "$stage1cmd" != "NULL" ]; then
+if [ "$stage1cmd" ]; then
     test -f $logFile1 && mv $logFile1 $trashDir/
     echo "$bbCmd" >> $logFile1
     $bbCmd >> $logFile1
     scratchFileCopied=true
 fi # stage 1 not passed as null
-if [ "$stage2cmd" != "NULL" ]; then
+if [ "$stage2cmd" ]; then
     test -f $logFile2 && mv $logFile2 $trashDir/
     echo "$bbCmd" >> $logFile2
     test ! -f $scratchFile || test -z "$scratchFileCopied" && $bbCmd >> $logFile2
 fi # stage 2 not passed as null
     
-if [ "$stage1cmd" != "NULL" ]; then 
+if [ "$stage1cmd" ]; then 
     for sig in $signals; do 
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $rejectDir/; exit $sig" $sig
     done
@@ -120,7 +120,7 @@ if [ "$stage1cmd" != "NULL" ]; then
     test -f $rejectDir/${logFile1##*/} && trash $rejectDir/${logFile1##*/}
 fi # stage 1 command isn't null 
 
-if [ "$stage2cmd" != "NULL" ]; then 
+if [ "$stage2cmd" ]; then 
     for sig in $signals; do 
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
     done

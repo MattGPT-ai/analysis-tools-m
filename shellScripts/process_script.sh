@@ -273,14 +273,12 @@ setEpoch() { # try to move into common file with setCuts
     
 } # end setEpoch 
 
-setCuts
-
+setCuts # sets the values for various cut parameters 
 
 while read -r line
 do
-    set -- $line
-
-    test $nJobs -lt $nJobsMax || exit 0
+    test $nJobs -lt $nJobsMax || exit 0 # for the -n flag 
+    set -- $line # split up command line 
     
     runDate=$1
     runNum=$2
@@ -290,7 +288,11 @@ do
     stage2cmd=""
     stage4cmd=""
     stage5cmd=""
-    
+
+    jobCmds=""
+    stages=""
+    queue="" 
+
     rootName_1="$processDir/${stage1subDir}/${runNum}.stage1.root"	    
     rootName_2="$processDir/${stage2subDir}/${runNum}.stage2.root"
     rootName_4="${processDir}/${stage4subDir}/${runNum}.stage4.root"
@@ -298,15 +300,11 @@ do
     queueFile_1="${queueDir}/${stage1subDir}_${runNum}.stage1"
     queueFile_2="${queueDir}/${stage2subDir}_${runNum}.stage2"
     runBool="false" # reset 
-    stage1cmd="NULL" # must match NULL assignment in subscript
-    stage2cmd="NULL"
-    dataFile=${dataDir}/${runNum}.cvbf		    
     runLog4="$logDir/${stage4subDir}/${runNum}.stage4.txt"	
     runLog5="${logDir}/${stage5subDir}/${runNum}.stage5.txt"
     
-
     setEpoch $runDate
-    #setCuts
+    setCuts
 
 
     if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]; then
@@ -314,6 +312,7 @@ do
 	combinedLaserName="combined_${laser1}_${laser2}_${laser3}_${laser4}_laser"
 
 	dataDir=$baseDataDir/d${runDate}
+	dataFile=${dataDir}/${runNum}.cvbf		    
 	runData="$scratchDir/${runNum}.cvbf"
 	
 	laserProcessed=$laserDir/processed # shorten variable name 
@@ -401,7 +400,7 @@ EOF
 		    cmd="root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$
 laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
 		    echo "$cmd"
-		    logFile=$laserLog/${combinedLaserName}.txt
+		    logFileLaser=$laserLog/${combinedLaserName}.txt
 
 		    if [ "$runMode" != print ]; then     
 			[ "$runMode" == "qsub" ] && touch $queueFileLaser
@@ -409,7 +408,7 @@ laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'
 			$runMode <<EOF
 $qsubHeader
 #PBS -N ${combinedLaserName}
-#PBS -o $logFile
+#PBS -o $logFileLaser
 #PBS -p $priority
 
 cd $VEGAS/macros/ # so you can process macros
@@ -427,9 +426,9 @@ echo "$cmd"
 
 if [ \$exitCode -ne 0 ]; then
     rm $combinedLaserRoot
-    mv $logFile $rejectDir/
+    mv $logFileLaser $rejectDir/
 else
-    cp $logFile $workDir/completed/
+    cp $logFileLaser $workDir/completed/
 EOF
 			completion=$? 
 			test "$completion" -eq 0 && nJobs=$((nJobs+1)) 
@@ -452,6 +451,8 @@ EOF
 		    runBool="true"
 		    stage1cmd="`which vaStage1` -Stage1_RunMode=data $customFlags1"
 		    echo "$stage1cmd $dataFile $rootName_1" 
+		    queue="$queueFile_1 "
+		    stages="1"
 		else
 		    echo "Data file $dataFile does not exits!"
 		fi # data file exists
@@ -464,11 +465,15 @@ EOF
 		    runBool="true"
 		    stage2cmd="`which vaStage2` $configFlags2 $customFlags2"
 		    echo "$stage2cmd $dataFile $rootName_2 $laserRoot" 
-		    
+		    stages="${stages}2"
+		    queue="$queue $queueFile_2"
 		else # data file doesn't exist
 		    echo -e "\e[0;31mData file ${dataFile} does not exist! check directory\e[0m"
-		fi # original data file exists in expected location, file not in queu
+		fi # original data file exists in expected location, file not in queue 
 	    fi # stage 2 root file does not exist and isn't in queue
+
+	    [ "$runBool" == "true" ] && jobCmds="$subscript12 \"$stage1cmd\" $rootName_1 \"$runStage1\" \"$stage2cmd\" $rootName_2 $runNum $dataFile $laserRoot \"$environment\"
+"
 	    	    
 	fi # run stage 1 or stage 2
 	
@@ -535,7 +540,11 @@ EOF
 	    # not sure if should use cutTelFlags
             stage4cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$stage4cmd"
-
+	    jobCmds="$jobCmds
+$subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $runLog4 
+"
+	    stages="${stages}4"
+	    queue="$queue $queueFile_4"
 	    # condense 
 	    if [ ! -f $ltFile ]; then
 		echo -e "\e[0;31m $ltFile Does Not Exist!!, skipping $runNum!\e[0m"
@@ -591,6 +600,11 @@ EOF
 		    fi # apply time cuts
 		    
 		    echo "$stage5cmd"
+		    jobCmds="$jobCmds
+$subscript45 \"$cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $runLog5
+"
+		    stages="${stages}5"
+		    queue="$queue $queueFile_5"
 		    
 		fi # queueFile5 does not exist 
 	    else
@@ -599,31 +613,31 @@ EOF
 	fi # stage 5 not present yet
     fi # runStage5
 
+    #test -n "$stage1cmd" || test -n "$stage2cmd" && jobCmds="$subscript12 \"$stage1cmd\" $rootName_1 \"$runStage1\" \"$stage2cmd\" $rootName_2 $runNum $dataFile $laserRoot \"$environment\"
+#"
+    #test -n "$stage4cmd" && jobCmds="$jobCmds
+#$subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $logFile4 
+#"
+    #test -n "$stage5cmd" && jobCmds="$jobCmds
+#$subscript45 \"$cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $logFile5
+#"
+
+    
     if [ "$runMode" != print ]; then
-	[ "$runMode" == "qsub" ] && touch $queueFile
-
-
+     
 	$runMode <<EOF
 $qsubHeader
-#PBS -N ${runNum}${stages} //! set stages 
+#PBS -N ${runNum}_${stages} 
 #PBS -o $logDir/errors/${runNum}.txt
 #PBS -p $priority
 
 date
 
-$subscript12 "$stage1cmd" $rootName_1 "$runStage1" "$stage2cmd" $rootName_2 $runNum $dataFile $laserRoot "$environment" 
-
-echo "spectrum: $spectrum"
-
-
-# stage 4 
-$subscript45 "$cmd" "$rootName_4" "$rootName_2" "$environment" &>> $logFile4
-
-# stage 5 
-$subscript45 "$cmd" "$rootName_5" "$rootName_4" "$environment" &>> $logFile5
+$jobCmds
 
 EOF
-
+	completion=$? 
+	echo "completion: $completion" 
 	#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
 	if [ "$runMode" == "qsub" ]; then
 	    test -f $rootName_1 || touch $queueFile_1
