@@ -47,6 +47,7 @@ suffix="" # only applied to stages 4 and 5 by default
 useStage5outputFile=true
 useBDT=false
 autoCutTel4=false
+applyTimeCuts="true"
 
 reprocess=false
 runMode=print # 
@@ -54,8 +55,6 @@ runMode=print #
 laserSubscript=$scriptDir/subscript_laser.sh
 subscript12=$scriptDir/subscript_stage1and2.sh
 subscript45=$scriptDir/subscript_4or5.sh
-
-applyTimeCuts="true"
 
 ##bin/sh -f
 qsubHeader="
@@ -66,6 +65,7 @@ qsubHeader="
 #PBS -V 
 "
 
+signals="1 2 3 4 5 6 7 8 11 13 15 30"
 nJobs=(0) # number of submits 
 nJobsMax=(1000) 
 
@@ -299,7 +299,8 @@ do
     rootName_5="${processDir}/${stage5subDir}/${runNum}.stage5.root"
     queueFile_1="${queueDir}/${stage1subDir}_${runNum}.stage1"
     queueFile_2="${queueDir}/${stage2subDir}_${runNum}.stage2"
-    runBool="false" # reset 
+    queueFile_4=$queueDir/${stage4subDir}_${runNum}.stage4
+    queueFile_5=${queueDir}/${stage5subDir}_${runNum}.stage5
     runLog4="$logDir/${stage4subDir}/${runNum}.stage4.txt"	
     runLog5="${logDir}/${stage5subDir}/${runNum}.stage5.txt"
     
@@ -442,7 +443,7 @@ EOF
 	fi
 	# end laser stuff
 	
-
+	runBool="false"
 	if [ "$runStage1" == "true" -o "$runStage2" == "true" ]; then
 
 	    ##### STAGE 1 #####
@@ -481,21 +482,14 @@ EOF
 
     ##### STAGE 4 #####
     if [ "$runStage4" == "true" ]; then
-	
-	if [ "$autoCutTels4" == "true" ]; then 
-	    laserNum=(1)
-	    cutTelFlags=""
-	    for laser in $3 $4 $5 $6; do 
-		test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
-		laserNum=$((laserNum+1))
-	    done
-	fi # automatically add -CutTelescopes flag, don't think this is necessary 
 
-        queueFile4=$queueDir/${stage4subDir}_${runNum}.stage4
-        #if [ ! -f $rootName_4 -a ! -f $queueFile4 ] || [ "$reprocess" == true ]; then 
-	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile4 ] ) || [ "$reprocess" == true ]; then  
+	if ( [ ! -f $rootName_4 ] && [ ! -f $queueFile_4 ] ) || [ "$reprocess" == true ]; then  
+	    if [ ! -f $rootName_2 ] && [ ! "$stage2cmd" ] && [ ! -f $queueFile_2 ]; then
+		echo "stage 2 file $rootName_2 does not exist! skipping $rootName_4!"
+		continue
+	    fi
+
 	    offset=`mysql -h romulus.ucsc.edu -u readonly -s -N -e "use VERITAS; SELECT offset_distance FROM tblRun_Info WHERE run_id = ${runNum}"`
-	    #zenith=`mysql -h romulus.ucsc.edu -u readonly -s N -e "use ; SELECT FROM WHERE "`
 
 	    if [ "$ltMode" == auto ]; then
 		ltName=lt_Oct2012_${array}_ATM${atm}_7samples_${ltVegas}_allOffsets_LZA
@@ -536,12 +530,21 @@ EOF
 	    else
 		denyFlag=""
 	    fi
+	    
+	    if [ "$autoCutTels4" == "true" ]; then 
+		laserNum=(1)
+		cutTelFlags=""
+		for laser in $3 $4 $5 $6; do 
+		    test "$laser" == "--" && cutTelFlags="-CutTelescope=${laserNum}/1 -OverrideLTCheck=1"  #cutTelFlags="$cutTelFlags -CutTelescope=${laserNum}/1"
+		    laserNum=$((laserNum+1))
+		done
+	    fi # automatically add -CutTelescopes flag, don't think this is necessary 
 
 	    # not sure if should use cutTelFlags
             stage4cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$stage4cmd"
 	    jobCmds="$jobCmds
-$subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $runLog4 
+$subscript45 \"$stage4cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $runLog4 
 "
 	    stages="${stages}4"
 	    queue="$queue $queueFile_4"
@@ -563,10 +566,9 @@ $subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum
     if [ "$runStage5" == "true" ]; then
 	
 	if [ ! -f $rootName_5 ] || [ "$reprocess" == true ]; then
-	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ] || [ "$runMode" == print ]; then
+	    if [ -f $rootName_4 ] || [ -f $queueDir/${stage4subDir}_${runNum}.stage4 ] || [ "$stage4cmd" ] || [ "$runMode" == print ]; then
 		
-		queueFile5=${queueDir}/${stage5subDir}_${runNum}.stage5
-		if [ ! -f $queueFile4 ]; then
+		if [ ! -f $queueFile_5 ]; then
 		    
 		    if [ "$stage5cuts" == "auto" ]; then
 			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
@@ -601,29 +603,19 @@ $subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum
 		    
 		    echo "$stage5cmd"
 		    jobCmds="$jobCmds
-$subscript45 \"$cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $runLog5
+$subscript45 \"$stage5cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $runLog5
 "
 		    stages="${stages}5"
 		    queue="$queue $queueFile_5"
 		    
-		fi # queueFile5 does not exist 
+		fi # queueFile_5 does not exist 
 	    else
 		echo "$rootName_4 is not present, skipping $rootName_5 !"
 	    fi # stage 4 file exists or is in queue  
 	fi # stage 5 not present yet
     fi # runStage5
 
-    #test -n "$stage1cmd" || test -n "$stage2cmd" && jobCmds="$subscript12 \"$stage1cmd\" $rootName_1 \"$runStage1\" \"$stage2cmd\" $rootName_2 $runNum $dataFile $laserRoot \"$environment\"
-#"
-    #test -n "$stage4cmd" && jobCmds="$jobCmds
-#$subscript45 \"$cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $logFile4 
-#"
-    #test -n "$stage5cmd" && jobCmds="$jobCmds
-#$subscript45 \"$cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $logFile5
-#"
-
-    
-    if [ "$runMode" != print ]; then
+    if [ "$runMode" != print ] && [ "$jobCmds" ]; then
      
 	$runMode <<EOF
 $qsubHeader
@@ -631,24 +623,24 @@ $qsubHeader
 #PBS -o $logDir/errors/${runNum}.txt
 #PBS -p $priority
 
+for sig in $signals; do  
+    trap "echo \"TRAP! Signal: $sig\"; rm $queue; exit $sig" $sig
+done
+
 date
 
 $jobCmds
 
 EOF
 	completion=$? 
-	echo "completion: $completion" 
 	#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt
-	if [ "$runMode" == "qsub" ]; then
-	    test -f $rootName_1 || touch $queueFile_1
-	    touch $queueFile_2
+
+	if [ "$completion" -eq 0 ]; then
+	    [ "$runMode" == "qsub" ] && touch $queue 
+	    nJobs=$((nJobs+1))  
 	fi
-
-	test "$completion" -eq 0 &&  nJobs=$((nJobs+1))  
-
-	#else # queueFile already exists
-    fi # end runmode check
-
+ 
+    fi # end check runmode and that there is a job to submit 
 
 done < $readList # loop over lines in loggen file 
 
