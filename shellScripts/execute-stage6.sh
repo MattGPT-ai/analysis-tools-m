@@ -4,7 +4,7 @@
 # sourceName baseDir options spectrum
 # use environment option first if you want to override other variables
 
-test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -q"
+test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -s spectrum -m mode -q"
 
 environment=$HOME/environments/SgrA_source.sh
 outputDir=results
@@ -259,7 +259,7 @@ cd $VEGASWORK
 #git --git-dir $VEGAS/.git rev-parse HEAD
 git --git-dir $VEGAS/.git describe --always 
 
-if [ "$exclusionList" != none ]; then 
+if [ "$exclusionList" ]; then 
     cat $exclusionList
 fi
 

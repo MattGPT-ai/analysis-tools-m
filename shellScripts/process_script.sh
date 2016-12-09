@@ -12,6 +12,7 @@ runStage2="false"
 runStage4="false"
 runStage5="false"
 runStage6="false"
+finalFlag=false # flag to signal skipping of earlier stages if later stage (5) file already exists 
 
 baseDataDir=/veritas/data
 scratchDir=/scratch/mbuchove
@@ -76,7 +77,7 @@ stage5subDir=stg5
 
 ##### Process Arguments #####
 # use getopt to parse arguments 
-args=`getopt -o l124:5:d:D:ahB:s:qQr:e:c:C:p:kdn:o:ibL -l x1:,x2:,x4:,x5:,disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
+args=`getopt -o l124:5:ahB:s:qQr:e:c:C:p:kdn:o:ibL -l x1:,x2:,x4:,x5:,d1:,d2:,d4:,d5:,disp:,atm:,BDT:,deny:,cutTel:,reprocess -n 'process_script.sh' -- "$@"` # B::
 eval set -- $args 
 # loop through options
 for i; do  
@@ -90,14 +91,15 @@ for i; do
 	-4) runStage4="true" 
 	    stage4subDir="$2"
 	    shift 2 ;;
-	-d) stage1subDir=$2
-	    shift 2 ;; 
-	-D) stage2subDir=$2
-	    shift 2 ;; 
-	#-F) use copy stage4 instead of stage2 to save having stage2 copies
 	-5) runStage5="true"
-	    stage5subDir="$2"
+	    stage5subDir="$2" 
+	    finalFlag=true 
        	    shift 2 ;;
+	--d1) stage1subDir=$2 ; shift 2 ;; 
+	--d2) stage2subDir=$2 ; shift 2 ;; 
+	--d4) stage1subDir=$2 ; shift 2 ;; 
+	--d5) stage2subDir=$2 ; shift 2 ;; 	
+	#-F) use copy stage4 instead of stage2 to save having stage2 copies
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
 	-r) runMode="$2" # cat bash 
@@ -307,6 +309,10 @@ do
     setEpoch $runDate
     setCuts
 
+    # skip over run if the stage 5 file already exists
+    finalFile=$rootName_5
+    $finalFlag && test -f $finalFile && echo "$finalFile already exists! skipping.." && continue 
+    
 
     if [ "$runStage1" == "true" -o "$runStage2" == "true" -o "$runLaser" == "true" ]; then
 	
@@ -367,10 +373,10 @@ do
 			    if [ "$runMode" != "print" ]; then
 				[ "$runMode" == "qsub" ] && touch $laserQueue/${n}_laser
 				
-				$runMod <<EOF
+				$runMode <<EOF
 $qsubHeader
 #PBS -N ${n}_laser
-#PBS -o $laserLog/${n}_laser.root
+#PBS -o $laserLog/${n}_laser.txt
 #PBS -p $priority
 
 $laserSubscript "$laserCmd" $laserData $laserProcessed/${n}_laser.root $envFlag
