@@ -100,7 +100,7 @@ for energyBin in $eBins; do #while (( eBin < numBinsE )); do
     for dir in $ROOTOUTDIR $logDirLower; do 
 	if [ ! -d $dir ]; then
 	    echo "Must create directory $dir .."
-	    test $runMode != print && mkdir -p -v $dir
+	    test $runMode != print && mkdir -p $dir
 	fi
     done # 
 

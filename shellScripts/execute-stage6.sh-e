@@ -169,7 +169,7 @@ outputDir=$VEGASWORK/$outputDir
 for dir in $logDir $backupDir $outputDir; do
     if [ ! -d $dir ]; then
 	echo "$dir does not exist, creating.."
-	mkdir -p -v $dir
+	mkdir -p $dir
     fi
 done
 

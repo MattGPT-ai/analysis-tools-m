@@ -220,7 +220,7 @@ for subDir in queue processed log completed rejected results config backup; do
     if [ ! -d $workDir/$subDir ]; then
 	echo "Must create directory $workDir/$subDir"
 	if [ "$runMode" != "print" ]; then
-	    mkdir -p -v -v $workDir/$subDir
+	    mkdir -p -v $workDir/$subDir
 	fi
     fi # processing directories do not exist 
 done # could make common functions for checking dirs
@@ -236,7 +236,7 @@ for dir in $processDir $logDir; do
 	if [ ! -d $dir/$subDir ] && [ "$dir/$subDir" != "$processDir/errors" ]; then
 	    echo "Must create directory $dir/$subDir"
 	    if [ "$runMode" != "print" ]; then
-		mkdir -p -v -v $dir/$subDir
+		mkdir -p -v $dir/$subDir
 	    fi
 	fi # processing directories do not exist 
     done # loop over subdirs
