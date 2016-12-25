@@ -15,12 +15,13 @@ else
     echo -e "\e[0;31mmust specify a command, root name, previous root file \e[0m"
     exit 1 # failure
 fi
-if [ "$4" ]; then
+if [ $4 ]; then
     environment="$4"
     for env in $environment; do 
 	source $env
     done
 fi
+spectrum=$5
 
 workDir=$VEGASWORK
 processBaseDir=processed # these should all match parent script
@@ -67,6 +68,7 @@ date
 echo -n "hostname: " hostname  
 echo -n "ROOT: $ROOTSYS "; root-config --version 
 echo -n "VEGAS git hash: "; git --git-dir $VEGAS/.git describe --always
+echo "spectrum: $spectrum"
 if [[ "$cmd" =~ "-cuts" ]]; then
     afterCuts=${cmd#*-cuts=}
     set -- $afterCuts

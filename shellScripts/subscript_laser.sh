@@ -26,6 +26,7 @@ laserDir=$LASERDIR #needs to match process_script.sh
 logDir=$laserDir/log
 queueDir=$laserDir/queue
 rejectDir=$laserDir/rejected
+completeDir=$laserDir/completed
 
 base=${laserRoot##*/}
 runName=${base%.root}
@@ -90,14 +91,14 @@ if [ $completion -ne 0 ]; then
     exit 1
 fi # command unsuccessfully completed
 
+test -f $rejectDir/${logFile##*/} && trash $rejectDir/${logFile##*/}
+test -f $logFile && cp -v $logFile $completeDir/ || ln -s -v $logFile $completeDir/
+
 if [ `grep -c unzip $logFile` -gt 0 ]; then
     echo -e "\e[0;31m$rootName_new unzip error!\e[0m" 
     mv $logFile $rejectDir/
     rm $laserRoot
     exit 1
 fi # unzip error, sigh
-
-test -f $rejectDir/${logFile##*/} && trash $rejectDir/${logFile##*/}
-cp $logFile $workDir/completed/ 
 
 exit 0 # great success
