@@ -65,7 +65,7 @@ plotDirFull=$plotDir/${subDir}
 for dir in $trainDir $logDirFull $plotDirFull; do
     if [ ! -d $dir ]; then
 	echo "Must create directory: $dir"
-	test $runMode == print ||  mkdir -p -v $dir
+	test $runMode == print ||  mkdir -p $dir
     fi
 done # loop over necessary directories
 
@@ -128,7 +128,7 @@ for z in $zeniths; do
 	    if [ "$runMode" == "qsub" -o "$runMode" == "bash" ]; then
 		if [ -f $logFile ]; then
 		    if [ ! -d $backupDir/$subDir ]; then
-			mkdir -p -v $backupDir/$subDir
+			mkdir -p $backupDir/$subDir
 		    fi
 		    mv $logFile $backupDir/$subDir
 		fi

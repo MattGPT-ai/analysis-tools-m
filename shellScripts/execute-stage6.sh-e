@@ -4,7 +4,7 @@
 # sourceName baseDir options spectrum
 # use environment option first if you want to override other variables
 
-test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -s spectrum -m mode -q"
+test -z $1 && echo "usage: execute-stage6.sh -e environment.bashrc -f runfilepath -c all -n runname -q"
 
 environment=$HOME/environments/SgrA_source.sh
 outputDir=results
@@ -76,8 +76,6 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 		    suppressRBM=0 ;; 
 		both)
 		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=0 ;; 
-		*)
-		    echo "not a valid mode! enter skymap, spectrum, or both" ;; 
 	    esac ;; 
 	d) 
 	    subDir=$OPTARG
@@ -171,7 +169,7 @@ outputDir=$VEGASWORK/$outputDir
 for dir in $logDir $backupDir $outputDir; do
     if [ ! -d $dir ]; then
 	echo "$dir does not exist, creating.."
-	mkdir -p -v $dir
+	mkdir -p $dir
     fi
 done
 
@@ -261,7 +259,7 @@ cd $VEGASWORK
 #git --git-dir $VEGAS/.git rev-parse HEAD
 git --git-dir $VEGAS/.git describe --always 
 
-if [ "$exclusionList" ]; then 
+if [ "$exclusionList" != none ]; then 
     cat $exclusionList
 fi
 
