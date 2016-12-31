@@ -76,6 +76,8 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 		    suppressRBM=0 ;; 
 		both)
 		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=0 ;; 
+		*)
+		    echo "not a valid mode! enter skymap, spectrum, or both" ;; 
 	    esac ;; 
 	d) 
 	    subDir=$OPTARG

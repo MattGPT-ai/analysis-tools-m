@@ -63,30 +63,22 @@ while [[ "`ps cax`" =~ "bbcp" ]]; do
 done
 bbCmd="bbcp -e -E md5= -V $dataFile $scratchFile"
 
-if [ "$stage1cmd" ]; then
-    test -f $logFile1 && mv $logFile1 $trashDir/
-    echo "$bbCmd" >> $logFile1
-    $bbCmd >> $logFile1
-    scratchFileCopied=true
-fi # stage 1 not passed as null
-if [ "$stage2cmd" ]; then
-    test -f $logFile2 && mv $logFile2 $trashDir/
-    echo "$bbCmd" >> $logFile2
-    test ! -f $scratchFile || test -z "$scratchFileCopied" && $bbCmd >> $logFile2
-fi # stage 2 not passed as null
-    
 if [ "$stage1cmd" ]; then 
+    test -f $logFile1 && mv $logFile1 $workDir/backup/
     for sig in $signals; do 
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_1 && rm $rootName_1; mv $logFile1 $rejectDir/; exit $sig" $sig
     done
+
     date > $logFile1
     echo -n "hostname: " >> $logFile1
     hostname >> $logFile1  
     echo -n "ROOT: $ROOTSYS " >> $logFile1 
     root-config --version >> $logFile1
     echo -n "VEGAS git hash: " >> $logFile1 
-    git --git-dir $VEGAS/.git describe --always >> $logFile1 
-
+    /usr/bin/git --git-dir $VEGAS/.git describe --always >> $logFile1 
+    
+    test ! -f $$scrachFile && echo "$bbCmd" >> $logFile1 && $bbCmd >> $logFile1
+    
     
     Tstart=`date +%s`
     $stage1cmd $scratchFile $rootName_1 >> $logFile1
@@ -111,7 +103,7 @@ if [ "$stage1cmd" ]; then
 	test -f $rejectDir/${logFile1##*/} && trash $rejectDir/${logFile1##*/}
 	cp $logFile1 $workDir/completed/	
     fi # command unsuccessfully completed
-                                          
+    
     if [ `grep -c unzip $logFile` -gt 0 ]; then
 	echo -e "\e[0;31m$rootName_1 UNZIP ERROR!!!\e[0m"
 	mv $logFile1 $rejectDir/
@@ -121,15 +113,23 @@ if [ "$stage1cmd" ]; then
 fi # stage 1 command isn't null 
 
 if [ "$stage2cmd" ]; then 
+    test -f $logFile2 && mv $logFile2 $workDir/backup/
+    date > $logFile2
+    echo before signals 
     for sig in $signals; do 
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
     done
-    date > $logFile2
+    echo after signals 
     echo -n "hostname: " >> $logFile2
     hostname >> $logFile2
     echo -n "ROOT: $ROOTSYS " >> $logFile2
     root-config --version >> $logFile2
-    git --git-dir $VEGAS/.git describe --always >> $logFile2
+    /usr/bin/git --git-dir $VEGAS/.git describe --always >> $logFile2
+
+    if [ ! -f $scratchFile ]; then
+	echo "$bbCmd" >> $logFile2
+	$bbCmd >> $logFile2
+    fi
     
     while [[ "`ps cax`" =~ "bbcp" ]]; do 
 	sleep $((RANDOM%10+10)); 

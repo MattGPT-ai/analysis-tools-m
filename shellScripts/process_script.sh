@@ -40,9 +40,9 @@ stage5cuts=auto
 
 configFlags4=""
 # make an option for setting this 
-configFlags5="-Method=VACombinedEventSelection -CMC_RemoveCutEvents=1"
-#configFlags5="-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
-#configFlags5="-Method=VACombinedEventSelection"
+configFlags5="-Method=VACombinedEventSelection"
+#configFlags5="-Method=VAStereoEventSelection"
+configFlags5="$configFlags5 -CMC_RemoveCutEvents=1"
 suffix="" # only applied to stages 4 and 5 by default
 #read2from4=
 useStage5outputFile=true
@@ -113,7 +113,9 @@ for i; do
 	-n) nJobsMax=$2 
 	    shift 2 ;;
 	-L) mode=lightcurve # | --lc
-	    configFlags5="$conf-Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
+	    #configFlags5="$configFlags5 -Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
+	    configFlags5="-Method=VAStereoEventSelection"
+	    useStage5outputFile=false 
 	    shift ;; 
 	--reprocess)
 	    reprocess=true ; shift ;;
@@ -147,9 +149,8 @@ for i; do
 	    ATM=$2
 	    shift 2 ;; 
 	-e) environment="$2" # has problem resetting spectrum if it comes after, should load first 
-	    for env in $environment; do  source $env; done
-	    #stage4subFlags="$stage4subFlags $envFlag"
-	    #stage5subFlags="$stage5subFlags $envFlag"
+	    for env in $environment; do  source $env; echo $env; done
+	    hash -r # clears the hash for executable paths 
 	    shift; shift ;;
 	-p) priority=$2
 	    shift ; shift ;;
@@ -400,12 +401,13 @@ EOF
 	    laserRoot="$laserProcessed/${laserNum}_laser.root"
 	    
 	else # process the combined laser file
-	    laserQueue=$laserQueue/${combinedLaserName}
+	    queueFileLaser=$laserQueue/${combinedLaserName}
 	    combinedLaserRoot=$laserProcessed/${combinedLaserName}.root
-	    if [ ! -f $queueFileLaser ]; then
-		if [ ! -f $combinedLaserRoot ]; then		    
-		    cmd="root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$
-laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
+	    laserRoot=$combinedLaserRoot 
+	    if [ ! -f $combinedLaserRoot ]; then		    
+		if [ ! -f $queueFileLaser ]; then
+		    
+		    cmd="root -b -l -q 'combineLaser.C(\"$laserProcessed/${combinedLaserName}.root\",\"$laserProcessed/${laser1}_laser.root\",\"$laserProcessed/${laser2}_laser.root\",\"$laserProcessed/${laser3}_laser.root\",\"$laserProcessed/${laser4}_laser.root\")'"
 		    echo "$cmd"
 		    logFileLaser=$laserLog/${combinedLaserName}.txt
 
@@ -440,8 +442,8 @@ EOF
 			completion=$? 
 			test "$completion" -eq 0 && nJobs=$((nJobs+1)) 
 		    fi # end qsub for combined laser 
-		fi # if combined laser root file does not exist
-	    fi # if queue file doesn't exist
+		fi # if queue file doesn't exist
+	    fi # if combined laser root file does not exist 
 	fi # check if laser is normal or combined
 	
 	if (( $numTels < 3 )); then
@@ -549,9 +551,8 @@ EOF
 	    # not sure if should use cutTelFlags
             stage4cmd="`which vaStage4.2` $tableFlags $cutFlags4 $configFlags4 $denyFlag $cutTelFlags $rootName_4"
 	    echo "$stage4cmd"
-	    jobCmds="$jobCmds
-$subscript45 \"$stage4cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $runLog4 
-"
+	    test -n "$jobCmds" && jobCmds="$jobCmds && "
+	    jobCmds="${jobCmds}${subscript45} \"$stage4cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $spectrum &>> $runLog4 "
 	    stages="${stages}4"
 	    queue="$queue $queueFile_4"
 	    # condense 
@@ -608,9 +609,8 @@ $subscript45 \"$stage4cmd\" \"$rootName_4\" \"$rootName_2\" \"$environment\" $sp
 		    fi # apply time cuts
 		    
 		    echo "$stage5cmd"
-		    jobCmds="$jobCmds
-$subscript45 \"$stage5cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $runLog5
-"
+		    test -n "$jobCmds" && jobCmds="$jobCmds && "
+		    jobCmds="${jobCmds}${subscript45} \"$stage5cmd\" \"$rootName_5\" \"$rootName_4\" \"$environment\" $spectrum &>> $runLog5 "
 		    stages="${stages}5"
 		    queue="$queue $queueFile_5"
 		    
@@ -629,14 +629,13 @@ $qsubHeader
 #PBS -o $logDir/errors/${runNum}.txt
 #PBS -p $priority
 
-for sig in $signals; do  
-    trap "echo \"TRAP! Signal: $sig\"; rm $queue; exit $sig" $sig
-done
 
 date
+#logInit 
 
 $jobCmds
 
+exit \$? 
 EOF
 	completion=$? 
 	#echo "VEGAS job \$PBS_JOBID started on:  " ` hostname -s` " at: " ` date ` >> $laserLog/qsubLog.txt

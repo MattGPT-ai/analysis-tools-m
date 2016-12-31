@@ -54,18 +54,19 @@ else
 fi
 
 # cleanup, 
-cleanUp() {
-test -f $queueFile && rm $queueFile
-echo -e "\n$cmd"
+cleanUp(){
+    test -f $queueFile && rm -v $queueFile
+    echo 
+    echo "$cmd"
 }
-trap "cleanUp" EXIT
+trap cleanUp EXIT 
 for sig in $signals; do  
     trap "echo \"TRAP! Signal: $sig\"; rm $processRoot; mv $logFile $rejectDir/; exit $sig" $sig
 done
 sleep $((RANDOM%10))
 
 date
-echo -n "hostname: " hostname  
+echo -n "hostname: "; hostname  
 echo -n "ROOT: $ROOTSYS "; root-config --version 
 echo -n "VEGAS git hash: "; git --git-dir $VEGAS/.git describe --always
 echo "spectrum: $spectrum"
@@ -109,26 +110,27 @@ Tend=`date +%s`
 
 echo "Analysis completed in: (hours:minutes:seconds)"
 date -d@$((Tend-Tstart)) -u +%H:%M:%S
-echo "$cmd"
-
+echo "exit code: $completion"
 
 if [ $completion -ne 0 ]; then
     echo -e "\e[0;31m$processRoot not processed successfully!\e[0m"
-    mv $logFile $rejectDir/
-    rm $processRoot
+    mv -v $logFile $rejectDir/
+    rm -v $processRoot
     exit 1
 fi # command unsuccessfully completed
 
-if [ `grep -c unzip $logFile` -gt 0 ]; then
+uz=`grep -c unzip $logFile`
+if [ $uz -gt 0 ]; then
     echo -e "\e[0;31m$processRoot unzip error!\e[0m"
     echo "UNZIP ERROR!!!" 
-    #if [[ "$cmd" =~ "vaStage4.2" ]]; then
-    mv $processRoot $workDir/backup/unzip/
-    mv $logFile $rejectDir/unzip_${logFile##*/}
+    mv -v $processRoot $workDir/backup/unzip/
+    mv -v $logFile $rejectDir/unzip_${logFile##*/}
     exit 1
 fi # unzip error, sigh
 
+logBase=${logFile##*/}
 test -f $rejectDir/${logFile##*/} && trash $rejectDir/${logFile##*/}
-cp $logFile $workDir/completed/
+logComplete=$workDir/completed/${logBase}
+test -f $logComplete && touch $logComplete || ln -s $logFile $workDir/completed/
 
 exit 0 # great success
