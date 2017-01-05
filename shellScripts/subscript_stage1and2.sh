@@ -115,11 +115,10 @@ fi # stage 1 command isn't null
 if [ "$stage2cmd" ]; then 
     test -f $logFile2 && mv $logFile2 $workDir/backup/
     date > $logFile2
-    echo before signals 
+    echo "creating stage 2 traps..." 
     for sig in $signals; do 
 	trap "echo \"TRAP! Signal: $sig\"; test -f $rootName_2 && rm $rootName_2; mv $logFile2 $rejectDir/; exit 130" $sig
     done
-    echo after signals 
     echo -n "hostname: " >> $logFile2
     hostname >> $logFile2
     echo -n "ROOT: $ROOTSYS " >> $logFile2

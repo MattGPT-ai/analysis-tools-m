@@ -115,7 +115,7 @@ for i; do
 	-L) mode=lightcurve # | --lc
 	    #configFlags5="$configFlags5 -Method=VAStereoEventSelection -CMC_RemoveCutEvents=1"
 	    configFlags5="-Method=VAStereoEventSelection"
-	    useStage5outputFile=false 
+	    #useStage5outputFile=false 
 	    shift ;; 
 	--reprocess)
 	    reprocess=true ; shift ;;
@@ -481,8 +481,7 @@ EOF
 		fi # original data file exists in expected location, file not in queue 
 	    fi # stage 2 root file does not exist and isn't in queue
 
-	    [ "$runBool" == "true" ] && jobCmds="$subscript12 \"$stage1cmd\" $rootName_1 \"$runStage1\" \"$stage2cmd\" $rootName_2 $runNum $dataFile $laserRoot \"$environment\"
-"
+	    [ "$runBool" == "true" ] && jobCmds="$subscript12 \"$stage1cmd\" $rootName_1 \"$runStage1\" \"$stage2cmd\" $rootName_2 $runNum $dataFile $laserRoot \"$environment\" "
 	    	    
 	fi # run stage 1 or stage 2
 	
