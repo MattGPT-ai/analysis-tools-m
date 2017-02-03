@@ -1,0 +1,11 @@
+export VERITASBASE=/software/vegas
+export VEGAS=$VERITASBASE #/vegas
+export VBFSYS=/software/install
+
+export ROOTSYS="/software/ROOT_build"
+export PATH="${PATH}:${ROOTSYS}/bin"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${ROOTSYS}/lib"
+
+export PATH="${PATH}:/software/install/bin"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/software/install/lib"
+export PATH="${PATH}:${VEGAS}/bin"

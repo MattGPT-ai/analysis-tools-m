@@ -1,0 +1,87 @@
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/48854.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/53772.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/54684.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/59823.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/59824.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/59921.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/60436.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/60613.stage5.root
+[EA ID: 0]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_na_ATM22_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1000_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 0]
+[CONFIG ID: 0]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 0]
+[RUNLIST ID: 1]
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/63505.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/64080.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/66112.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/66113.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/70458.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/71802.stage5.root
+[/RUNLIST ID: 1]
+[EA ID: 1]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_ua_ATM22_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1200_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 1]
+[CONFIG ID: 1]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 1]
+[RUNLIST ID: 2]
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/66003.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/67141.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/67142.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/71348.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/71347.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/71477.stage5.root
+[/RUNLIST ID: 2]
+[EA ID: 2]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_ua_ATM21_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1200_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 2]
+[CONFIG ID: 2]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 2]
+[RUNLIST ID: 3]
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/48402.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/54737.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/54783.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/55272.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/59562.stage5.root
+[/RUNLIST ID: 3]
+[EA ID: 3]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_na_ATM21_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1000_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 3]
+[CONFIG ID: 3]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 3]
+[RUNLIST ID: 4]
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/38753.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/43747.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/43748.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/43750.stage5.root
+[/RUNLIST ID: 4]
+[EA ID: 4]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_oa_ATM21_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1000_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 4]
+[CONFIG ID: 4]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 4]
+[RUNLIST ID: 5]
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/37009.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/37195.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/37948.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/40062.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/40186.stage5.root
+/global/cscratch1/sd/mbuchove/Crab/processed/stg5_hard_ImpDist300/41793.stage5.root
+[/RUNLIST ID: 5]
+[EA ID: 5]
+/global/project/projectdirs/m1304/validation/tables/finished_v255/ea_Oct2012_oa_ATM22_GrISUDet_vegas255_7samples_050off_Z00-35_std_d1p43_s1000_MSW1p1_MSL1p4_ThetaSq0p01_DistCut300m.root
+[/EA ID: 5]
+[CONFIG ID: 5]
+RBM_SearchWindowSqCut 0.01
+S6A_RingSize 0.1
+[/CONFIG ID: 5]
