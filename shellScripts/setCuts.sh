@@ -105,6 +105,23 @@ case $spectrum in
 	exit 1 ;; 
 esac # loop over spectra 
 
+ImpactDistanceUpper=300 # increases sensitivity 
+# LT cuts should be same as stage 4 cuts but excludes size cut
+# these are applied identically in stage 5 and makeEA
+stage5cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
+stage5cuts="$stage5cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
+stage5cuts="$stage5cuts -MaxHeightLower=$MaxHeightLower"
+stage5cuts="$stage5cuts -ImpactDistanceUpper=$ImpactDistanceUpper"
+
+# set table names
+ltBase=lt_Oct2012_${array}_ATM${atm}_GrISUDet_${ltVegas}_7samples_050off_Z00-65_std_d1p43
+ltFull=$VALIDATION/tables/full/${ltBase}.root
+test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
+eaBase=ea_Oct2012_${array}_ATM${atm}_GrISUDet_vegas255_7samples_050off_Z00-65_std_d${DistanceUpper/./p}_s${SizeLower/0\//}_MSW${MeanS\
+caledWidthUpper/./p}_MSL${MeanScaledLengthUpper/./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper/./p}
+eaFull=$VALIDATION/tables/full/${eaBase}.root
+
+
 return 0
 } # end of setCuts
 

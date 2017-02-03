@@ -68,7 +68,8 @@ sleep $((RANDOM%10))
 date
 echo -n "hostname: "; hostname  
 echo -n "ROOT: $ROOTSYS "; root-config --version 
-echo -n "VEGAS git hash: "; git --git-dir $VEGAS/.git describe --always
+echo -n "VEGAS git hash: " 
+git --git-dir $VEGAS/.git describe --always
 echo "spectrum: $spectrum"
 if [[ "$cmd" =~ "-cuts" ]]; then
     afterCuts=${cmd#*-cuts=}

@@ -12,10 +12,10 @@ simulation=GrISUDet #CORSIKA
 model=Oct2012
 
 azimuths="0,45,90,135,180,225,270,315"
-#zeniths="50,55 60,65" # 00,20 30,35 40,45
-zeniths="00,20 30,35 40,45 50,55 60,65"
-#offsets="0.00,0.50,0.75"
-offsets="0.00,0.25,0.50 0.75,1.00 1.25,1.50 1.75,2.00"
+zeniths="45,50, 50,55 60,65" # 00,20 30,35 40,45
+#zeniths="00,20 30,35 40,45 50,55 60,65"
+offsets="0.50,0.75"
+#offsets="0.00,0.25,0.50 0.75,1.00 1.25,1.50 1.75,2.00"
 multiOffs=true
 
 allNoise=false
@@ -43,7 +43,7 @@ nJobs=(0)
 nJobsMax=(1000)
 
 #add environment option
-args=`getopt -o qQr:bn:p: -l arrays:,atms:,zeniths:,offsets:,noises:,spectra:,distance:,nameExt:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny:,validate,suppress -- "$@"`
+args=`getopt -o qQr:bn:p:x: -l queue:,arrays:,atms:,zeniths:,offsets:,noises:,spectra:,distance:,nameExt:,ext:,stage4dir:,telID,xOpts:,allNoise,waitFor:,mem:,reprocess,deny:,validate,suppress -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in 
@@ -51,6 +51,9 @@ for i; do
 	    queue=batch ; shift ;; 
 	-Q) runMode=qsub
 	    queue=express ; shift ;; 
+	--queue) runMode=qsub
+	    qsubQueue=${2}
+	    shift 2 ;; 
 	-r) # the command that runs the herefile
 	    runMode="$2" ; shift 2 ;;	
 	-b) createFile() {
@@ -86,9 +89,9 @@ for i; do
 	    TelCombosToDeny="$2" ; shift 2 ;; 
 	--telID)
 	    dtFlags="$dtFlags -DTM_TelID=0,1,2,3" ; shift ;; 
-	--xOpts) # must enter full argument 
+	--xOpts|-x) # must enter full argument 
 	    xOpts="$xOpts ${2}" ; shift 2 ;; # be careful about
-	--nameExt) 
+	--nameExt|--ext) 
 	    nameExt="${nameExt}_${2}" ; shift 2 ;; 
 	--noises) # questionable  
 	    noises="$2" ; shift 2 ;; 
@@ -247,9 +250,7 @@ for zGroup in $zeniths; do
 		test -n "$multiOffs" && flags="$flags -AbsoluteOffset=${oGroup}"
 		#flags="$flags -cuts=$HOME/cuts/stage5_ea_${spectrum}_cuts.txt"
 		
-		cuts="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper"
-		cuts="$cuts -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper"
-		cuts="$cuts -ThetaSquareUpper=$ThetaSquareUpper -MaxHeightLower=$MaxHeightLower"
+		cuts="$stage5cuts"
 
 		cmd="makeEA $cuts $flags $xOpts $simFileList $smallTableFile" 
 	    elif [[ "$table" =~ "dt" ]]; then # disp table

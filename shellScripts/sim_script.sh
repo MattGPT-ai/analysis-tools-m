@@ -4,10 +4,9 @@
 runStage4=false
 runStage5=false
 
-offsets="000 050 075" # offsets isn't looped over, but the following all are
+offsets="050 075" # offsets isn't looped over, but the following all are
 #zeniths="00 20 30 40" # BDT
-#zeniths="55 60 65"
-zeniths="00 20 30 35 40 45 50 55 60 65"
+zeniths="40 45 50 55 60 65"
 atmospheres="21 22"
 arrays="na ua"
 noises="100 150 200 250 300 350 400 490 605 730 870"
@@ -40,7 +39,7 @@ bgScriptDir=$HOME/bgScripts
 runMode=print
 nJobsMax=(1000) 
 
-args=`getopt -o 4:5:qQr:bc:C:d:z:o:n:s:h:l:w:BD:e:x:L: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,noises:,zeniths: -n sim_script.sh -- "$@"`
+args=`getopt -o 4:5:qQr:bc:C:d:z:o:n:s:h:l:w:BD:e:x:L: -l BDT:,disp:,cutTel:,override,offsets:,array:,atm:,atms:,noises:,zeniths:,queue: -n sim_script.sh -- "$@"`
 eval set -- $args
 for i; do 
     case "$i" in
@@ -51,13 +50,14 @@ for i; do
 	    stage5subDir=$2
 	    shift 2 ;; 
 	-q) runMode=qsub 
-	    qsubHeader="$qsubHeader
-#PBS -q batch"
+	    qsubQueue=batch
 	    shift ;;
 	-Q) runMode=qsub
-	    qsubHeader="$qsubHeader
-#PBS -q express"
+	    qsubQueue=express
 	    shift ;; 
+	--queue) runMode=qsub
+	    qsubQueue=${2}
+	    shift 2 ;; 
 	-r) runMode="${2}" ; shift 2 ;;
 	-b) createFile() {
 		cat $1 >> $bgScriptDir/${runLog##*/}
@@ -90,7 +90,7 @@ for i; do
 	-o|--offsets) offsets="$2" ; shift 2 ;; 
 	--noises) noises="$2" ; shift 2 ;;
 	--array) arrays="$2" ; shift 2 ;;
-	--atm) atmospheres="$2" ; shift 2 ;;
+	--atms|--atm) atmospheres="$2" ; shift 2 ;;
 	-s|--spec) spectrum="$2" ; shift 2 ;; 
 	-h) hillasMode=HFit
 	    configFlags4="$configFlags4 -HillasBranchName=HFit"
@@ -152,6 +152,7 @@ test -z "$logDir" && logDir=$workDir/log
 qsubHeader="
 #PBS -S /bin/bash 
 #PBS -l nodes=1,mem=2gb,walltime=48:00:00
+#PBS -q $qsubQueue
 #PBS -j oe
 #PBS -V 
 #PBS -p 0

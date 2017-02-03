@@ -37,7 +37,7 @@ regen=false # for remaking runlist, currently not used, though there is an optio
 BOLD=`tput bold`
 NORM=`tput sgr0`
 ### process options
-while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do 
+while getopts d:l:f:s:Sn:Bc:C:x:X:z:e:r:qQ4oOtjuA:m: FLAG; do 
     case $FLAG in
 	e)
 	    environment=$OPTARG
@@ -57,9 +57,10 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 	    ;;
 	C)
 	    configFile=$OPTARG
+	    test -f "$configFile" || echo "config file $configFile does not exist!"
 	    s6Opts="$s6Opts -config=$configFile"
 	    ;;
-	x)
+	X)
 	    exclusionList=$OPTARG
 	    ;;
 	s)
@@ -69,7 +70,8 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 	    readFlag=""
 	    ;;
 	m) # mode to run
-	    case $OPTARG in
+	    mode=$OPTARG
+	    case $mode in
 		spectrum)
 		    s6Opts="$s6Opts -S6A_Spectrum=1" ; suppressRBM=1 ;; 
 		skymap) 
@@ -86,7 +88,6 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 	    name=$OPTARG
 	    ;;
 	B)  # activate BDT mode  
-	    mode=BDT
 	    readFlag="-S6A_ReadFromStage5Combined=1"
 	    extension=".stage5.root"
 	    ;;
@@ -125,7 +126,7 @@ while getopts d:l:f:s:Sn:Bc:C:x:e:r:qQ4oOtjuz:A:m: FLAG; do
 	u)
 	    s6Opts="$s6Opts -S6A_UpperLimit=1"
 	    ;;
-	z) # intended for BDT cuts 
+	z|x) # intended for BDT cuts 
 	    s6OptsExtra="$OPTARG"
 	    ;;
 	?) # unrecognized option - show help
@@ -209,9 +210,9 @@ if [ "$runMode" != print ]; then
     if [ "$backupPrompt" == "true" ]; then
 	echo "backup these files and continue? type 'Y' to continue"
 	read response
-	if [ $response == 'Y' ]; then
-	    test ! -f $logFile || mv $logFile $backupDir/log/
-	    test ! -f $outputFile || mv $outputFile $backupDir/stage6/
+	if [ "$response" == 'Y' ]; then
+	    test ! -f $logFile || mv $logFile $backupDir/
+	    test ! -f $outputFile || mv $outputFile $backupDir/
 	else
 	    exit  
 	fi
@@ -278,6 +279,8 @@ test -f todayresult && mv todayresult $VEGASWORK/log/
 
 if [ "\$exitCode" -eq 0 ]; then 
     cp $logFile $VEGASWORK/completed/
+    test "$mode" == spectrum && grep -B 50 -A 50 "Integral flux (from fit)" $logFile > $VEGASWORK/results/${name}_specsum.txt
+    test "$mode" == skymap && grep -A 250 "Results for the Ring Background Model Analysis" $logFile > $VEGASWORK/results/${name}_RBMsum.txt
     test -f $VEGASWORK/rejected/${logFile##*/} && trash $VEGASWORK/rejected/${logFile##*/}
 else
     test -f $logFile && mv $logFile $VEGASWORK/rejected/

@@ -16,7 +16,7 @@ finalFlag=false # flag to signal skipping of earlier stages if later stage (5) f
 
 baseDataDir=/veritas/data
 scratchDir=/scratch/mbuchove
-tableDir=$USERSPACE/tables
+tableDir=$TABLEDIR
 laserDir=$LASERDIR
 weightsDirBase=$BDT/weights
 #weightsDir=5-34_defaults
@@ -35,8 +35,8 @@ zenith=LZA
 
 scriptDir=${0/\/${0##*/}/}
 source $scriptDir/setCuts.sh 
-stage4cuts=auto
-stage5cuts=auto
+stage4cuts_mode=auto
+stage5cuts_mode=auto
 
 configFlags4=""
 # make an option for setting this 
@@ -97,8 +97,8 @@ for i; do
        	    shift 2 ;;
 	--d1) stage1subDir=$2 ; shift 2 ;; 
 	--d2) stage2subDir=$2 ; shift 2 ;; 
-	--d4) stage1subDir=$2 ; shift 2 ;; 
-	--d5) stage2subDir=$2 ; shift 2 ;; 	
+	--d4) stage4subDir=$2 ; shift 2 ;; 
+	--d5) stage5subDir=$2 ; shift 2 ;; 	
 	#-F) use copy stage4 instead of stage2 to save having stage2 copies
 	-a) runStage1="true"; runStage2="true"; runStage4="true"; runStage5="true"
 	    shift ;;
@@ -121,19 +121,20 @@ for i; do
 	    reprocess=true ; shift ;;
 	-s) spectrum=$2
 	    shift ; shift ;;
-	-c) stage4cuts=$2
+	-c) stage4cuts_mode=$2
 	    # choose auto to automatically choose optimized cuts, or none to not cut
 	    shift ; shift ;;
-	-C) stage5cuts=$2
+	-C) stage5cuts_mode=$2
 	    # same as for stage 4
 	    shift ; shift ;;
 	-b) mode=background # | --background # for BDT background 
 	    configFlags5="-Method=VACombinedEventSelection"  
+	    stage5cuts_mode=none
 	    shift ;;
 	-B|--BDT) # mode options should be used first, before other things that modify stage5 config 
 	    configFlags5="-Method=VACombinedEventSelection -UseBDT=1"
 	    useBDT="true"
-	    stage5cuts=none
+	    stage5cuts_mode=none
 	    weightsDirBase="$2" # can append array to end, e.g. _V5
 	    echo "BDT mode enabled. The argument is the weights directory, if the name contains the string EPOCH that will be replaced by e.g. V5"
 	    # useStage5outputFile="true"
@@ -160,7 +161,7 @@ for i; do
 	    configFlags2="$configFlags2 -HillasFitAlgorithum=2DEllipticalGaussian"
 	    #stage2subDir=stg2_hfit
 	    configFlags4="$configFlags4 -HillasBranchName=HFit"
-	    #stage4cuts="BDT_hfit4cuts.txt"
+	    #stage4cuts_mode="BDT_hfit4cuts.txt"
 	    configFlags5="$configFlags5 -HillasBranchName=HFit"
 	    #suffix="${suffix}_hfit"
 	    shift ;; 
@@ -522,12 +523,12 @@ EOF
 	    fi # disp method 
 	    
 	    # don't reprocess if in queue? add to earlier stages? 
-            if [ "$stage4cuts" == "auto" ]; then
+            if [ "$stage4cuts_mode" == "auto" ]; then
                 cutFlags4="-DistanceUpper=0/${DistanceUpper} -NTubesMin=${NTubesMin} -SizeLower=${SizeLower}"
-            elif [ "$stage4cuts" == "none" ]; then
+            elif [ "$stage4cuts_mode" == "none" ]; then
 		cutFlags4=""
 	    else
-                cutFlags4="-cuts=${stage4cuts}"
+                cutFlags4="-cuts=${stage4cuts_mode}"
             fi
 
 	    if [ -n "$TelCombosToDeny" ]; then # if [ $telCombosToDeny ]
@@ -576,12 +577,12 @@ EOF
 		
 		if [ ! -f $queueFile_5 ]; then
 		    
-		    if [ "$stage5cuts" == "auto" ]; then
+		    if [ "$stage5cuts_mode" == "auto" ]; then
 			cutFlags5="-MeanScaledLengthLower=$MeanScaledLengthLower -MeanScaledLengthUpper=$MeanScaledLengthUpper -MeanScaledWidthLower=$MeanScaledWidthLower -MeanScaledWidthUpper=$MeanScaledWidthUpper -MaxHeightLower=$MaxHeightLower"
-		    elif [ "$stage5cuts" == "none" ]; then
+		    elif [ "$stage5cuts_mode" == "none" ]; then
 			cutFlags5=""
 		    else
-			cutFlags5="-cuts=$stage5cuts"
+			cutFlags5="-cuts=$stage5cuts_mode"
 		    fi
 		    
 		    if [ "$useStage5outputFile" == "true" ]; then
