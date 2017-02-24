@@ -973,7 +973,7 @@ class spectrumPlotter():
             self.t = t
             
             cond = (t['Sig'] > self.energyBinMinSignificance) & (t['Nexcess'] > self.energyBinMinExcess)
-
+            
             self.fluxPoints   = [t['Energy'][cond], t['Flux'][cond], t['Ferror'][cond]]
             self.energyRange  = [t['LowEdge'][cond][0], t['HighEdge'][cond][-1]]
             
@@ -993,6 +993,8 @@ class spectrumPlotter():
         specAn = s6F.Get("Spectrum/VASpectrumAnl")
         specGraph = specAn.GetSpectrumGraph()
         xaxis = specGraph.GetXaxis()
+        #specHist = specAn.GetSpectrumHist()
+        specHist = specAn.GetRebinnedSpectrumHist()
         
         alpha = specAn.GetAlphaHist()
         sig = specAn.GetSigmaHist()
@@ -1000,14 +1002,13 @@ class spectrumPlotter():
         # other spectral analysis objects 
         #hMM = s6F.Get("Spectrum/hMigrationMatrix")
         #hFEH = s6F.Get("Spectrum/hFullExcessHist")
-        #specHist = specAn.GetSpectrumHist()
-        #rebinned_specHist = specAn.GetRebinnedSpectrumHist()
+
 
         # extract the energy points, flux, errors
         npoints = specGraph.GetN()
         E, flux = [], []
-        flux_err = []
-        Elow, Ehigh = [], []
+        flux_err_low, flux_err_high = [], []
+        Elow, Ehigh, Ewidth = [], [], []
         for i in range(npoints):
             tmpE, tmpF = ROOT.Double(0), ROOT.Double(0)
             specGraph.GetPoint(i, tmpE, tmpF)
@@ -1015,19 +1016,23 @@ class spectrumPlotter():
                 continue 
             E.append(tmpE)
             flux.append(tmpF)
-            flux_err.append(specGraph.GetErrorYlow(i))
-            #flux_err.append((specGraph.GetErrorYlow(i)) #, specGraph.GetErrorYhigh(i)))
-            Elow.append(np.power(10, xaxis.GetBinLowEdge(i)))
-            Ehigh.append(np.power(10, xaxis.GetBinUpEdge(i)))
+            flux_err_low.append(specGraph.GetErrorYlow(i))
+            flux_err_high.append(specGraph.GetErrorYhigh(i))
+            Elow.append(np.power(10, specHist.GetBinLowEdge(i)))
+            Ewidth.append(np.power(10, specHist.GetBinWidth(i)))
+            Ehigh.append(Elow[-1] + Ewidth[-1])
                             
     
-                            
+        # put into preferred units
         E = (np.array(E)*u.TeV).to(self.energyUnits).value
         Elow = (np.array(Elow)*u.TeV).to(self.energyUnits).value
         Ehigh = (np.array(Ehigh)*u.TeV).to(self.energyUnits).value
-        flux = (np.array(flux)/u.TeV/u.m/u.m/u.s).to(self.sedUnits).value
-        flux_err = (np.array(flux_err)/u.TeV/u.m/u.m/u.s).to(self.sedUnits).value
-                            
+        flux = (np.array(flux)/u.TeV/u.m**2/u.s).to(self.sedUnits).value
+        flux_err_low = (np.array(flux_err_low)/u.TeV/u.m**2/u.s).to(self.sedUnits).value
+        flux_err_high = (np.array(flux_err_high)/u.TeV/u.m**2/u.s).to(self.sedUnits).value
+        
+        flux_err = np.asarray((flux_err_low, flux_err_high))
+        
         self.fluxPoints = [E, flux, flux_err]
         self.energyRange = [Elow[0], Ehigh[-1]]
 
@@ -1097,8 +1102,10 @@ class spectrumPlotter():
         pltLeg = False
         if label != "":
             pltLeg = True
+                                
                 
         if pltPts:
+            
             plt.errorbar(x = self.fluxPoints[0], 
                          y = self.fluxPoints[1]*self.fluxPoints[0]**self.energyPower, 
                          yerr = self.fluxPoints[2]*self.fluxPoints[0]**self.energyPower, 
