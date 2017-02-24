@@ -1124,8 +1124,8 @@ class spectrumPlotter():
                          edgecolor=c, facecolor=facecolor)
         plt.loglog(nonposy="clip")
         
-        plt.xlabel(self.energyUnits.to_string())
-        plt.ylabel(self.sedUnits.to_string())
+        plt.xlabel("Energy[%s]" % self.energyUnits.to_string())
+        plt.ylabel("E^%s Flux %s" % (self.energyPower,self.sedUnits.to_string()))
 
 
         if pltLeg:
