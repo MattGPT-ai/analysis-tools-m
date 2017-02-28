@@ -1011,7 +1011,8 @@ class spectrumPlotter():
         Elow, Ehigh, Ewidth = [], [], []
         for i in range(npoints):
             tmpE, tmpF = ROOT.Double(0), ROOT.Double(0)
-            specGraph.GetPoint(i, tmpE, tmpF)
+            specGraph.GetPoint(i+1, tmpE, tmpF)
+            print tmpE
             if not tmpE > 0:
                 continue 
             E.append(tmpE)
