@@ -913,7 +913,7 @@ class spectrumPlotter(object):
         self.energyBinMinExcess       = 5.
         
         self.energyPower = 2
-        self.fontsize = 10 
+        self.fontsize = 20 
         
         self.c = 'red' # will be overwritten by kwargs if provided 
         
@@ -982,10 +982,10 @@ class spectrumPlotter(object):
                     self.beta = [b, berr]
             elif line.startswith("   3  E_{0}"):
                 if specFit:
-                    self.E0 = [(float(line.split()[2])*u.TeV).to(self.energyUnits).value, 0]
+                    self.E0 = [(float(line.split()[2])*u.TeV).to(self.energyUnits).value, 0.]
             elif line.startswith("EA: fitFunction initialized"):
                 if specFit:
-                    self.E0 = [0, 0]#[(float(line.split("x/")[1].split(",")[0])*u.TeV).to(self.energyUnits).value, 0]
+                    self.E0 = [0., 0.]#[(float(line.split("x/")[1].split(",")[0])*u.TeV).to(self.energyUnits).value, 0]
             elif "Covariance Matrix:" in line:
                 covMat = True
                 self.cov = []
@@ -1239,7 +1239,12 @@ class spectrumPlotter(object):
             c = v['c'] 
         
         if "norm" in v and "index" in v:
-            label = label + "  N0={0:.2e} G={1:.2f}".format(self.norm[0], self.index[0])
+            #label = label + "  N0={0:.2e} G={1:.2f}".format(self.norm[0], self.index[0])
+            label = (label + ' - N0= {0:.2e} +- {2:.2e}, '\
+                        'gam= {1:.2f} +- {3:.2f}, '\
+                        'E0= {4:.2f}').format(float(self.norm[0]), float(self.index[0]), 
+                                              float(self.norm[1]), self.index[1], self.E0[0])
+
         #else: pltFit = False # cannot plot fit without these params unless fitting is done 
             
 
@@ -1376,7 +1381,7 @@ class spectrumPlotter(object):
         flux_err = np.asarray(fluxPoints[2]) #*self.fluxPoints[0]**self.energyPower
         
         if "E0" in vars(self):
-            E0 = self.E0
+            E0 = self.E0[0]
         else:
             E0 = 1.0 * u.TeV.to(self.energyUnits)
 
@@ -1460,8 +1465,8 @@ class spectrumPlotter(object):
             Ferr = spectrumPlotter.ferr(E, F, N0, N0_err, E0, cov_gg)
 
             fitTitle = (name + ' - N0= {0:.2e} +- {2:.2e}, '\
-                        'gamma= {1:.2f} +- {3:.2f}, '\
-                        'E0: {4:.2f}').format(float(N0), float(gamma),
+                        'gam= {1:.2f} +- {3:.2f}, '\
+                        'E0= {4:.2f}').format(float(N0), float(gamma),
                                               float(N0_err), float(gamma_err), float(E0))
 
         
