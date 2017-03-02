@@ -23,7 +23,7 @@ from wcsaxes import SphericalCircle
 import pyregion
 
 from scipy.stats import norm
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, leastsq
 
 
 
@@ -835,6 +835,7 @@ class sigDistPlotter():
         plt.tight_layout()
 
     def _printGausFit(self):
+        '''Prints the parameters of the Guassian fit in a nice format'''
         self.err = np.sqrt(np.diag(self.pcov))
         text1 = "Mean    = {0:.3f} +/- {1:.3f} \n".format(self.popt[1], self.err[1])
         text2 = "Std Dev = {0:.3f} +/- {1:.3f}".format(self.popt[2], self.err[2])
@@ -858,24 +859,47 @@ class sigDistPlotter():
                 bbox=bbox, fontsize = fontsize)
 
 def round_to_n(x,n=3):
+    '''rounds float to n significant figures
+    returns as int if there are no decimals'''
     val = round(x, n-1-int(np.floor(np.log10(abs(x)))))
     if val.is_integer():
         return int(val)
     else:
         return val
 
-class spectrumPlotter():
+class spectrumPlotter(object):
     '''
-    At the moment this is setup to read in a VEGAS log file and plot out the spectrum.  In time I would like to get
-    the data saved into fits files so it can plot them or read in a root file and use that instead but hey ho!
+    At the moment this is setup to read in a VEGAS log file, ROOT file, or CSV file and plot out the spectrum. 
+    In time I would like to get the data saved into fits files so it can plot them instead but hey ho!
+    New spectrumPlotter instances should be made for each new spectrum
     '''
     
     # define a custom physical type for units
     u.def_physical_type(u.TeV**-1*u.cm**-2*u.s**-1, 'differential flux density')
     u.def_physical_type(u.TeV*u.cm**-2*u.s**-1, 'E2 flux density')
     
+    # define our line fitting function
+    fitfunc = staticmethod( lambda p, x: p[0] + p[1] * (x) ) 
+    errfunc = staticmethod( lambda p, x, y, err: (y - spectrumPlotter.fitfunc(p, x)) / err ) 
+
+    # define our () fitting function; np.log is natural log 
+    fitfuncECPL = staticmethod( lambda p, x: p[0] + p[1] * np.log(x) - (x) / p[2] ) 
+    errfuncECPL = staticmethod( lambda p, x, y, err: (np.log(y) - spectrumPlotter.fitfuncECPL(p, x)) / (err) )
+    fitfuncECPL_CF = staticmethod( lambda N0, gamma, beta, E: N0 + gamma*E - 1.*np.exp(E) / beta )
+
+    #these are just copied from http://fermi.gsfc.nasa.gov/ssc/data/analysis/scitools/python_tutorial.html
+    f = staticmethod( lambda E, N0, E0, gamma: N0*(E/E0)**(-1.*gamma) )
+    ferr = staticmethod( lambda E, F, N0, N0err, E0, cov_gg: \
+                    F*np.sqrt(N0err**2/N0**2 + ((np.log(E/E0))**2)*cov_gg) )
+
+    f_ecpl = staticmethod( lambda E,N0,E0,gamma,beta: N0*(E/E0)**(-1.*gamma)*np.exp(-1.*E/beta) )
+    ferr_ecpl = staticmethod( lambda E, F, N0, N0err, E0, cov_gg, b, cov_bb: \
+                F*np.sqrt(N0err**2/N0**2 + ((np.log(E/E0))**2) * cov_gg + (E/E0)**2 / b**4 * cov_bb) )
+
+    
     def __init__(self, **kwargs):
         """initialize spectrum, setting defaults for units, energy power, etc"""
+        
         self.energyUnits = u.TeV
         self.sedUnits = self.energyUnits**-1 * u.s**-1 * u.cm**-2
         self.e2fluxUnits = self.energyUnits * u.s**-1 * u.cm**-2
@@ -891,8 +915,13 @@ class spectrumPlotter():
         self.energyPower = 2
         self.fontsize = 10 
         
+        self.c = 'red' # will be overwritten by kwargs if provided 
+        
+        self.kwargs = kwargs 
         for key, value in kwargs.items():
-            setattr(self, key, value)    
+            setattr(self, key, value)
+            
+    # init 
             
     
     def printAttr(self):
@@ -1007,6 +1036,9 @@ class spectrumPlotter():
             cond = Column(cond, name='Plot')
             self.t.add_column(cond, index=0)
             
+            return self.t
+    # readVEGASLog
+            
     def readVEGASs6Root(self, rootfilename):
         """Extracts the spectral information from a VEGAS ROOT stage 6 file
         Sets the spectral points and the fit parameter, including the covariance matrix"""
@@ -1104,6 +1136,8 @@ class spectrumPlotter():
             print E
             print Elow
         
+        #self.s6F = s6F
+        s6F.Close()
         
     # ReadVEGASs6Root
     
@@ -1127,14 +1161,17 @@ class spectrumPlotter():
             if len(ns) > 1: # unit is present 
                 try: 
                     unit = u.Unit(ns[1])
+                    #self.t[n].unit = unit 
                     if unit.physical_type in self.unitDict:
                         self.t[n] = (self.t[n]*unit).to(self.unitDict[unit.physical_type]).value
                     else:
-                        print "Could not convert unit in ", n
+                        print "Could not convert unit in ", ns
                         
                 except ValueError:
-                    print "No unit parseable in ", n
+                    print "No unit parseable in ", ns
                     #continue
+                #else:
+                #finally:
 
             # parse out column name, would be nice to have a way to display units in table though
             self.t.rename_column(n, ns[0]) 
@@ -1145,18 +1182,18 @@ class spectrumPlotter():
         if 'Ferror_low' in self.t.colnames and 'Ferror_up' in self.t.colnames:
             flux_err = np.asarray((self.t['Ferror_low'], self.t['Ferror_up']))
         elif 'Ferror' in self.t.colnames:
-            flux_err = np.asarray(self.t['Ferror'])
+            flux_err = np.asarray(self.t['Ferror'], self.t['Ferror'])
         else:
-            flux_err = np.zeros(len(self.t['Energy']))
+            flux_err = np.zeros(shape=(2,len(self.t['Energy'])))
             
         self.fluxPoints   = [self.t['Energy'], self.t['Flux'], flux_err]
         
         if 'LowEdge' in self.t.colnames and 'HighEdge' in self.t.colnames:
-            self.energyRange = [self.t['LowEdge'][0], self.t['HighEdge'][-1]]
+            self.energyRange = (self.t['LowEdge'][0], self.t['HighEdge'][-1])
         else:
             self.energyRange = (self.t['Energy'][0], self.t['Energy'][-1])
         
-        #return self.t
+        return self.t
     # readCSV
     
     
@@ -1167,39 +1204,48 @@ class spectrumPlotter():
         self.calcDecorrelationEnergy()
         
         
-    def _plotCommon(self, legend=True, fontsize=10, **kwargs):
-        plt.plot(self.sigmas[1:], norm.pdf(self.sigmas[1:]) * self.totExcAll, 
-                 color = self.normcolor, label="Normal Distribution")
+    def _plotCommon(self, pltLeg=True, **kwargs):
+        '''Common configuration commands for setting up spectral plots'''
         
-        plt.semilogy(nonposy="clip")
-        ylow, yhigh = plt.gca().get_ylim()
-        ymax = np.nanmax(self.countsAll)
-        if yhigh > (3*ymax):
-            yhigh = round_to_n(3*ymax, 1)
-        plt.ylim(0.5, yhigh)
-        
+        plt.loglog(nonposy="clip")
 
+        plt.xlabel("Energy[%s]" % self.energyUnits.to_string())
+        plt.ylabel("E^%s Flux %s" % (self.energyPower,(self.energyUnits**self.energyPower*self.sedUnits).to_string()))
+        
+        if pltLeg: # plot legend 
+            plt.legend(loc="best", fontsize=self.fontsize,
+               **{key: kwargs[key] for key in kwargs if (key in plt.errorbar.__code__.co_varnames)})
+
+
+    # _plotCommon 
+ 
     
-    def plotSpectrum(self, pltPts=True, pltFit=True, marker="+", ls="--", label="", c="r", 
+    def plotSpectrum(self, pltPts=True, pltFit=True, marker="+", ls="--", label="",  
                      facecolor="none", ncol=1, numpoints=1, **kwargs):
         '''
         This plots the spectrum, at the moment I havent set up kwargs as they need to check to
         pass the correct kwargs to the correct plotting function.
         '''
         
+        # handle arguments 
         pltLeg = False
         if label != "":
             pltLeg = True
                                 
         v = vars(self)
+        if 'c' in kwargs:
+            c = kwargs['c']
+        else:
+            c = v['c'] 
+        
         if "norm" in v and "index" in v:
             label = label + "  N0={0:.2e} G={1:.2f}".format(self.norm[0], self.index[0])
-        #else: pltFit = False
+        #else: pltFit = False # cannot plot fit without these params unless fitting is done 
             
 
         if pltPts: # plot the points 
     
-            plt.errorbar(x = self.fluxPoints[0], 
+            p = plt.errorbar(x = self.fluxPoints[0], 
                          y = self.fluxPoints[1]*self.fluxPoints[0]**self.energyPower, 
                          yerr = self.fluxPoints[2]*self.fluxPoints[0]**self.energyPower, 
                          marker=marker, ls="", label=label, c=c, 
@@ -1211,13 +1257,13 @@ class spectrumPlotter():
         if pltFit: # plot the fit 
             self.calcPowerLawFluxes()
             
-            plt.plot(self.energies, self.energies**self.energyPower*self.flux, 
-                     c=c, ls=ls, label=label)
+            p = plt.plot(self.energies, self.energies**self.energyPower*self.flux, 
+                     c=self.c, ls=ls, label=label)
 
             plt.fill_between(self.energies, 
                              (self.energies**self.energyPower*(self.flux+self.fluxError)), 
                              (self.energies**self.energyPower*(self.flux-self.fluxError)), 
-                             edgecolor=c, facecolor=facecolor)
+                             edgecolor=self.c, facecolor=facecolor)
 
             
         plt.loglog(nonposy="clip")
@@ -1231,6 +1277,7 @@ class spectrumPlotter():
                         **{key: kwargs[key] for key in kwargs 
                             if (key in plt.errorbar.__code__.co_varnames)})
 
+        #return p 
     # plotSpectrum 
 
 
@@ -1251,6 +1298,8 @@ class spectrumPlotter():
         else:
             print ("You have attempted to calculate the decorrelation energy but you don't ")
             print ("have a covariance matrix - rerun to produce this.")
+            
+        #return self.decorrelationEnergy
 
     #these are just copied from http://fermi.gsfc.nasa.gov/ssc/data/analysis/scitools/python_tutorial.html
     def calcPowerLawFlux(self):
@@ -1258,7 +1307,9 @@ class spectrumPlotter():
         calculate the flux at given positions 
         '''
         self.flux = self.norm[0] * (self.energies/self.E0[0])**(-1.*self.index[0])
-                                                             
+        
+        return self.flux 
+    #
 
 
     def calcPowerLawFluxError(self): 
@@ -1280,3 +1331,152 @@ class spectrumPlotter():
             self.calcPowerLawFlux()
         self.fluxError = self.flux * Ferr
 
+        return self.fluxError 
+        
+    
+    def fitPlot(self, name, energyRange=[], ECPL=False, pltPts=False, ls="--", **kwargs):
+        """fit flux points to a curve then plot
+        returns the plt plot object """
+        
+        # use the class member if not provided 
+        if not energyRange:
+            energyRange = self.energyRange
+
+        def points( fp, erange=(float('-inf'),float('inf')) ):
+            """generator of individual points in flux points within energy range"""
+            if len(fp) <=2 or len(fp[0]) != len(fp[1]):
+                print fp
+                print len(fp)
+                print len(fp[0])
+                print len(fp[1])
+                raise ValueError("flux points do not have the proper shape!")
+             
+            n = 0 
+            N = len(fp[0])
+            # yield only points that fit in energy range 
+            while n < N:
+                if fp[0][n] > erange[0] and fp[0][n] < erange[1]:
+                    yield (fp[0][n], fp[1][n], fp[2][0][n],fp[2][1][n])
+                n += 1
+
+        fluxPoints = ( [], [], ([], []) )
+        for point in points(self.fluxPoints, energyRange):
+            for i in xrange(2):
+                fluxPoints[i].append(point[i])
+                fluxPoints[2][i].append(point[2+i])
+        
+        #fluxPoints = np.asarray(fluxPoints)
+        #print fluxPoints
+        #fluxPoints = [point for point in self.fluxPoints if point[0] > energyRange[0] and point[0] < energyRange[1] ]
+        
+        # pull old params from spectrumPlotter 
+        power = self.energyPower 
+        energy = np.asarray(fluxPoints[0])
+        flux = np.asarray(fluxPoints[1]) #*self.fluxPoints[0]**self.energyPower
+        flux_err = np.asarray(fluxPoints[2]) #*self.fluxPoints[0]**self.energyPower
+        
+        if "E0" in vars(self):
+            E0 = self.E0
+        else:
+            E0 = 1.0 * u.TeV.to(self.energyUnits)
+
+        
+        if 'c' in kwargs:
+            c = kwargs['c']
+        else:
+            c = self.c
+        
+        # should find a general solution for allowing args / overrides 
+        #E0=self.E0, power 
+        #**{key: kwargs[key] for key in kwargs 
+            #if (key in plt.errorbar.__code__.co_varnames)}
+
+        logx = np.log(energy/E0)
+        logy = np.log(flux)
+        #logyerr = np.log(flux_err)
+
+
+        if flux_err.shape[0] == 2: 
+            # take the average of up and down errors 
+            flux_err = (flux_err[0] + flux_err[1]) / 2 
+        elif flux_err.shape[0] != 1:
+            raise ValueError("Flux error must be present to perform fit!")
+
+        logyerr = flux_err / flux 
+
+        if ECPL: # power law with exponential cutoff 
+            pinit = [-26, -2.25, 10]
+            out = leastsq(spectrumPlotter.errfuncECPL, pinit,
+                                   args=(energy/E0, flux, flux_err / flux), 
+                                   full_output=1)
+
+        else:
+
+            pinit = [-26, -2.25] # nb ln
+
+            out = leastsq(spectrumPlotter.errfunc, pinit,
+                                   args=(logx, logy, logyerr), 
+                                   full_output=1)
+        # end if else ECPL 
+
+        pfinal = out[0]
+        covar  = out[1]
+        print "parameters:"
+        print pfinal
+        print "covariance matrix"
+        print covar
+
+        N0    = np.exp(pfinal[0])
+        gamma = pfinal[1]
+        E     = np.linspace(energyRange[0], energyRange[-1], num=100)
+
+        if ECPL:
+            beta = pfinal[2]
+
+            F    = spectrumPlotter.f_ecpl(E, N0, E0, -1.*gamma, beta)
+            chi2 = np.sum((flux - spectrumPlotter.f_ecpl(energy, N0, E0, -1.*gamma, beta))**2/flux_err**2) / (len(energy) - 3)
+            print "chi^2: "+str(chi2)+'\n'
+            beta_err  = np.sqrt( covar[2][2] ) * chi2 #* N0  
+            gamma_err = np.sqrt( covar[0][0] ) * chi2
+            N0_err    = np.sqrt( covar[1][1] ) * N0 * chi2
+            cov_gg = gamma_err**2
+            cov_bb = beta_err**2
+            Ferr = spectrumPlotter.ferr_ecpl(E, F, N0, N0_err, E0, cov_gg, beta, cov_bb)
+
+            fitTitle = (name + ' - N0: {0:.2e} +- {2:.2e}, '\
+                        'G: {1:.2f} +- {3:.2f}, '\
+                        'Ec: {4:.2f} +- {5:.2f}, '
+                        'E0: {6:.0f}').format(float(N0), float(gamma),
+                                              float(N0_err), float(gamma_err),
+                                              float(beta), float(beta_err), float(E0))
+
+        else:
+            F    = spectrumPlotter.f(E, N0, E0, -1.*gamma)
+            chi2 = np.sum((flux - spectrumPlotter.f(energy, N0, E0, -1.*gamma))**2 / flux_err**2) / (len(energy) - 2)
+            print chi2 
+            gamma_err = np.sqrt( covar[0][0] ) * chi2
+            N0_err    = np.sqrt( covar[1][1] ) * N0 * chi2
+            cov_gg = gamma_err**2
+            Ferr = spectrumPlotter.ferr(E, F, N0, N0_err, E0, cov_gg)
+
+            fitTitle = (name + ' - N0= {0:.2e} +- {2:.2e}, '\
+                        'gamma= {1:.2f} +- {3:.2f}, '\
+                        'E0: {4:.2f}').format(float(N0), float(gamma),
+                                              float(N0_err), float(gamma_err), float(E0))
+
+        
+        p = plt.plot(E, F * (E)**power, color=c, ls=ls, marker="", label=fitTitle)
+
+        plt.fill_between(E, (E)**power*(F+Ferr), (E)**power*(F-Ferr), color=c, alpha='0.25')
+        if pltPts:
+            plt.errorbar(energy, flux*energy**power, flux_err*energy**power, 
+                    color=c, ls='', marker='_') # ,label=name
+  
+        self._plotCommon(**kwargs)
+
+        return p 
+        
+    # fitPlot 
+        
+        
+# class spectrumPlotter 
