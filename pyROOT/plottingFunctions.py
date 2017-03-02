@@ -25,37 +25,52 @@ import pyregion
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 
-# do not fail if ROOT is not available, but disable features 
-try:
-    import ROOT
-except ImportError:
-    _has_ROOT = False
-else:
-    _has_ROOT = True
-    from ROOT import gROOT, gSystem, TFile, TGraphAsymmErrors, TH1, TF1, TFitResultPtr
-    root_version_major = gROOT.GetVersion()[0]
 
-    # load libraries differently depending on versions
-    # should also check VEGAS / cmake version 
-    if root_version_major == '5':
-        vegasPath = path.expandvars("$VEGAS")
-        gSystem.Load("libTreePlayer.so")
-        gSystem.Load("libPhysics.so")
-        gSystem.Load(vegasPath + "/common/lib/libSP24sharedLite.so")
-        gSystem.Load(vegasPath + "/resultsExtractor/lib/libStage6shared.so")
-        gSystem.AddIncludePath("-Wno-unused -Wno-shadow -Wno-unused-parameter")
-        gROOT.ProcessLine(".L " + vegasPath + "/common/include/VACommon.h")
-        gROOT.ProcessLine(".include " + vegasPath + "/common/include/")
-        gROOT.ProcessLine(".include " + vegasPath + "/resultsExtractor/include/")
-        gROOT.ProcessLine(".include " + vegasPath + "/cfitsio/include/")
-    #elif root_version_major == 6:
-        #ROOT6 stuff 
-    else:
-        print "Root version ", root_version_major, " not supported! Use version 5 or 6!"
-        
-# import ROOT / VEGAS libs 
 
+_has_ROOT = None
+def loadRootVegas():
+    """Attempt to load the ROOT / VEGAS libraries if they haven't been loaded yet"""
+    #global _has_ROOT
+    pass
     
+if _has_ROOT == None:
+    # do not fail if ROOT is not available, but disable features 
+    print "Attempting to import ROOT..."
+    
+    try:
+        import ROOT
+    except ImportError:
+        _has_ROOT = False
+        print "ROOT import failed. You will not be able to use ROOT functionality :("
+    else:
+        _has_ROOT = True
+        from ROOT import gROOT, gSystem, TFile, TGraphAsymmErrors, TH1, TF1, TFitResultPtr
+        root_version_major = gROOT.GetVersion()[0]
+        import root_numpy # try 
+
+        # load libraries differently depending on versions
+        # should also check VEGAS / cmake version 
+        if root_version_major == '5':
+            vegasPath = path.expandvars("$VEGAS")
+            gSystem.Load("libTreePlayer.so")
+            gSystem.Load("libPhysics.so")
+            gSystem.Load(vegasPath + "/common/lib/libSP24sharedLite.so")
+            gSystem.Load(vegasPath + "/resultsExtractor/lib/libStage6shared.so")
+            gSystem.AddIncludePath("-Wno-unused -Wno-shadow -Wno-unused-parameter")
+            gROOT.ProcessLine(".L " + vegasPath + "/common/include/VACommon.h")
+            gROOT.ProcessLine(".include " + vegasPath + "/common/include/")
+            gROOT.ProcessLine(".include " + vegasPath + "/resultsExtractor/include/")
+            gROOT.ProcessLine(".include " + vegasPath + "/cfitsio/include/")
+        #elif root_version_major == 6:
+            #ROOT6 stuff 
+        else:
+            print "Root version ", root_version_major, " not supported! Use version 5 or 6!"
+            _has_ROOT = True
+            
+        print "ROOT import complete"
+                
+# loadRootVegas 
+
 
 #taken from http://nbviewer.jupyter.org/gist/adonath/c9a97d2f2d964ae7b9eb
 ds9b = {'red': lambda v : 4 * v - 1,
@@ -66,7 +81,7 @@ ds9b = {'red': lambda v : 4 * v - 1,
 register_cmap('ds9b', data=ds9b)
 
 plt.rcParams['image.cmap'] = 'ds9b' 
-print "default colormap is now ds9b"
+print "default colormap is now ", plt.rcParams['image.cmap']
 
 def _gaus(x,a,x0,sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
@@ -854,9 +869,21 @@ class spectrumPlotter():
     At the moment this is setup to read in a VEGAS log file and plot out the spectrum.  In time I would like to get
     the data saved into fits files so it can plot them or read in a root file and use that instead but hey ho!
     '''
+    
+    # define a custom physical type for units
+    u.def_physical_type(u.TeV**-1*u.cm**-2*u.s**-1, 'differential flux density')
+    u.def_physical_type(u.TeV*u.cm**-2*u.s**-1, 'E2 flux density')
+    
     def __init__(self, **kwargs):
+        """initialize spectrum, setting defaults for units, energy power, etc"""
         self.energyUnits = u.TeV
         self.sedUnits = self.energyUnits**-1 * u.s**-1 * u.cm**-2
+        self.e2fluxUnits = self.energyUnits * u.s**-1 * u.cm**-2
+        self.unitDict = {
+                            self.energyUnits.physical_type : self.energyUnits , 
+                            self.sedUnits.physical_type : self.sedUnits,
+                            self.e2fluxUnits.physical_type : self.e2fluxUnits
+        }
 
         self.energyBinMinSignificance = 2.
         self.energyBinMinExcess       = 5.
@@ -980,11 +1007,12 @@ class spectrumPlotter():
             cond = Column(cond, name='Plot')
             self.t.add_column(cond, index=0)
             
-    def ReadVEGASs6Root(self, rootfilename):
+    def readVEGASs6Root(self, rootfilename):
         """Extracts the spectral information from a VEGAS ROOT stage 6 file
         Sets the spectral points and the fit parameter, including the covariance matrix"""
 
         verbose = False # set to true to include 
+        loadRootVegas()
         
         # open the file 
         s6F = TFile(rootfilename, "read")
@@ -996,8 +1024,8 @@ class spectrumPlotter():
         #specHist = specAn.GetSpectrumHist()
         specHist = specAn.GetRebinnedSpectrumHist()
         
-        alpha = specAn.GetAlphaHist()
-        sig = specAn.GetSigmaHist()
+        alpha = specAn.GetRebinnedAlphaHist()
+        sig = specAn.GetSigmaHist() # empty, this is calculated in MakeSpectrumGraph()
         
         # other spectral analysis objects 
         #hMM = s6F.Get("Spectrum/hMigrationMatrix")
@@ -1008,21 +1036,21 @@ class spectrumPlotter():
         npoints = specGraph.GetN()
         E, flux = [], []
         flux_err_low, flux_err_high = [], []
-        Elow, Ehigh, Ewidth = [], [], []
+        Elow, Ehigh = [], []
+        alpha = root_numpy.hist2array(alpha)
         for i in range(npoints):
             tmpE, tmpF = ROOT.Double(0), ROOT.Double(0)
             specGraph.GetPoint(i+1, tmpE, tmpF)
-            print tmpE
+            
             if not tmpE > 0:
                 continue 
             E.append(tmpE)
             flux.append(tmpF)
-            flux_err_low.append(specGraph.GetErrorYlow(i))
-            flux_err_high.append(specGraph.GetErrorYhigh(i))
+            flux_err_low.append(specGraph.GetErrorYlow(i+1))
+            flux_err_high.append(specGraph.GetErrorYhigh(i+1))
             Elow.append(np.power(10, specHist.GetBinLowEdge(i)))
-            Ewidth.append(np.power(10, specHist.GetBinWidth(i)))
-            Ehigh.append(Elow[-1] + Ewidth[-1])
-                            
+            #Ewidth.append(np.power(10, specHist.GetBinWidth(i)))
+            Ehigh.append(np.power(10, specHist.GetBinLowEdge(i)+specHist.GetBinWidth(i)))
     
         # put into preferred units
         E = (np.array(E)*u.TeV).to(self.energyUnits).value
@@ -1034,8 +1062,16 @@ class spectrumPlotter():
         
         flux_err = np.asarray((flux_err_low, flux_err_high))
         
+        #cond = (t['Sig'] > self.energyBinMinSignificance) & (t['Nexcess'] > self.energyBinMinExcess)
+        #self.fluxPoints   = [t['Energy'][cond], t['Flux'][cond], t['Ferror'][cond]]
+        #self.energyRange  = [t['LowEdge'][cond][0], t['HighEdge'][cond][-1]]
+        #cond = Column(cond, name='Plot')
+        #self.t.add_column(cond, index=0)
+ 
+                
         self.fluxPoints = [E, flux, flux_err]
-        self.energyRange = [Elow[0], Ehigh[-1]]
+        self.energyRange = (Elow[0], Ehigh[-1])
+                
 
         # now get the fit parameters 
         
@@ -1052,16 +1088,17 @@ class spectrumPlotter():
         var_index = cov(1, 1)
         cov_normindex = cov(0, 1) # == (1, 0)
         
-        N0    = (fitnorm/u.TeV/u.m/u.m/u.s).to(self.sedUnits).value
-        N0err = (np.sqrt(var_norm)/u.TeV/u.m/u.m/u.s).to(self.sedUnits).value
+        N0    = (fitnorm/u.TeV/u.m**2/u.s).to(self.sedUnits).value
+        N0err = (np.sqrt(var_norm)/u.TeV/u.m**2/u.s).to(self.sedUnits).value
         self.norm  = np.array([N0, N0err])
         
         self.E0 = [(normenergy*u.TeV).to(self.energyUnits).value, 0.]
         
         self.index = [np.abs(fitindex), np.sqrt(var_index)]
-        self.cov = [(cov_normindex/u.TeV/u.m/u.m/u.s).to(self.sedUnits).value]
+        self.cov = [(cov_normindex/u.TeV/u.m**2/u.s).to(self.sedUnits).value]
 
-        if verbose:
+        if verbose != False:
+            print len(Elow)
             print self.E0
             print self.index
             print E
@@ -1069,6 +1106,58 @@ class spectrumPlotter():
         
         
     # ReadVEGASs6Root
+    
+    def readCSV(self, filename):
+        """Creates an astropy ascii table from a TAB-separated variable file
+        The top row should specify the names and the units, separated by a space
+        The variable name should generally follow those found in VEGAS log files
+        The units must be in a format parseable by astropy.units
+        Example:
+        Energy TeV	LowEdge TeV	HighEdge TeV	Flux TeV/(cm2.s)	Ferror_low TeV/(cm2.s)	Ferr_up TeV/(cm2.s)	E2F TeV/(m2.s)	E2Ferr_low TeV/(m2.s)	E2Ferr_up TeV/(m2.s)
+        The values should come below in the standard tsv format
+        
+        Units will be automatically converted to your preferred type 
+        """
+
+        self.t = ascii.read(filename)
+
+        for n in self.t.colnames:
+            # parse and adjust units for consistency 
+            ns = n.split()
+            if len(ns) > 1: # unit is present 
+                try: 
+                    unit = u.Unit(ns[1])
+                    if unit.physical_type in self.unitDict:
+                        self.t[n] = (self.t[n]*unit).to(self.unitDict[unit.physical_type]).value
+                    else:
+                        print "Could not convert unit in ", n
+                        
+                except ValueError:
+                    print "No unit parseable in ", n
+                    #continue
+
+            # parse out column name, would be nice to have a way to display units in table though
+            self.t.rename_column(n, ns[0]) 
+    
+        # could look for fit params 
+        
+        # set points 
+        if 'Ferror_low' in self.t.colnames and 'Ferror_up' in self.t.colnames:
+            flux_err = np.asarray((self.t['Ferror_low'], self.t['Ferror_up']))
+        elif 'Ferror' in self.t.colnames:
+            flux_err = np.asarray(self.t['Ferror'])
+        else:
+            flux_err = np.zeros(len(self.t['Energy']))
+            
+        self.fluxPoints   = [self.t['Energy'], self.t['Flux'], flux_err]
+        
+        if 'LowEdge' in self.t.colnames and 'HighEdge' in self.t.colnames:
+            self.energyRange = [self.t['LowEdge'][0], self.t['HighEdge'][-1]]
+        else:
+            self.energyRange = (self.t['Energy'][0], self.t['Energy'][-1])
+        
+        #return self.t
+    # readCSV
     
     
     def calcPowerLawFluxes(self):
@@ -1091,22 +1180,25 @@ class spectrumPlotter():
         
 
     
-    def plotSpectrum(self, pltPts=True, marker="+", ls="--", label="", c="r", 
+    def plotSpectrum(self, pltPts=True, pltFit=True, marker="+", ls="--", label="", c="r", 
                      facecolor="none", ncol=1, numpoints=1, **kwargs):
         '''
         This plots the spectrum, at the moment I havent set up kwargs as they need to check to
         pass the correct kwargs to the correct plotting function.
         '''
         
-        self.calcPowerLawFluxes()
-
         pltLeg = False
         if label != "":
             pltLeg = True
                                 
-                
-        if pltPts:
+        v = vars(self)
+        if "norm" in v and "index" in v:
+            label = label + "  N0={0:.2e} G={1:.2f}".format(self.norm[0], self.index[0])
+        #else: pltFit = False
             
+
+        if pltPts: # plot the points 
+    
             plt.errorbar(x = self.fluxPoints[0], 
                          y = self.fluxPoints[1]*self.fluxPoints[0]**self.energyPower, 
                          yerr = self.fluxPoints[2]*self.fluxPoints[0]**self.energyPower, 
@@ -1116,23 +1208,30 @@ class spectrumPlotter():
             label = "" # this prevents two labels appearing for same plot
         
 
-        plt.plot(self.energies, self.energies**self.energyPower*self.flux, 
-                 c=c, ls = ls, label=label)
+        if pltFit: # plot the fit 
+            self.calcPowerLawFluxes()
             
-        plt.fill_between(self.energies, 
-                         (self.energies**self.energyPower*(self.flux+self.fluxError)), 
-                         (self.energies**self.energyPower*(self.flux-self.fluxError)), 
-                         edgecolor=c, facecolor=facecolor)
+            plt.plot(self.energies, self.energies**self.energyPower*self.flux, 
+                     c=c, ls=ls, label=label)
+
+            plt.fill_between(self.energies, 
+                             (self.energies**self.energyPower*(self.flux+self.fluxError)), 
+                             (self.energies**self.energyPower*(self.flux-self.fluxError)), 
+                             edgecolor=c, facecolor=facecolor)
+
+            
         plt.loglog(nonposy="clip")
-        
+
         plt.xlabel("Energy[%s]" % self.energyUnits.to_string())
-        plt.ylabel("E^%s Flux %s" % (self.energyPower,self.sedUnits.to_string()))
+        plt.ylabel("E^%s Flux %s" % (self.energyPower,(self.energyUnits**self.energyPower*self.sedUnits).to_string()))
 
 
-        if pltLeg:
+        if pltLeg: # plot legend 
             plt.legend(loc="best", ncol=ncol, numpoints=numpoints, fontsize=self.fontsize,
                         **{key: kwargs[key] for key in kwargs 
                             if (key in plt.errorbar.__code__.co_varnames)})
+
+    # plotSpectrum 
 
 
     def calcDecorrelationEnergy(self):
