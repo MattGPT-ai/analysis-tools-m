@@ -1,1 +1,0 @@
-../shellScripts/setCuts.sh
