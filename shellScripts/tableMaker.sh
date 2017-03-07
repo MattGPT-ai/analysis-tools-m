@@ -402,18 +402,17 @@ done # zeniths
 
 offsets=${offsets// /,}
 offsetName=${offsets//./}
-zeniths=${zeniths// /,}
 azimuths=${azimuths// /,}
-combinedFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsetName//,/-}wobb_Z${zeniths//,/-}_std_d${DistanceUpper//./p}
+combinedFileBase=${table}_${model}_${array}_ATM${atm}_${simulation}_vegas254_7sam_${offsetName//,/-}wobb_Z${zeniths//[, ]/-}_std_d${DistanceUpper//./p}
 
 case $table in 
     dt)
 	buildCmd="buildDispTree $dtWidth $dtLength -DTM_Azimuth=${azimuths} -DTM_Zenith=${zeniths} -DTM_Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;;
     lt) 
-	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths} -AbsoluteOffset=${offsets_nospace} -Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;; 
+	buildCmd="buildLTTree -TelID=0,1,2,3 -Azimuth=${azimuths} -Zenith=${zeniths// /,} -AbsoluteOffset=${offsets_nospace} -Noise=${pedVars} $workDir/processed/tables/${combinedFileBase}.root" ;; 
     ea) 
 	test $MaxHeightLower != -100 && MaxHeightLabel="_MH${MaxHeightLower//./p}" || MaxHeightLabel=""
-	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths} -Noise=${pedVars} -AbsoluteOffset=${offsets_nospace} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}${nameExt}.root" # $cuts 
+	buildCmd="buildEATree -Azimuth=${azimuths} -Zenith=${zeniths// /,} -Noise=${pedVars} -AbsoluteOffset=${offsets_nospace} $workDir/processed/tables/${combinedFileBase}_MSW${MeanScaledWidthUpper//./p}_MSL${MeanScaledLengthUpper//./p}${MaxHeightLabel}_ThetaSq${ThetaSquareUpper//./p}${nameExt}.root" # $cuts 
 	
 
 esac # build commands based on table type 
