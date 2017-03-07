@@ -4,6 +4,7 @@ Module for plotting VEGAS results
 compatible with python 2 
 """
 from os import path 
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +15,11 @@ from matplotlib.patches import Ellipse
 from astropy.wcs import WCS
 from astropy.io import fits, ascii
 from astropy import units as u
-from astropy.visualization import MinMaxInterval, SqrtStretch, ImageNormalize, LogStretch
+from astropy.visualization import MinMaxInterval, SqrtStretch, LogStretch
+try: # 
+    from astropy.visualization import ImageNormalize
+except ImportError:
+    from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.convolution import Gaussian2DKernel, convolve_fft
 from astropy.table import Column
 
@@ -25,8 +30,7 @@ import pyregion
 from scipy.stats import norm
 from scipy.optimize import curve_fit, leastsq
 
-
-
+## ROOT / VEGAS ## 
 _has_ROOT = None
 def loadRootVegas():
     """Attempt to load the ROOT / VEGAS libraries if they haven't been loaded yet"""
@@ -46,30 +50,44 @@ if _has_ROOT == None:
         _has_ROOT = True
         from ROOT import gROOT, gSystem, TFile, TGraphAsymmErrors, TH1, TF1, TFitResultPtr
         root_version_major = gROOT.GetVersion()[0]
-        import root_numpy # try 
-
+        try:
+            import root_numpy # try 
+            _has_root_numpy = True
+        except ImportError:
+            _has_root_numpy = False 
+            print "Could not import root_numpy!"
+            
         # load libraries differently depending on versions
-        # should also check VEGAS / cmake version 
-        if root_version_major == '5':
-            vegasPath = path.expandvars("$VEGAS")
-            gSystem.Load("libTreePlayer.so")
-            gSystem.Load("libPhysics.so")
+        # assume Cmake if ROOT6 
+
+        # these don't seem to be necessary, were used in EA notebook
+            #gSystem.Load("libTreePlayer.so")
+            #gSystem.Load("libPhysics.so")
+            #gSystem.AddIncludePath("-Wno-unused -Wno-shadow -Wno-unused-parameter")
+            #gROOT.ProcessLine(".L " + vegasPath+"/common/include/VACommon.h")
+            #gROOT.ProcessLine(".include " + vegasPath+"/common/include/")
+            #gROOT.ProcessLine(".include " + vegasPath+"/resultsExtractor/include/")
+            #gROOT.ProcessLine(".include " + vegasPath+"/cfitsio/include/")
+
+        vegasPath = path.expandvars("$VEGAS")
+        libext = '.so' # linux2
+        if sys.platform == 'darwin': # Mac OS 
+            libext = '.dylib' # dynamic library 
+        if root_version_major == '6': # assume cmake 
+            gSystem.Load(vegasPath + "/lib/libVEGAScommon"+libext)
+            gSystem.Load(vegasPath + "/lib/libVEGASstage6"+libext) 
+        elif root_version_major == '5': # older builds 
             gSystem.Load(vegasPath + "/common/lib/libSP24sharedLite.so")
             gSystem.Load(vegasPath + "/resultsExtractor/lib/libStage6shared.so")
-            gSystem.AddIncludePath("-Wno-unused -Wno-shadow -Wno-unused-parameter")
-            gROOT.ProcessLine(".L " + vegasPath + "/common/include/VACommon.h")
-            gROOT.ProcessLine(".include " + vegasPath + "/common/include/")
-            gROOT.ProcessLine(".include " + vegasPath + "/resultsExtractor/include/")
-            gROOT.ProcessLine(".include " + vegasPath + "/cfitsio/include/")
-        #elif root_version_major == 6:
-            #ROOT6 stuff 
+
         else:
             print "Root version ", root_version_major, " not supported! Use version 5 or 6!"
             _has_ROOT = True
             
         print "ROOT import complete"
                 
-# loadRootVegas 
+# end imports 
+
 
 
 #taken from http://nbviewer.jupyter.org/gist/adonath/c9a97d2f2d964ae7b9eb
@@ -890,7 +908,7 @@ class spectrumPlotter(object):
     #these are just copied from http://fermi.gsfc.nasa.gov/ssc/data/analysis/scitools/python_tutorial.html
     f = staticmethod( lambda E, N0, E0, gamma: N0*(E/E0)**(-1.*gamma) )
     ferr = staticmethod( lambda E, F, N0, N0err, E0, cov_gg: \
-                    F*np.sqrt(N0err**2/N0**2 + ((np.log(E/E0))**2)*cov_gg) )
+                    F*np.sqrt((N0err/N0)**2 + ((np.log(E/E0))**2)*cov_gg) )
 
     f_ecpl = staticmethod( lambda E,N0,E0,gamma,beta: N0*(E/E0)**(-1.*gamma)*np.exp(-1.*E/beta) )
     ferr_ecpl = staticmethod( lambda E, F, N0, N0err, E0, cov_gg, b, cov_bb: \
