@@ -1220,7 +1220,7 @@ class spectrumPlotter(object):
     # _plotCommon 
  
     
-    def plotSpectrum(self, pltPts=True, pltFit=True, marker="+", ls="--", label="",  
+    def plotSpectrum(self, pltPts=True, pltFit=True, norm=[1.00, 0.], label="", marker="+", ls="--",  
                      facecolor="none", ncol=1, numpoints=1, **kwargs):
         '''
         This plots the spectrum, at the moment I havent set up kwargs as they need to check to
@@ -1269,6 +1269,18 @@ class spectrumPlotter(object):
                              (self.energies**self.energyPower*(self.flux+self.fluxError)), 
                              (self.energies**self.energyPower*(self.flux-self.fluxError)), 
                              edgecolor=self.c, facecolor=facecolor)
+            
+            
+            minRatio = self.fluxError[0] / self.flux[0]
+            minE = self.energies[0]
+            for i in xrange(1, len(self.energies)):
+                iRatio = self.fluxError[i] / self.flux[i]
+                if iRatio < minRatio:
+                    minRatio = iRatio
+                    minE = self.energies[i]
+                
+            print "energy that minimizes ratio of error to flux for fit: ", minE
+
 
             
         plt.loglog(nonposy="clip")
@@ -1303,6 +1315,28 @@ class spectrumPlotter(object):
         else:
             print ("You have attempted to calculate the decorrelation energy but you don't ")
             print ("have a covariance matrix - rerun to produce this.")
+        
+        
+        energy = np.asarray(self.fluxPoints[0])
+        flux = np.asarray(self.fluxPoints[1]) #*self.fluxPoints[0]**self.energyPower
+        flux_err = np.asarray(self.fluxPoints[2]) #*self.fluxPoints[0]**self.energyPower
+
+        if flux_err.shape[0] == 2: 
+            # take the average of up and down errors 
+            flux_err = (flux_err[0] + flux_err[1]) / 2 
+
+        
+        # find the energy at which flux error / flux is minimum 
+
+        minRatio = flux_err[0] / flux[0]
+        minE = energy[0]
+        for i in xrange(1, len(energy)):
+            iRatio = flux_err[i] / flux[i]
+            if iRatio < minRatio:
+                minRatio = iRatio
+                minE = energy[i]
+                
+        print "energy that minimizes ratio of error to flux: ", minE
             
         #return self.decorrelationEnergy
 
@@ -1351,9 +1385,6 @@ class spectrumPlotter(object):
             """generator of individual points in flux points within energy range"""
             if len(fp) <=2 or len(fp[0]) != len(fp[1]):
                 print fp
-                print len(fp)
-                print len(fp[0])
-                print len(fp[1])
                 raise ValueError("flux points do not have the proper shape!")
              
             n = 0 
