@@ -73,7 +73,7 @@ for atm in 21 22; do
     dump='cd $VEGAS/resultsExtractor/macros && root -l -b -q "dumpLightCurve.C(\"$outputFileName\")" '
 
     $runMode <<EOF
-$sbatchHeader
+$submitHeader
 #SBATCH -J lc_${sourceName}${ext} 
 #SBATCH -o $logFile
 #SBATCH --time=03:00:00 

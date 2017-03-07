@@ -16,7 +16,7 @@ logInit() { # logFile
     #git --git-dir $VEGAS/.git describe --always
     echo "image ID: $imageID"
 
-    echo "slurm ID: $SLURM_JOBID" 
+    echo "job ID: $SLURM_JOBID" 
     echo "cores assigned to job: $SLURM_JOB_CPUS_PER_NODE" 
 
     bash --version 

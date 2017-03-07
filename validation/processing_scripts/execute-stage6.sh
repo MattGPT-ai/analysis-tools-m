@@ -222,7 +222,7 @@ echo "$cmd"
 if [ "$runMode" != print ]; then
 
     $runMode <<EOF
-$sbatchHeader
+$submitHeader
 #SBATCH --mem=2gb 
 #SBATCH -o $logFile 
 #SBATCH -J s6_${name} 

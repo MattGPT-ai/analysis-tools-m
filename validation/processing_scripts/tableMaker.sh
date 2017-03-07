@@ -10,7 +10,7 @@ source $common_functions
 source $scriptDir/set_params.sh
 
 
-# slurm 
+# job submission parameters 
 time="06:00:00" # may need to be adjusted 
 combineTime="01:30:00"
 mem=4gb # a lot of jobs can get away with 2gb, but 4gb is safer. 1 core is charged per 2gb, so there is no reason to choose 3gb 
@@ -346,7 +346,7 @@ for zenGroup in $zeniths; do
 			test "$runMode" == sbatch && ( test -f "$logFile" && mv $logFile $tableWork/backup/ )
 			
 			$runMode <<EOF 
-$sbatchHeader
+$submitHeader
 #SBATCH -J $tableFileBase
 #SBATCH -o $logFile
 #SBATCH --time=${time}
@@ -491,7 +491,7 @@ if [ $mode == combine ] && [ ! -f $combinedTable ]; then
 
 	[ "$runMode" == sbatch ] && test -f $logFile && mv $logFile $tableWork/backup/ 
 	$runMode <<EOF 
-$sbatchHeader 
+$submitHeader 
 #SBATCH -J combine_$combinedFileBase
 #SBATCH -o $logFile
 #SBATCH --time=${combineTime} 

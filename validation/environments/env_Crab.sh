@@ -57,12 +57,12 @@ export stage2simDir=$scratchDir/sims/stage2 # where stage 2 sims are stored (or 
 ######################
 ### slurm / sbatch ### 
 ######################
-sbatchHeader="#!/bin/bash
+submitHeader="#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --partition=shared"
 if [[ "`hostname`" =~ "cori" ]]; then
     docker_load=''
-    sbatchHeader="$sbatchHeader
+    submitHeader="$submitHeader
 #SBATCH --qos=normal 
 #SBATCH -C haswell"
 fi
@@ -80,7 +80,7 @@ if [ "$use_docker" != false ]; then
     docker_cmd=shifter 
     volumeDirective="--volume=\"$projectDir/:$projectContainer\""
     #volumeDirective="--volume=\"$projectDir/:$projectContainer\" --volume=\"$scratchDir/:$scratchContainer\""
-    sbatchHeader="$sbatchHeader
+    submitHeader="$submitHeader
 #SBATCH --image=docker:registry.services.nersc.gov/${imageID} "
 
     # VEGAS should be set to /software/vegas inside docker image 

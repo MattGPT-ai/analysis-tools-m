@@ -285,7 +285,7 @@ for array in $arrays; do
 		    if [ "$runMode" != print ] && [ "$runBool" == true ]; then 
 			
 			$runMode $redirection <<EOF  
-$sbatchHeader   
+$submitHeader   
 #SBATCH -J ${stages}_${simFileBase}_${stage4subDir} 
 #SBATCH -o $logDir/errors/${simFileBase}.txt  
 #SBATCH --time=$timeStamp 

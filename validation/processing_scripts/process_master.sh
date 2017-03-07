@@ -216,8 +216,8 @@ if [ "$use_docker" == true ] && [ "$runMode" != "print" ]; then
     img_pull=`shifterimg pull docker:registry.services.nersc.gov/$imageID`
     echo $img_pull
     [[ "$img_pull" =~ "READY" ]] || exit 1 
-    # expand on sbatch header 
-    sbatchHeader="$sbatchHeader
+    # expand on submission header 
+    submitHeader="$submitHeader
 #SBATCH --mem=${mem}"
 fi 
 
@@ -244,14 +244,14 @@ for dir in $workDir $laserDir; do
 	fi # processing directories do not exist 
     done # could make common functions for checking dirs
 done # do for both working directory and laser directory 
-subDirs="$stage1subDir $stage2subDir sbatch_out"
+subDirs="$stage1subDir $stage2subDir submit_out"
 [ "$runStage4" == true ] && subDirs="$subDirs $stage4subDir"
 [ "$runStage5" == true ] && subDirs="$subDirs $stage5subDir"
 
 for dir in $processDir $logDir; do
     for subDir in $subDirs; do
 	if [ ! -d $dir/$subDir ]; then
-	    [ "$dir/$subDir" != "$processDir/sbatch_out" ] || continue 
+	    [ "$dir/$subDir" != "$processDir/submit_out" ] || continue 
 	    echo "Must create directory $dir/$subDir"
 	    [ "$runMode" != "print" ] && makeSharedDir $dir/$subDir -p 
 	fi # processing directories do not exist 
@@ -353,7 +353,7 @@ do # loop through loggen file, determine lasers and commands for all stages
 
 
 			    $runMode <<EOF
-$sbatchHeader
+$submitHeader
 #SBATCH -J ${n}.laser
 #SBATCH -o $logFileLaser
 #SBATCH --time=${timeLaser}
@@ -405,7 +405,7 @@ EOF
 		    [ "$runMode" == "sbatch" ] && test -f $logFileLaser && mv $logFileLaser $backupDir/
 		    
 		    $runMode <<EOF
-$sbatchHeader
+$submitHeader
 #SBATCH -J ${combinedLaserName}
 #SBATCH -o $logFileLaser 
 #SBATCH --time=${timeLaser} 
@@ -646,9 +646,9 @@ EOF
 	$get_data 
 
 	$runMode <<EOF
-$sbatchHeader
+$submitHeader
 #SBATCH -J ${runNum}_${stages} 
-#SBATCH -o $logDir/sbatch_out/${runNum}.txt
+#SBATCH -o $logDir/submit_out/${runNum}.txt
 #SBATCH --time=$timeStamp 
 #SBATCH --nice=$priority
 
