@@ -2,6 +2,8 @@
 """
 Module for plotting VEGAS results
 compatible with python 2 
+use with either ROOT5 and GNUmake build of VEGAS
+or ROOT6 / cmake build of VEGAS 
 """
 from os import path 
 import sys
@@ -16,7 +18,7 @@ from astropy.wcs import WCS
 from astropy.io import fits, ascii
 from astropy import units as u
 from astropy.visualization import MinMaxInterval, SqrtStretch, LogStretch
-try: # 
+try: 
     from astropy.visualization import ImageNormalize
 except ImportError:
     from astropy.visualization.mpl_normalize import ImageNormalize
@@ -59,16 +61,6 @@ if _has_ROOT == None:
             
         # load libraries differently depending on versions
         # assume Cmake if ROOT6 
-
-        # these don't seem to be necessary, were used in EA notebook
-            #gSystem.Load("libTreePlayer.so")
-            #gSystem.Load("libPhysics.so")
-            #gSystem.AddIncludePath("-Wno-unused -Wno-shadow -Wno-unused-parameter")
-            #gROOT.ProcessLine(".L " + vegasPath+"/common/include/VACommon.h")
-            #gROOT.ProcessLine(".include " + vegasPath+"/common/include/")
-            #gROOT.ProcessLine(".include " + vegasPath+"/resultsExtractor/include/")
-            #gROOT.ProcessLine(".include " + vegasPath+"/cfitsio/include/")
-
         vegasPath = path.expandvars("$VEGAS")
         libext = '.so' # linux2
         if sys.platform == 'darwin': # Mac OS 
@@ -79,7 +71,6 @@ if _has_ROOT == None:
         elif root_version_major == '5': # older builds 
             gSystem.Load(vegasPath + "/common/lib/libSP24sharedLite.so")
             gSystem.Load(vegasPath + "/resultsExtractor/lib/libStage6shared.so")
-
         else:
             print "Root version ", root_version_major, " not supported! Use version 5 or 6!"
             _has_ROOT = True
@@ -907,8 +898,8 @@ class spectrumPlotter(object):
 
     #these are just copied from http://fermi.gsfc.nasa.gov/ssc/data/analysis/scitools/python_tutorial.html
     f = staticmethod( lambda E, N0, E0, gamma: N0*(E/E0)**(-1.*gamma) )
-    ferr = staticmethod( lambda E, F, N0, N0err, E0, cov_gg: \
-                    F*np.sqrt((N0err/N0)**2 + ((np.log(E/E0))**2)*cov_gg) )
+    ferr = staticmethod( lambda E, F, N0, N0err, E0, cov_gg, cov_Ng: \
+            F*np.sqrt((N0err/N0)**2 + ((np.log(E/E0))**2)*cov_gg + 2*np.log(E/E0)*cov_Ng ) )
 
     f_ecpl = staticmethod( lambda E,N0,E0,gamma,beta: N0*(E/E0)**(-1.*gamma)*np.exp(-1.*E/beta) )
     ferr_ecpl = staticmethod( lambda E, F, N0, N0err, E0, cov_gg, b, cov_bb: \
@@ -934,6 +925,7 @@ class spectrumPlotter(object):
         self.fontsize = 20 
         
         self.c = 'red' # will be overwritten by kwargs if provided 
+        self.sed_function = "powlaw" ##* need to implement this 
         
         self.kwargs = kwargs 
         for key, value in kwargs.items():
@@ -1187,9 +1179,7 @@ class spectrumPlotter(object):
                         
                 except ValueError:
                     print "No unit parseable in ", ns
-                    #continue
-                #else:
-                #finally:
+                    continue
 
             # parse out column name, would be nice to have a way to display units in table though
             self.t.rename_column(n, ns[0]) 
@@ -1297,7 +1287,7 @@ class spectrumPlotter(object):
                     minRatio = iRatio
                     minE = self.energies[i]
                 
-            print "energy that minimizes ratio of error to flux for fit: ", minE
+            print "energy that minimizes ratio of error to flux for powerlaw: ", minE
 
 
             
@@ -1324,7 +1314,8 @@ class spectrumPlotter(object):
         from FERMI OBSERVATIONS OF TeV-SELECTED ACTIVE GALACTIC NUCLEI
         '''
         if "cov" in vars(self):
-            self.decorrelationEnergy = self.E0[0] * np.exp(self.cov[0]/(self.norm[0] * self.index[1]**2))
+            self.decorrelationEnergy = self.E0[0] * np.exp(-self.cov[0]/(self.norm[0] * self.index[1]**2))
+            # derived by minimizing Ferr / F  w.r.t. E (F = dN/dE)
             
             if np.abs(self.E0[0] - self.decorrelationEnergy)/self.decorrelationEnergy > 0.05:
                 print ("You are giving the normalization at {0:.3f}").format(self.E0[0])
@@ -1354,7 +1345,7 @@ class spectrumPlotter(object):
                 minRatio = iRatio
                 minE = energy[i]
                 
-        print "energy that minimizes ratio of error to flux: ", minE
+        print "energy that minimizes ratio of error to flux from points: ", minE
             
         #return self.decorrelationEnergy
 
@@ -1391,14 +1382,31 @@ class spectrumPlotter(object):
         return self.fluxError 
         
     
-    def fitPlot(self, name, energyRange=[], ECPL=False, pltPts=False, ls="--", **kwargs):
+    def fitPlot(self, name, Enorm=None, energyRange=[], ECPL=False, pltPts=False, ls="--", **kwargs):
         """fit flux points to a curve then plot
         returns the plt plot object """
         
-        # use the class member if not provided 
+        # use the class member if argument not provided 
         if not energyRange:
             energyRange = self.energyRange
 
+        if Enorm:
+            E0 = Enorm
+        elif "E0" in vars(self):
+            E0 = self.E0[0]
+        else:
+            E0 = 1.0 * u.TeV.to(self.energyUnits)
+        
+        if 'c' in kwargs:
+            c = kwargs['c']
+        else:
+            c = self.c
+       # should find a general solution for allowing args / overrides 
+       #**{key: kwargs[key] for key in kwargs 
+            #if (key in plt.errorbar.__code__.co_varnames)}
+
+  
+        # build the points for energy, flux, and error that lie within energy range 
         def points( fp, erange=(float('-inf'),float('inf')) ):
             """generator of individual points in flux points within energy range"""
             if len(fp) <=2 or len(fp[0]) != len(fp[1]):
@@ -1419,36 +1427,16 @@ class spectrumPlotter(object):
                 fluxPoints[i].append(point[i])
                 fluxPoints[2][i].append(point[2+i])
         
-        #fluxPoints = np.asarray(fluxPoints)
-        #print fluxPoints
-        #fluxPoints = [point for point in self.fluxPoints if point[0] > energyRange[0] and point[0] < energyRange[1] ]
-        
         # pull old params from spectrumPlotter 
         power = self.energyPower 
         energy = np.asarray(fluxPoints[0])
         flux = np.asarray(fluxPoints[1]) #*self.fluxPoints[0]**self.energyPower
         flux_err = np.asarray(fluxPoints[2]) #*self.fluxPoints[0]**self.energyPower
         
-        if "E0" in vars(self):
-            E0 = self.E0[0]
-        else:
-            E0 = 1.0 * u.TeV.to(self.energyUnits)
-
-        
-        if 'c' in kwargs:
-            c = kwargs['c']
-        else:
-            c = self.c
-        
-        # should find a general solution for allowing args / overrides 
-        #E0=self.E0, power 
-        #**{key: kwargs[key] for key in kwargs 
-            #if (key in plt.errorbar.__code__.co_varnames)}
-
+      
         logx = np.log(energy/E0)
         logy = np.log(flux)
         #logyerr = np.log(flux_err)
-
 
         if flux_err.shape[0] == 2: 
             # take the average of up and down errors 
@@ -1458,6 +1446,8 @@ class spectrumPlotter(object):
 
         logyerr = flux_err / flux 
 
+        
+        ### perform the fit ###
         if ECPL: # power law with exponential cutoff 
             pinit = [-26, -2.25, 10]
             out = leastsq(spectrumPlotter.errfuncECPL, pinit,
@@ -1484,6 +1474,7 @@ class spectrumPlotter(object):
         gamma = pfinal[1]
         E     = np.linspace(energyRange[0], energyRange[-1], num=100)
 
+        # find the flux and its errors 
         if ECPL:
             beta = pfinal[2]
 
@@ -1507,18 +1498,20 @@ class spectrumPlotter(object):
         else:
             F    = spectrumPlotter.f(E, N0, E0, -1.*gamma)
             chi2 = np.sum((flux - spectrumPlotter.f(energy, N0, E0, -1.*gamma))**2 / flux_err**2) / (len(energy) - 2)
-            print chi2 
+            print "chi^2: "+str(chi2)+'\n'
+            # why do we multiply by chi^2 ? 
             gamma_err = np.sqrt( covar[0][0] ) * chi2
             N0_err    = np.sqrt( covar[1][1] ) * N0 * chi2
             cov_gg = gamma_err**2
-            Ferr = spectrumPlotter.ferr(E, F, N0, N0_err, E0, cov_gg)
+            cov_Ng = covar[0][1] * chi2 # == covar[1][0]
+            Ferr = spectrumPlotter.ferr(E, F, N0, N0_err, E0, cov_gg, cov_Ng)
 
             fitTitle = (name + ' - N0= {0:.2e} +- {2:.2e}, '\
                         'gam= {1:.2f} +- {3:.2f}, '\
                         'E0= {4:.2f}').format(float(N0), float(gamma),
                                               float(N0_err), float(gamma_err), float(E0))
 
-        
+        # now plot the fluxes 
         p = plt.plot(E, F * (E)**power, color=c, ls=ls, marker="", label=fitTitle)
 
         plt.fill_between(E, (E)**power*(F+Ferr), (E)**power*(F-Ferr), color=c, alpha='0.25')
@@ -1527,6 +1520,18 @@ class spectrumPlotter(object):
                     color=c, ls='', marker='_') # ,label=name
   
         self._plotCommon(**kwargs)
+    
+        # find the min ratio 
+        minRatio = Ferr[0] / F[0]
+        minE = E[0]
+        for i in xrange(1, len(E)):
+            iRatio = Ferr[i] / F[i]
+            if iRatio < minRatio:
+                minRatio = iRatio
+                minE = E[i]
+
+        print "energy that minimizes ratio of error to flux for fit: ", minE
+
 
         return p 
         
