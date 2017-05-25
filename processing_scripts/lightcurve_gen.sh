@@ -47,6 +47,7 @@ for atm in 21; do
     outputFileName=$workDir/results/${sourceName}_lightCurve${atm}${ext}.root
     s6FileName=$workDir/results/${sourceName}_validation_2013_${box_cuts}_spectrum_rc7_s6.root
     #s6FileName=$workDir/results/${sourceName}_validation_2013${atm}_soft_spectrum_rc7_s6.root
+
     stage5list=$scriptDir/../stage6_runlists/${sourceName}_2013_${box_cuts}_stg5list.txt
     dumpFile=$workDir/results/${sourceName}_2013_lightcurve_points.txt 
 

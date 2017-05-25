@@ -1,0 +1,119 @@
+#!/bin/env python
+
+# Written by Walter Brisken, 2014 Mar 21
+
+from os import popen
+from string import split, strip
+
+verbose = 0
+numExtrema = 7
+
+# telescopeId in [1,2,3,4]
+# returns dictionary mapping CFD to [pixel, FADC board, FADC channel, Lookback time ]
+def getFADC(telescopeId):
+	cmd = 'vdbget_FADCChanSettings -t%d' % telescopeId
+	if verbose > 0:
+		print 'Executing: %s' % cmd
+	data = popen(cmd, 'r').readlines()
+	cfd = -1
+	output = {}
+	for d in data:
+		try:
+			if d[:5] == 'FADC ':
+				s = split(strip(d))
+				fadcBoard = int(s[1])
+				fadcChannel = int(s[3])
+				pixel = int(s[5][:-1])
+				cfd = int(s[11])
+				output[cfd] = [pixel, fadcBoard, fadcChannel]
+			elif d[:17] == '   Lookback Time:':
+				s = split(strip(d))
+				output[cfd].append(int(s[2]))
+			elif d[:16] == '   Channel Type:':
+				s = split(strip(d))
+				if len(s) >= 2:
+					output[cfd].append(s[2]) # index 4
+				else: # vdbget either printed nothing or just spaces for channel type
+					output[cfd].append("emptystring") 
+		except ValueError:
+			print 'Cannot parse: %s' % d
+
+	return output
+
+# returns a list of [threshold, cfd]
+def getThresh(telescopeId):
+	cmd = 'vdbget_CFDSettings -t%d' % telescopeId
+	if verbose > 0:
+		print 'Executing: %s' % cmd
+	data = popen(cmd, 'r').readlines()
+	cfd = -1
+	output = []
+	for d in data:
+		try:
+			s = split(strip(d))
+			if s[0] == 'CFD':
+				cfd = int(s[1])
+			elif s[0] == 'Thresh':
+				output.append([float(s[3]), cfd])
+		except ValueError:
+			print 'Cannot parse: %s' % d
+
+	return output
+
+
+def checkLookback(fadcInfo, N):
+	lookbacks = []
+	keys = fadcInfo.keys()
+
+	for k in keys:
+		lookbacks.append([fadcInfo[k][3], k])
+
+	lookbacks.sort()
+	n = len(lookbacks)
+	
+	print 'Median lookback value = %d' % lookbacks[n/2][0]
+	print '%d lowest lookback values:' % N
+	for i in range(N):
+		cfd = lookbacks[i][1]
+		cfdInfo = fadcInfo[cfd]
+		print '  CFD=%-4d FADC Board=%-3d FADC Channel=%d Pixel=%-3d -> Lookback = %d' % (cfd, cfdInfo[1], cfdInfo[2], cfdInfo[0], cfdInfo[3])
+	print '%d highest lookback values:' % N
+	for i in range(n-N, n):
+		cfd = lookbacks[i][1]
+		cfdInfo = fadcInfo[cfd]
+		print '  CFD=%-4d FADC Board=%-3d FADC Channel=%d Pixel=%-3d -> Lookback = %d' % (cfd, cfdInfo[1], cfdInfo[2], cfdInfo[0], cfdInfo[3])
+
+def checkThresh(threshInfo, fadcInfo, N):
+	threshInfo.sort()
+	n = len(threshInfo)
+	print 'Median threshold = %6.2f mV' % threshInfo[n/2][0]
+	print '%d lowest threshold values: (extremely low values for L2 channels are expected!)' % N
+	for i in range(N):
+		cfd = threshInfo[i][1]
+		cfdInfo = fadcInfo[cfd]
+		print '  Type: %s -\tCFD=%-4d FADC Board=%-3d FADC Channel=%d Pixel=%-3d -> Threshold = %6.2f' % (cfdInfo[4],cfd, cfdInfo[1], cfdInfo[2], cfdInfo[0], threshInfo[i][0])
+	print '%d highest threshold values:' % N
+	for i in range(n-N, n):
+		cfd = threshInfo[i][1]
+		cfdInfo = fadcInfo[cfd]
+		print '  CFD=%-4d FADC Board=%-3d FADC Channel=%d Pixel=%-3d -> Threshold = %6.2f' % (cfd, cfdInfo[1], cfdInfo[2], cfdInfo[0], threshInfo[i][0])
+
+print '\nPlease wait... This takes about 30 seconds _per telescope_ to run...\n'
+print 'What you hope to see is median threshold values of about -45 mV'
+print 'and median lookback times of 3000 samples.'
+print ''
+print 'NOTE - The 4 L2 channels are expected to have very low thresholds, approximately -3000mV'
+print 'To get access to all threshold values for a telescope:\n'
+print '  vdbget_CFDSettings -t<telescopeId>\n'
+print 'and to get access to all lookback values for a telescope:\n'
+print '  vdbget_FADCChanSettings -t<telescopeId>\n'
+print 'where <telescopeId> is 1, 2, 3 or 4.\n'
+print 'Note: please run this on vdac.t1 as user vdaq\n'
+
+for telescopeId in [1,2,3,4]:
+	print '\nTelescope %d' % telescopeId
+	print '-----------'
+	fadcInfo = getFADC(telescopeId)
+	threshInfo = getThresh(telescopeId)
+	checkThresh(threshInfo, fadcInfo, numExtrema)
+	checkLookback(fadcInfo, numExtrema)
