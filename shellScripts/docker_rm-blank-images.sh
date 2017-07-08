@@ -1,3 +1,4 @@
+opt=$@
 
 n=(0)
 docker images | while read -r line; do 
@@ -10,7 +11,7 @@ docker images | while read -r line; do
     imageID=$3
 
     if [ $tag == '<none>' ]; then
-	docker rmi $imageID
+	docker rmi $opt $imageID
 	#echo $imageID
     fi 
         
