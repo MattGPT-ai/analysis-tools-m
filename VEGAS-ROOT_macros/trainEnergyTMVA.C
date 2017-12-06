@@ -24,59 +24,66 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     TString bookBDToptions = "!H:!V:NTrees=400:BoostType=AdaBoost:SeparationType=GiniIndex:nCuts=20:PruneMethod=CostComplexity:PruneStrength=4.5";
     // EVDisp parameters: NTrees=200:AdaBoostBeta=1.0:PruneMethod=CostComplexity:MaxDepth=50:SeparationType=GiniIndex:nTrain_Signal=200000:nTest_Signal=200000
     // options used for disp 
-    bookBDToptions = "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6";
-    //TString trainTestOptions = "";
+    bookBDToptions = "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedBoost:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6";
+    bookBDToptions += ":SeparationType=RegressionVariance:BoostType=AdaBoostR2:UseRandomisedTrees=True";
+    //AdaBoostR2Loss=Linear, Quadratic, Exponential
+    
+    TString trainTestOptions = "nTrain_Regression=500000:nTest_Regression=500000:SplitMode=Random:NormMode=NumEvents:!V";
     // possible options 
-    // ForestType Random
+    //ForestType=Random
 
     TFile* outputFile = TFile::Open(outputFileRoot, "CREATE"); // same as "NEW" - recreate will overwrite existing file 
     //outputFile->SetTitle(outputFileTitle);
 
     // factory creates all MVA methods, and guides them through the training, testing and evaluation phases
     //TString factoryOpts = "";
-    TMVA::Factory* factory = new TMVA::Factory(outputFile->GetTitle(), outputFile, "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification");
+    TMVA::Factory* factory = new TMVA::Factory(outputFile->GetTitle(), outputFile, "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Regression");
 
-    // Load data
-    TMVA::DataLoader *dataloader = new TMVA::DataLoader("dataloader");
-
-    
-    // Define the input variables that shall be used for the MVA training
-    // note that you may also use variable expressions, such as: "3*var1/var2*abs(var3)"
-    // pfSimulatedEvent..
-    dataloader->AddVariable("zenith", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
-    dataloader->AddVariable("azimuth", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
-    // ParameterisedEvents/ParEventsTree/P/vfTels/pfHillasData//$     /dir/Tree/branch/branch/branch//leaf
-    dataloader->AddVariable("P.vfTels.at(0)->fSize", 'F'); // fLength
-    dataloader->AddVariable("width", 'F'); // fWidth
-    dataloader->AddVariable("size", 'F'); // fSize 
-    dataloader->AddVariable("timeGrad", 'F'); // fTimeGradient 
-    dataloader->AddVariable("loss", 'F'); // fLoss
-    //factory->AddVariable(fDist);
-    // "P.vfTels.at(telNum)->fSize"
-    
-    // variable to find with regression 
-    dataloader->AddTarget("energy_GeV"); // fEnergyGeV
-    //factory->AddTarget("energy_GeV"); // fEnergyGeV
-
-    
     // construct the combined TTree from all files in input list 
-    TString treeName = "SelectedEvents/CombinedEventsTree";
+    TString treeName = "Training"; // dir/trainingTree 
     TChain* combinedChain = new TChain(treeName.Data());
     combinedChain = loadChain(simFileListPath.Data(), treeName.Data());
     TTree* regressionTree = static_cast<TTree*>(combinedChain);
+
+    // check for branch 
+    //TBranch* branch = regressionTree->GetBranch(
     
+    // Load data
+    TMVA::DataLoader *dataloader = new TMVA::DataLoader("dataloader");    
+    // add the tree to read variables 
+    dataloader->AddRegressionTree(regressionTree);
+
+     // Define the input variables that shall be used for the MVA training
+    // note that you may also use variable expressions, such as: "3*var1/var2*abs(var3)"
+    // pfSimulatedEvent..
+    dataloader->AddVariable("triggeredSimEvent.fPrimaryZenith", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
+    dataloader->AddVariable("triggeredSimEvent.fPrimaryAzimuth", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
+    // ParameterisedEvents/ParEventsTree/P/vfTels/pfHillasData//$     /dir/Tree/branch/branch/branch//leaf
+    dataloader->AddVariable("triggeredSimEvent.fLength", 'F'); // fLength
+    dataloader->AddVariable("triggeredSimEvent.fWidth", 'F'); // fWidth
+    dataloader->AddVariable("triggeredSimEvent.fSize", 'F'); // fSize 
+    dataloader->AddVariable("triggeredSimEvent.fTimeGrad", 'F'); // fTimeGradient 
+    dataloader->AddVariable("triggeredSimEvent.fLoss", 'F'); // fLoss
+    dataloader->AddVariable("triggeredSimEvent.fDist");
+    //factory->AddVariable("triggeredSimEvent.fDist", 'F');
+    // "P.vfTels.at(telNum)->fSize"
     
+    // variable to find with regression 
+    dataloader->AddTarget("triggeredSimEvent.fEnergyGeV"); // fEnergyGeV
+    //factory->AddTarget("energy_GeV"); // fEnergyGeV
+
+    // not used in training but appear in final testtree 
+    //dataloader->AddSpectator( "spec1 := var1*2",  "Spectator 1", "units", 'F' );
+   
     // basically telling TMVA to randomly choose half the events for training and half for testing
     TCut mycut = "";
-    dataloader->PrepareTrainingAndTestTree( mycut, "nTrain_Regression=5000000:nTest_Regression=2000000:SplitMode=Random:NormMode=NumEvents:!V" );
+    //dataloader->PrepareTrainingAndTestTree( mycut, "nTrain_Regression=5000000:nTest_Regression=2000000:SplitMode=Random:NormMode=NumEvents:!V" );
+    dataloader->PrepareTrainingAndTestTree( mycut, trainTestOptions );
 
     // book the method(s)
     factory->BookMethod(dataloader, TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
     //MethodBase* mb = factory->BookMethod( TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
     //factory->BookMethod( TMVA::Types::kBDT, "TMVA_EnergyEstimator_allWobble2", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6" );
-
-    // add the tree to read variables 
-    dataloader->AddRegressionTree(regressionTree);
 
 
     // Train MVAs using the set of training events
