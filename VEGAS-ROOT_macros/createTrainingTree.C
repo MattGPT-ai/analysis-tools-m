@@ -1,8 +1,9 @@
 // writes a root file with a simplified tree structure for training
 // given a stage 2 simulation ROOT file (GriSUDet)
 
-#include "TTree.h"
-#include "VARootIO.h"
+#include <TTree.h>
+#include <VARootIO.h>
+#include "triggeredSimEvent.h"
 //#include "VAParameterisedEventData.h"
 
 using namespace std;
@@ -10,28 +11,15 @@ using namespace std;
 // provide either a root file or text file with root file paths
 int createTrainingTree(TString infile, TString outfile)
 {
-
-    // set up struct for branch 
-    typedef struct {
-	Float_t fEnergyGeV;
-	Float_t fPrimaryZenithDeg;
-	Float_t fPrimaryAzimuthDeg;
-
-	Float_t fLength;
-	Float_t fWidth;
-	Float_t fSize;
-	Float_t fTimeGradient;
-	Float_t fLoss;
-	Float_t fDist;
-
-    } triggeredSimEvent;
-    // struct triggeredSimEvent {};
-    // alternative is to create TObject 
-    static triggeredSimEvent trigSimEvent; // for writing 
+    //static
+    // initialize variables for filling struct 
+    Float_t fEnergyGeV, fPrimaryZenithDeg, fPrimaryAzimuthDeg, fLength, fWidth, fSize, fTimeGradient, fLoss;
+    triggeredSimEvent trigSimEvent = triggeredSimEvent(); // for writing 
 
     // for branch, if type is other than float, need to specify types with varname/F, for example
-    const char* leafList = "fEnergyGeV:fPrimaryZenithDeg:fPrimaryAzimuthDeg:fLength:fWidth:fSize:fTimeGradient:fLoss:fDist";
-
+    const char* leafList = "fEnergyGeV:fLength:fWidth:fSize";
+    //:fPrimaryZenithDeg:fPrimaryAzimuthDeg:fTimeGradient:fLoss:fDist
+    
     // quality cuts 
     int NTubesMin = 5;
     float distanceUpper = 1.38; // 1.43 [degrees]
@@ -42,11 +30,13 @@ int createTrainingTree(TString infile, TString outfile)
 
     // Create a ROOT Tree
     TTree *trainTree = new TTree("Training","ROOT tree with single training branch");
-    trainTree->Branch("triggeredSimEvent", &trigSimEvent, leafList);
+    //trainTree->Branch("triggeredSimEvent", &trigSimEvent, leafList);
+    trainTree->Branch("fEnergyGeV", &fEnergyGeV, "fEnergyGeV");
+    trainTree->Branch("fLength", &fLength, "fLength");
+    trainTree->Branch("fWidth", &fWidth, "fWidth");
+    trainTree->Branch("fSize", &fSize, "fSize");
     // should make 4 branches for each telescope 
     
-    // initialize variables for filling struct 
-    Float_t fPrimaryZenithDeg, fPrimaryAzimuthDeg, fLength, fWidth, fSize, fTimeGradient, fLoss;
     
     
     //// set up input to connect simulated events to shower events /////
@@ -58,7 +48,7 @@ int createTrainingTree(TString infile, TString outfile)
     if(!pfRootIO->IsOpen())
         {
             cerr << "Couldn't open " << infile << endl;
-            return 1;
+	    return 1;
         }
 
 
@@ -124,8 +114,8 @@ int createTrainingTree(TString infile, TString outfile)
 
     cout << "Building simulation index" << endl;
     paramEventsTree->BuildIndex("fRunNum", "fArrayEventNum");    
-    //paramEventsTree->BuildIndex("P.fRunNumber", "P.fArrayEventNum");
-    //simTree->BuildIndex("fRunNumber", "fArrayEventNum");
+    //paramEventsTree->BuildIndex("P.fRunNum", "P.fArrayEventNum");
+    //simTree->BuildIndex("fRunNum", "fArrayEventNum");
     cout << "done" << endl;
     
 
@@ -139,6 +129,11 @@ int createTrainingTree(TString infile, TString outfile)
 		return 1;
 	    }
 
+	  if(i%1000000 == 0)
+	  {
+	      cout << "event\t" << i <<endl;
+	  }
+	  
 	  // check simData is not null and generated an array event 
 	  if(simData && simData->fTriggeredArray) 
 	    {
@@ -159,17 +154,17 @@ int createTrainingTree(TString infile, TString outfile)
 			 && hillasData->fDist <= distanceUpper){ // && NTubes >= NTubesMin, DistanceUpper
 		      // should i check if event was reconstructed? doubt it 
 		      // now set the appropriate values in the struct before filling tree
-		      trigSimEvent.fLength = hillasData->fLength;
-		      trigSimEvent.fWidth = hillasData->fWidth;
-		      trigSimEvent.fSize = hillasData->fSize;
-		      trigSimEvent.fTimeGradient = hillasData->fTimeGradient;
-		      trigSimEvent.fLoss = hillasData->fLoss;
-		      trigSimEvent.fDist = hillasData->fDist;
+		      fLength = hillasData->fLength;
+		      fWidth = hillasData->fWidth;
+		      fSize = hillasData->fSize;
+		      //fTimeGradient = hillasData->fTimeGradient;
+		      //fLoss = hillasData->fLoss;
+		      //fDist = hillasData->fDist;
 		      
 		      // energy needs to come from simulated event
-		      trigSimEvent.fEnergyGeV = simData->fEnergyGeV;
-		      trigSimEvent.fPrimaryZenithDeg = simData->fPrimaryZenithDeg;
-		      trigSimEvent.fPrimaryAzimuthDeg = simData->fPrimaryAzimuthDeg;
+		      fEnergyGeV = simData->fEnergyGeV;
+		      //fPrimaryZenithDeg = simData->fPrimaryZenithDeg;
+		      //fPrimaryAzimuthDeg = simData->fPrimaryAzimuthDeg;
 		      } // if telescope image is good 
 
 		      // write the event to the tree in new branch 
@@ -210,6 +205,7 @@ int createTrainingTree(TString infile, TString outfile)
 
     // write all (branches) to this file 
     hfile.Write();
+    cout << "tree written to file!" <<endl;
     
     hfile.Close();
     //pfRootIO->Close();

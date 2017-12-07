@@ -1,5 +1,5 @@
 /* macro used for training to find shower energy given (image) parameters 
-   */
+1;95;0c   */
 
 #include <iostream>
 #include "TString.h"
@@ -7,6 +7,7 @@
 //__CLING__
 #include "TMVA/Factory.h"
 //#include "MethodBase.h"
+#include "triggeredSimEvent.h"
 
 #include "loadChain.C"
 //#include "../tmva/test/TMVAGui.C" // deprecated 
@@ -20,16 +21,22 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     gROOT->LoadMacro("loadChain.C");
     
     // options for booking BDT 
-    // 5-16-00 to 5-18-00f
-    TString bookBDToptions = "!H:!V:NTrees=400:BoostType=AdaBoost:SeparationType=GiniIndex:nCuts=20:PruneMethod=CostComplexity:PruneStrength=4.5";
+    TString bookBDToptions;
+    // options used to train disp 
+    bookBDToptions = "!H:V:NTrees=100:nEventsMin=5:BoostType=AdaBoostR2:SeparationType=RegressionVariance:nCuts=20:PruneMethod=CostComplexity:PruneStrength=30";
+    // default options 
+    //bookBDToptions = "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedBoost:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6";
+    // options for regression 
+    //bookBDToptions += ":SeparationType=RegressionVariance:BoostType=AdaBoostR2:UseRandomisedTrees=True";
+    //AdaBoostR2Loss=Linear, Quadratic, Exponential
+
+    // classification options for 5-16-00 to 5-18-00f
+    //TString bookBDToptions = "!H:!V:NTrees=400:BoostType=AdaBoost:SeparationType=GiniIndex:nCuts=20:PruneMethod=CostComplexity:PruneStrength=4.5";
     // EVDisp parameters: NTrees=200:AdaBoostBeta=1.0:PruneMethod=CostComplexity:MaxDepth=50:SeparationType=GiniIndex:nTrain_Signal=200000:nTest_Signal=200000
     // options used for disp 
-    bookBDToptions = "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedBoost:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6";
-    bookBDToptions += ":SeparationType=RegressionVariance:BoostType=AdaBoostR2:UseRandomisedTrees=True";
-    //AdaBoostR2Loss=Linear, Quadratic, Exponential
+
     
     TString trainTestOptions = "nTrain_Regression=500000:nTest_Regression=500000:SplitMode=Random:NormMode=NumEvents:!V";
-    // possible options 
     //ForestType=Random
 
     TFile* outputFile = TFile::Open(outputFileRoot, "CREATE"); // same as "NEW" - recreate will overwrite existing file 
@@ -46,31 +53,35 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     TTree* regressionTree = static_cast<TTree*>(combinedChain);
 
     // check for branch 
-    //TBranch* branch = regressionTree->GetBranch(
+    //TBranch* branch = regressionTree->GetBranch("trigSimEvents");
     
     // Load data
     TMVA::DataLoader *dataloader = new TMVA::DataLoader("dataloader");    
     // add the tree to read variables 
-    dataloader->AddRegressionTree(regressionTree);
+    Double_t regWeight  = 1.0;
+    dataloader->AddRegressionTree(regressionTree, regWeight);
 
+    // set individual event weights (the variables defined in the expression need to exist in the original TTree)
+    //dataloader->SetWeightExpression( "var1", "Regression" );
+    
      // Define the input variables that shall be used for the MVA training
     // note that you may also use variable expressions, such as: "3*var1/var2*abs(var3)"
-    // pfSimulatedEvent..
-    dataloader->AddVariable("triggeredSimEvent.fPrimaryZenith", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
-    dataloader->AddVariable("triggeredSimEvent.fPrimaryAzimuth", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
+    //dataloader->AddVariable("triggeredSimEvent.fPrimaryZenith", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
+    //dataloader->AddVariable("triggeredSimEvent.fPrimaryAzimuth", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
+    dataloader->AddVariable("fLength", 'F');
+    dataloader->AddVariable("fWidth", 'F'); 
+    dataloader->AddVariable("fSize", 'F'); 
+    //dataloader->AddVariable("triggeredSimEvent.fTimeGrad", 'F'); // fTimeGradient 
+    //dataloader->AddVariable("triggeredSimEvent.fLoss", 'F'); // fLoss
+    //dataloader->AddVariable("triggeredSimEvent.fDist");
+
     // ParameterisedEvents/ParEventsTree/P/vfTels/pfHillasData//$     /dir/Tree/branch/branch/branch//leaf
-    dataloader->AddVariable("triggeredSimEvent.fLength", 'F'); // fLength
-    dataloader->AddVariable("triggeredSimEvent.fWidth", 'F'); // fWidth
-    dataloader->AddVariable("triggeredSimEvent.fSize", 'F'); // fSize 
-    dataloader->AddVariable("triggeredSimEvent.fTimeGrad", 'F'); // fTimeGradient 
-    dataloader->AddVariable("triggeredSimEvent.fLoss", 'F'); // fLoss
-    dataloader->AddVariable("triggeredSimEvent.fDist");
-    //factory->AddVariable("triggeredSimEvent.fDist", 'F');
     // "P.vfTels.at(telNum)->fSize"
-    
+
+
+    cout << "adding target!" <<endl;
     // variable to find with regression 
-    dataloader->AddTarget("triggeredSimEvent.fEnergyGeV"); // fEnergyGeV
-    //factory->AddTarget("energy_GeV"); // fEnergyGeV
+    dataloader->AddTarget("fEnergyGeV"); 
 
     // not used in training but appear in final testtree 
     //dataloader->AddSpectator( "spec1 := var1*2",  "Spectator 1", "units", 'F' );
@@ -82,9 +93,21 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
 
     // book the method(s)
     factory->BookMethod(dataloader, TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
-    //MethodBase* mb = factory->BookMethod( TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
-    //factory->BookMethod( TMVA::Types::kBDT, "TMVA_EnergyEstimator_allWobble2", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6" );
+    //factory->BookMethod( TMVA::Types::kBDT, "BDT", "!H:V:NTrees=100:nEventsMin=5:BoostType=AdaBoostR2:SeparationType=RegressionVariance:nCuts=20:PruneMethod=CostComplexity:PruneStrength=30" );
 
+    // other methods to book 
+    //factory->BookMethod( TMVA::Types::kBDT, "TMVA_EnergyEstimator_allWobble2", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6" );
+    //factory->BookMethod( TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=3:NNodesMax=15" );
+
+    //factory->BookMethod( TMVA::Types::kKNN, "KNN", "nkNN=20:ScaleFrac=0.8:SigmaFact=1.0:Kernel=Gaus:UseKernel=F:UseWeight=T:!Trim" );
+    //factory->BookMethod( TMVA::Types::kPDEFoam, "PDEFoam", "!H:!V:MultiTargetRegression=F:TargetSelection=Mpv:TailCut=0.001:VolFrac=0.0666:nActiveCells=500:nSampl=2000:nBin=5:Compress=T:Kernel=None:Nmin=10:VarTransform=None" );
+    //factory->BookMethod( TMVA::Types::kLD, "LD", "!H:!V:VarTransform=None" );
+    //factory->BookMethod( TMVA::Types::kSVM, "SVM", "Gamma=0.25:Tol=0.001:VarTransform=Norm" );
+    //factory->BookMethod( TMVA::Types::kMLP, "MLP", "!H:!V:VarTransform=Norm:NeuronType=tanh:NCycles=20000:HiddenLayers=N+20:TestRate=6:TrainingMethod=BFGS:Sampling=0.3:SamplingEpoch=0.8:ConvergenceImprove=1e-6:ConvergenceTests=15:!UseRegulator" );
+    //MethodBase* mb = factory->BookMethod( TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
+
+    
+    ///// RUN THE TRAINING ///// 
 
     // Train MVAs using the set of training events
     factory->TrainAllMethods();

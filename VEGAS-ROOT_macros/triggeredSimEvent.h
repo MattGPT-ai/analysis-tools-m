@@ -1,7 +1,11 @@
 // data structure containing relevant variables for individual telescope image parameters 
 
 // set up struct for branch 
-typedef struct {
+class triggeredSimEvent : public TObject {
+    //typedef struct {
+ public: // do not use for struct 
+    //triggeredSimEvent();
+    //triggeredSimEvent() = default ;
     Float_t fEnergyGeV;
     Float_t fPrimaryZenithDeg;
     Float_t fPrimaryAzimuthDeg;
@@ -13,6 +17,6 @@ typedef struct {
     Float_t fLoss;
     Float_t fDist;
     
-} triggeredSimEvent;
+}; // triggeredSimEvent
 // struct triggeredSimEvent {};
-// alternative is to create TObject 
+// above form does not work for some reason 
