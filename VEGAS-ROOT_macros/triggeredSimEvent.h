@@ -1,5 +1,8 @@
 // data structure containing relevant variables for individual telescope image parameters 
 
+#ifndef TRIGGEREDSIMEVENT_H
+#define TRIGGEREDSIMEVENT_H
+
 // set up struct for branch 
 class triggeredSimEvent : public TObject {
     //typedef struct {
@@ -20,3 +23,5 @@ class triggeredSimEvent : public TObject {
 }; // triggeredSimEvent
 // struct triggeredSimEvent {};
 // above form does not work for some reason 
+
+#endif // TRIGGEREDSIMEVENT_H

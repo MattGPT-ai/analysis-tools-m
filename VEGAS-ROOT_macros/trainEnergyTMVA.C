@@ -14,21 +14,26 @@
 
 // run the training given a list of ROOT files with training events
 // output to ROOT file with specified path 
-int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root")
+int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root") // option to run diagnostic plots 
 {
 
     // load dependent macros 
     gROOT->LoadMacro("loadChain.C");
+
+    // Default MVA methods to be trained + tested
+    std::map <std::string, bool> Use;
+    
+    // Boosted Decision Trees
+    Use["BDT"]             = false;
+    Use["BDTG"]            = false;
     
     // options for booking BDT 
     TString bookBDToptions;
     // options used to train disp 
     bookBDToptions = "!H:V:NTrees=100:nEventsMin=5:BoostType=AdaBoostR2:SeparationType=RegressionVariance:nCuts=20:PruneMethod=CostComplexity:PruneStrength=30";
+    // -> :minNodeSize=0.2%
     // default options 
     //bookBDToptions = "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedBoost:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6";
-    // options for regression 
-    //bookBDToptions += ":SeparationType=RegressionVariance:BoostType=AdaBoostR2:UseRandomisedTrees=True";
-    //AdaBoostR2Loss=Linear, Quadratic, Exponential
 
     // classification options for 5-16-00 to 5-18-00f
     //TString bookBDToptions = "!H:!V:NTrees=400:BoostType=AdaBoost:SeparationType=GiniIndex:nCuts=20:PruneMethod=CostComplexity:PruneStrength=4.5";
@@ -36,11 +41,12 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     // options used for disp 
 
     
+    //TString trainTestOptions = "SplitMode=Random:NormMode=NumEvents:!V"; // by default splits events in half for training / testing 
     TString trainTestOptions = "nTrain_Regression=500000:nTest_Regression=500000:SplitMode=Random:NormMode=NumEvents:!V";
     //ForestType=Random
 
-    TFile* outputFile = TFile::Open(outputFileRoot, "CREATE"); // same as "NEW" - recreate will overwrite existing file 
-    //outputFile->SetTitle(outputFileTitle);
+    TFile* outputFile = TFile::Open(outputFileRoot, "RECREATE"); // same as "NEW" - recreate will overwrite existing file 
+    //outputFile->SetTitle("trainingOutput");
 
     // factory creates all MVA methods, and guides them through the training, testing and evaluation phases
     //TString factoryOpts = "";
@@ -66,15 +72,16 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     
      // Define the input variables that shall be used for the MVA training
     // note that you may also use variable expressions, such as: "3*var1/var2*abs(var3)"
-    //dataloader->AddVariable("triggeredSimEvent.fPrimaryZenith", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
-    //dataloader->AddVariable("triggeredSimEvent.fPrimaryAzimuth", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
+    //dataloader->AddVariable("triggeredSimEvent.fPrimaryZenithDeg", 'F'); // fPrimaryZenithDeg or fOriginElevationRad
+    dataloader->AddVariable("fPrimaryAzimuthDeg", 'F'); // fPrimaryAzimuthDeg or fOriginAzimuthRad from Hillas data
     dataloader->AddVariable("fLength", 'F');
     dataloader->AddVariable("fWidth", 'F'); 
     dataloader->AddVariable("fSize", 'F'); 
-    //dataloader->AddVariable("triggeredSimEvent.fTimeGrad", 'F'); // fTimeGradient 
-    //dataloader->AddVariable("triggeredSimEvent.fLoss", 'F'); // fLoss
-    //dataloader->AddVariable("triggeredSimEvent.fDist");
-
+    dataloader->AddVariable("fTimeGradient", 'F'); 
+    dataloader->AddVariable("fLoss", 'F'); 
+    dataloader->AddVariable("fDist");
+    //triggeredSimEvent.noise
+    
     // ParameterisedEvents/ParEventsTree/P/vfTels/pfHillasData//$     /dir/Tree/branch/branch/branch//leaf
     // "P.vfTels.at(telNum)->fSize"
 
@@ -93,8 +100,19 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
 
     // book the method(s)
     factory->BookMethod(dataloader, TMVA::Types::kBDT, "BDT_regression_energy", bookBDToptions);
-    //factory->BookMethod( TMVA::Types::kBDT, "BDT", "!H:V:NTrees=100:nEventsMin=5:BoostType=AdaBoostR2:SeparationType=RegressionVariance:nCuts=20:PruneMethod=CostComplexity:PruneStrength=30" );
 
+    
+    // Boosted Decision Trees
+    if (Use["BDT"])
+	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDT",
+			     "!H:!V:NTrees=100:MinNodeSize=1.0%:BoostType=AdaBoostR2:SeparationType=RegressionVariance:nCuts=20:PruneMethod=CostComplexity:PruneStrength=30" );
+    if (Use["BDTG"])
+	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG",
+			     "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedBoost:BaggedSampleFraction=0.5:nCuts=20:MaxDepth=3:MaxDepth=4" );
+    // --------------------------------------------------------------------------------------------------
+    
+
+    
     // other methods to book 
     //factory->BookMethod( TMVA::Types::kBDT, "TMVA_EnergyEstimator_allWobble2", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=6" );
     //factory->BookMethod( TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=2000::BoostType=Grad:Shrinkage=0.1:UseBaggedGrad:GradBaggingFraction=0.5:nCuts=20:MaxDepth=3:NNodesMax=15" );
@@ -126,6 +144,11 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
     std::cout << "==> Wrote root file: " << outputFile->GetName() << std::endl;
     
     delete factory;
+    delete dataloader;
+
+    //if(runDiagnostics)
+    //macroLoader(regressionEnergyBias.C);
+    //regressionEnergyBias(simFileListPath, weightsName)
     
     // Launch the GUI to evaluate 
     if(!gROOT->IsBatch())
@@ -133,6 +156,6 @@ int trainEnergyTMVA(TString simFileListPath, TString outputFileRoot="output.root
 	TMVA::TMVAGui(outputFileRoot);
 	//TMVAGui(outFileName);
     }
-
+    
     return 0;
 } // trainEnergy TMVA
